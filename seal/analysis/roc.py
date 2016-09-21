@@ -283,8 +283,7 @@ def results_table(Units, aroc, pval, tvec, tmin, tmax, prd_len,
     T['sorted index'] = np.argsort(isort)
 
     # Export table as Excel table
-    if excel_writer is not None:
-        T.to_excel(excel_writer, 'AROC', na_rep='N/A', index=False)
-        excel_writer.save()
+    util.save_table(T, excel_writer, sheet_name='AROC',
+                    na_rep='N/A', index=False)
 
     return T

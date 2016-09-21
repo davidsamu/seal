@@ -131,9 +131,9 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
         lbl = '{} (n={} trials)'.format(name, rts.shape[0])
 
         # Plot mean line and SEM area.
-        mean_line = ax.plot(time, meanr, label=lbl)
+        line_col = ax.plot(time, meanr, label=lbl)[0].get_color()
         ax.fill_between(time, meanr-semr, meanr+semr, alpha=0.2,
-                        facecolor=mean_line[0].get_color())
+                        facecolor=line_col, edgecolor=line_col)
 
     # Format plot.
     ax.locator_params(axis='y', nbins=6)

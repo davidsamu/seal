@@ -19,9 +19,15 @@ from elephant import statistics
 from seal.util import plot, util
 
 
+# %% Constants.
+
+ISI_TH = 1.0 * ms  # ISI violation threshold
+WF_T_START = 9  # start INDEX of spiked (aligned by Plexon)
+
+
 # %% Core functions.
 
-def waveform_stats(wfs, wtime, t_start=None):
+def waveform_stats(wfs, wtime):
     """Calculates SNR, amplitude and durations of spike waveforms."""
 
     # SNR: std of mean waveform divided by std of residual waveform (noise).
@@ -30,7 +36,8 @@ def waveform_stats(wfs, wtime, t_start=None):
     snr = np.std(wf_mean) / np.std(wf_std)
 
     # Indices of minimum and maximum times.
-    imin = np.argmin(wfs, 1) if t_start is None else wfs.shape[0] * [t_start]
+    # imin = np.argmin(wfs, 1)  # actual minimum of waveform
+    imin = wfs.shape[0] * [WF_T_START]  # crossing of threshold (Plexon value)
     imax = [np.argmax(w[imin[i]:]) + imin[i] for i, w in enumerate(wfs)]
 
     # Duration: time difference between times of minimum and maximum values.
@@ -39,20 +46,20 @@ def waveform_stats(wfs, wtime, t_start=None):
     wf_dur = wf_tmax - wf_tmin
 
     # Amplitude: value difference between mininum and maximum values.
-    wmin = wfs[np.arange(len(wtime)), imin]
-    wmax = wfs[np.arange(len(wtime)), imax]
+    wmin = wfs[np.arange(len(imin)), imin]
+    wmax = wfs[np.arange(len(imax)), imax]
     wf_amp = wmax - wmin
 
     return snr, wf_amp, wf_dur
 
 
-def isi_stats(spike_times, isi_th=1.0*ms):
+def isi_stats(spike_times):
     """Returns ISIs and some related statistics."""
 
     isi = statistics.isi(spike_times).rescale(ms)
 
     # Percent of spikes violating ISI treshold.
-    n_isi_viol = sum(isi < isi_th)
+    n_isi_viol = sum(isi < ISI_TH)
     percent_isi_viol = 100 * n_isi_viol / isi.size
 
     # Percent of spikes estimated to originate from the sorted single unit.
@@ -62,7 +69,7 @@ def isi_stats(spike_times, isi_th=1.0*ms):
     N = spike_times.size
     T = (spike_times.t_stop - spike_times.t_start).rescale(ms)
     r = n_isi_viol
-    tmax = isi_th
+    tmax = ISI_TH
     tmin = 0.675 * ms  # width of censored period
     tdif = tmax - tmin
     true_spikes = 100*(1/2 + np.sqrt(1/4 - float(r*T / (2*tdif*N**2))))
@@ -85,7 +92,9 @@ def classify_unit(snr, true_spikes=np.nan):
     return unit_type
 
 
-def test(unit, ffig_template):
+# %% Calculate quality metrics.
+
+def test_qm(u, ffig_template):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
     Non-stationarities can happen due to e.g.:
@@ -93,25 +102,51 @@ def test(unit, ffig_template):
     - change in the state of the neuron.
     """
 
-    # %% Init analyses.
-
     # Init values.
-    waveforms = unit.UnitParams['SpikeWaveforms']
-    wavetime = unit.UnitParams['WaveformTime']
-    spike_dur = unit.UnitParams['SpikeDuration']
-    spike_times = unit.UnitParams['SpikeTimes']
-    sampl_per = unit.SessParams['SamplPer']
+    waveforms = u.UnitParams['SpikeWaveforms']
+    wavetime = u.UnitParams['WaveformTime']
+    spike_dur = u.UnitParams['SpikeDuration']
+    spike_times = u.UnitParams['SpikeTimes']
 
     # Waveform statistics.
-    wf_t_start = 9  # align values by threshold crossing (not at minimum time)
-    snr, wf_amp, wf_dur = waveform_stats(waveforms, wavetime, wf_t_start)
-    gmin = min(-2050, np.min(waveforms))  # minimum gain
-    gmax = max(2050, np.max(waveforms))  # maximum gain
+    snr, wf_amp, wf_dur = waveform_stats(waveforms, wavetime)
 
     # ISI statistics.
-    isi_th = 1.0*ms
-    true_spikes, isi_viol = isi_stats(spike_times, isi_th)
+    true_spikes, isi_viol = isi_stats(spike_times)
     unit_type = classify_unit(snr, true_spikes)
+
+    # Add quality metrics to unit.
+    u.QualityMetrics['SNR'] = snr
+    u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
+    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur)
+    u.QualityMetrics['ISIviolation'] = isi_viol
+    u.QualityMetrics['TrueSpikes'] = true_spikes
+    u.QualityMetrics['UnitType'] = unit_type
+
+    # Plot quality metric results.
+    if ffig_template is not None and ffig_template is not '':
+        plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes,
+                unit_type, ffig_template)
+
+    return u
+
+
+# %% Plot quality metrics.
+
+def plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes, unit_type,
+            ffig_template):
+    """Plot quality metrics related figures."""
+
+    # Init values.
+    waveforms = u.UnitParams['SpikeWaveforms']
+    wavetime = u.UnitParams['WaveformTime']
+    spike_dur = u.UnitParams['SpikeDuration']
+    spike_times = u.UnitParams['SpikeTimes']
+    sampl_per = u.SessParams['SamplPer']
+
+    # Waveform parameters
+    gmin = min(-2050, np.min(waveforms))  # minimum gain
+    gmax = max(2050, np.max(waveforms))  # maximum gain
 
     # Time bins and binned waveforms and spike times
     # for statistics over session time.
@@ -130,7 +165,7 @@ def test(unit, ffig_template):
     sp_times_binned = [spike_times[sp_idx] for sp_idx in sp_idx_binned]
 
     # Trial markers
-    trms = unit.TrialParams.TrialStart[9::10]
+    trms = u.TrialParams.TrialStart[9::10]
     tr_markers = dict((tr_i+1, tr_t) for tr_i, tr_t in zip(trms.index, trms))
 
     # %% Init plots.
@@ -144,14 +179,15 @@ def test(unit, ffig_template):
     ax_snr, ax_rate, ax_isi = sp[0, 2], sp[1, 2], sp[2, 2]
 
     # Common variables, limits and labels.
-    sp_t = range(-wf_t_start, waveforms.shape[1]-wf_t_start) * sampl_per
+    sp_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
+    sp_t = sp_i * sampl_per
     ses_t_lim = [t_start, t_stop]
     ss = 1.0  # marker size on scatter plot
     sa = 0.5  # marker alpha on scatter plot
     glim = [gmin, gmax]  # gain axes limit
     # g_lim = [np.min(waveforms), np.max(waveforms)] # alternative gain limit
     wf_t_lim = [min(sp_t), max(sp_t)]
-    dur_lim = [0*us, wavetime[-1] - wavetime[wf_t_start]]  # same across units
+    dur_lim = [0*us, wavetime[-1] - wavetime[WF_T_START]]  # same across units
     # dur_lim = [0*us, np.max(wf_dur)]  # for unit-wise duration limit
     amp_lim = [0, gmax - gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
 
@@ -164,6 +200,7 @@ def test(unit, ffig_template):
     sp_order = np.array(range(len(spike_times)))
     np.random.shuffle(sp_order)
 
+    # Common labels for plots
     wf_t_lab = 'Waveform time ($\mu$s)'
     ses_t_lab = 'Session time (s)'
     volt_lab = 'Voltage (normalized)'
@@ -247,7 +284,7 @@ def test(unit, ffig_template):
                      ax=ax_rate)
 
     # Interspike interval distribution
-    isi_viols = np.array([isi_stats(spt, isi_th)[1]
+    isi_viols = np.array([isi_stats(spt)[1]
                           for spt in sp_times_binned])
     ylab = 'ISI violations (%)'
     title = ('ISI violations: {:.2f}%'.format(isi_viol) +
@@ -261,18 +298,8 @@ def test(unit, ffig_template):
     # %% Save figure and metrics
 
     # Format and save figure
-    fig_title = '{}: "{}"'.format(unit.Name, unit_type)
+    fig_title = '{}: "{}"'.format(u.Name, unit_type)
     fig.suptitle(fig_title, y=0.98, fontsize='xx-large')
     gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.94])
-    ffig = ffig_template.format(unit.name_to_fname())
+    ffig = ffig_template.format(u.name_to_fname())
     plot.save_fig(fig, ffig)
-
-    # Add quality metrics to unit.
-    unit.QualityMetrics['SNR'] = snr
-    unit.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    unit.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur)
-    unit.QualityMetrics['ISIviolation'] = isi_viol
-    unit.QualityMetrics['TrueSpikes'] = true_spikes
-    unit.QualityMetrics['UnitType'] = unit_type
-
-    return unit

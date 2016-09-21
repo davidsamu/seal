@@ -55,6 +55,14 @@ def write_objects(obj_dict, f):
     pickle.dump(obj_dict, open(f, 'wb'))
 
 
+def write_table(dataframe, excel_writer, **kwargs):
+    """Write out Pandas dataframe as Excel table."""
+
+    if excel_writer is not None:
+        dataframe.to_excel(excel_writer, **kwargs)
+        excel_writer.save()
+
+
 def get_latest_file(dir_name, ext='.data'):
     """Return name of latest file from folder."""
 

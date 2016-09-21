@@ -33,12 +33,12 @@ class Unit:
         self.Name = ''
         self.SessParams = OrdDict()
         self.UnitParams = OrdDict()
-        self.QualityMetrics = dict()
+        self.QualityMetrics = OrdDict()
         self.TrialParams = DataFrame()
         self.ExpSegments = OrdDict()
         self.Events = DataFrame()
         self.Spikes = []
-        self.Rates = dict()
+        self.Rates = OrdDict()
         self.t_start = t_start
         self.t_stop = t_stop
 
@@ -47,7 +47,12 @@ class Unit:
             return
 
         # Extract session parameters.
-        [monkey, dateprobe, exp, sortno] = TPLCell.File[:-4].split('_')
+        file_parts = TPLCell.File[:-4].split('_')
+        if len(file_parts) == 4:
+            [monkey, dateprobe, exp, sortno] = file_parts
+        else:  # this a test case
+            [monkey, dateprobe, exp, sortno, my_name, test] = file_parts
+
         [date, probe] = [dateprobe[0:6], dateprobe[6:].upper()]
         [chan, un] = TPLCell.ChanUnit
         self.Name = 'Unit {:0>3}  '.format(i)
@@ -55,18 +60,17 @@ class Unit:
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
 
         self.SessParams = OrdDict()
+        self.SessParams['experiment'] = exp
         self.SessParams['monkey'] = monkey
         self.SessParams['date'] = date
         self.SessParams['probe'] = probe
-        self.SessParams['experiment'] = exp
         self.SessParams['channel #'] = chan
         self.SessParams['unit #'] = un
         self.SessParams['sort #'] = int(sortno)
-        self.SessParams['Filepath'] = TPLCell.Filename
-        self.SessParams['Filename'] = TPLCell.File
-        self.SessParams['PInfo'] = [p.tolist() if isinstance(p, np.ndarray)
-                                    else p for p in TPLCell.PInfo]
-
+        self.SessParams['filepath'] = TPLCell.Filename
+        self.SessParams['filename'] = TPLCell.File
+        self.SessParams['paraminfo'] = [p.tolist() if isinstance(p, np.ndarray)
+                                        else p for p in TPLCell.PInfo]
         sampl_per = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         self.SessParams['SamplPer'] = sampl_per
 
@@ -141,7 +145,50 @@ class Unit:
         fname = util.format_to_fname(self.Name)
         return fname
 
-    def set_params(self, trials=None, t1=None, t2=None):
+    def get_unit_params(self):
+        """Return main unit parameters."""
+
+        def get_val(dic, key):
+            if key in dic.keys():
+                return dic[key]
+            else:
+                return None
+
+        # Recording parameters.
+        unit_params = OrdDict()
+        sp = self.SessParams
+        unit_params['Name'] = self.Name
+        unit_params['experiment'] = get_val(sp, 'experiment')
+        unit_params['monkey'] = get_val(sp, 'monkey')
+        unit_params['date'] = get_val(sp, 'date')
+        unit_params['probe'] = get_val(sp, 'probe')
+        unit_params['channel #'] = get_val(sp, 'channel #')
+        unit_params['unit #'] = get_val(sp, 'unit #')
+        unit_params['sort #'] = get_val(sp, 'sort #')
+        unit_params['filepath'] = get_val(sp, 'filepath')
+        unit_params['filename'] = get_val(sp, 'filename')
+
+        # Quality metrics.
+        qm = self.QualityMetrics
+        unit_params['MeanWfAmplitude'] = get_val(qm, 'MeanWfAmplitude')
+        unit_params['MeanWfDuration'] = get_val(qm, 'MeanWfDuration')
+        unit_params['SNR'] = get_val(qm, 'SNR')
+        unit_params['ISIviolation_%'] = get_val(qm, 'ISIviolation')
+        unit_params['TrueSpikes_%'] = get_val(qm, 'TrueSpikes')
+        unit_params['UnitType'] = get_val(qm, 'UnitType')
+
+        # Stimulus response properties.
+        up = self.UnitParams
+        unit_params['pref_dir_S1'] = get_val(get_val(up, 'PrefDir'), 'S1')
+        unit_params['pref_dir_S2'] = get_val(get_val(up, 'PrefDir'), 'S2')
+        unit_params['pref_dir_coarse_S1'] = get_val(get_val(up, 'PrefDirCoarse'), 'S1')
+        unit_params['pref_dir_coarse_S2'] = get_val(get_val(up, 'PrefDirCoarse'), 'S2')
+        # TODO: add index of direction discrimination
+        # also add 'antipreferred' direction?
+
+        return unit_params
+
+    def get_trial_params(self, trials=None, t1=None, t2=None):
         """Return default values of some common parameters."""
 
         if trials is None:
@@ -171,7 +218,7 @@ class Unit:
     def all_trials(self):
         """Return indices of all trials."""
 
-        tr_idxs = np.ones(len(self.Spikes.n_trials), dtype=bool)
+        tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
         trials = [Trials(tr_idxs, 'all trials')]
         return trials
 
@@ -263,7 +310,7 @@ class Unit:
 
         # Rename trials.
         if len(trials) == 1:
-            trials[0].name = trials[0].name[0:2] + ' pref'
+            trials[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' pref'
 
         return trials
 
@@ -278,7 +325,7 @@ class Unit:
 
         # Rename trials.
         if len(trials) == 1:
-            trials[0].name = trials[0].name[0:2] + ' anti'
+            trials[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' anti'
 
         return trials
 
@@ -374,7 +421,7 @@ class Unit:
         """Prepare plotting parameters."""
 
         # Get trial params.
-        trials, t1, t2 = self.set_params(trials, t1, t2)
+        trials, t1, t2 = self.get_trial_params(trials, t1, t2)
         names = [tr.name for tr in trials]
 
         # Get spikes.

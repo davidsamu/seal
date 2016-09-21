@@ -1,5 +1,6 @@
 from setuptools import setup
 
+
 def readme():
     with open('README.rst') as f:
         return f.read()
@@ -11,10 +12,10 @@ setup(name='seal',
       long_description=readme(),
       classifiers=[
         'Development Status :: 3 - Alpha',
-	'Intended Audience :: Science/Research',
-	'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)'
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)'
         'Programming Language :: Python :: 3.5',
-        'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering'
       ],
       keywords='neurophysiology electrophysiology spike spectral analysis',
       url='http://github.com/davidsamu/seal',
@@ -25,13 +26,13 @@ setup(name='seal',
       packages=['seal', 'seal/analysis', 'seal/object', 'seal/test', 'seal/util'],
       install_requires=[
         'numpy',       # core
-	'scipy',
-	'pandas',
-	'sklearn',
-	'matplotlib',
-	'quantities',  # neurophy
-	'neo',
-	'elephant',		  
+        'scipy',
+        'pandas',
+        'sklearn',
+        'matplotlib',
+        'quantities',  # neurophy
+        'neo',
+        'elephant',
       ],
 
       test_suite='nose.collector',
@@ -42,4 +43,3 @@ setup(name='seal',
       include_package_data=True,
       zip_safe=False
 )
-
