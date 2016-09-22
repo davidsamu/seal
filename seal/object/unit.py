@@ -12,7 +12,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 from pandas import DataFrame
-from quantities import s, ms, us, deg, rad, Hz
+from quantities import s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import plot, util
@@ -84,6 +84,9 @@ class Unit:
         t_max = np.max(TPLCell.Spikes)
         self.UnitParams['SpikeTimes'] = SpikeTrain(TPLCell.Spikes*s,
                                                    t_start=0*s, t_stop=t_max)
+        self.UnitParams['PrefDir'] = OrdDict()
+        self.UnitParams['PrefDirCoarse'] = OrdDict()
+        self.UnitParams['DirSelectivity'] = OrdDict()
 
         # Trial parameters.
         self.TrialParams = DataFrame(TPLCell.TrialParams,
@@ -131,11 +134,11 @@ class Unit:
         self.Spikes = Spikes(spk_trains, t_start, t_stop)
 
         # Estimate firing rate per trial.
-        self.Rates = dict([(name, Rate(kernel, self.Spikes.get_spikes(), step))
-                           for name, kernel in kernels.items()])
+        self.Rates = OrdDict([(name, Rate(kernel, self.Spikes.get_spikes(), step))
+                              for name, kernel in kernels.items()])
 
         # Calculate preferred direction.
-        self.calc_pref_dir()
+        # self.test_direction_selectivity()
 
     # %% Utility methods.
 
@@ -179,12 +182,13 @@ class Unit:
 
         # Stimulus response properties.
         up = self.UnitParams
+        unit_params['dir_selectivity_S1'] = get_val(get_val(up, 'DirSelectivity'), 'S1')
+        unit_params['dir_selectivity_S2'] = get_val(get_val(up, 'DirSelectivity'), 'S2')
         unit_params['pref_dir_S1'] = get_val(get_val(up, 'PrefDir'), 'S1')
         unit_params['pref_dir_S2'] = get_val(get_val(up, 'PrefDir'), 'S2')
         unit_params['pref_dir_coarse_S1'] = get_val(get_val(up, 'PrefDirCoarse'), 'S1')
         unit_params['pref_dir_coarse_S2'] = get_val(get_val(up, 'PrefDirCoarse'), 'S2')
         # TODO: add index of direction discrimination
-        # also add 'antipreferred' direction?
 
         return unit_params
 
@@ -294,7 +298,7 @@ class Unit:
 
         # Get trials for direction + each offset value.
         degs = [util.deg_mod(direction + offset) for offset in offsets]
-        deg_dict = dict([(pn, degs) for pn in pname])
+        deg_dict = OrdDict([(pn, degs) for pn in pname])
         trials = self.trials_by_comb_params(deg_dict, comb_params, comb_values)
 
         return trials
@@ -372,48 +376,82 @@ class Unit:
 
     # %% Methods to calculate tuning curves and preferred feature values.
 
-    def calc_pref_dir(self):
+    def calc_mean_response(self, pname, t1, t2):
+        """Calculate mean response to different values of trial parameter."""
+
+        # Get trials for each parameter value.
+        trials = self.trials_by_param_values(pname)
+
+        # Calculate binned spike count per value.
+        p_values = [tr.value for tr in trials]
+        mean_sp_count = np.array([self.Spikes.avg_n_spikes(tr, t1, t2)
+                                  for tr in trials])
+
+        return p_values, mean_sp_count
+
+    def calc_dir_response(self, stim):
+        """Calculate mean response to each direction during given stimulus."""
+
+        # Calculate binned spike count per direction.
+        pname = stim + 'Dir'
+        t1, t2 = self.ExpSegments[stim]
+        dirs, mean_sp_count = self.calc_mean_response(pname, t1, t2)
+
+        return dirs, mean_sp_count
+
+    def test_direction_selectivity(self, stims=['S1', 'S2'], ffig_tmpl=None):
         """
-        Calculate 'precise' and 'coarse' preferred directions
-        during each segment.
+        Test direction selectivity of unit by
+        - calculating direction selectivity index, and
+        - plotting response to each direction on polar plot.
         """
 
-        self.UnitParams['PrefDir'] = dict()
-        self.UnitParams['PrefDirCoarse'] = dict()
+        # Init for multi-stimulus plotting.
+        ax = plot.axes(polar=True)
+        colors = ['m', 'g']  # plot.get_colors_from_cycle()
+        patches = []
+        for stim, color in zip(stims, colors):
 
-        for nstim, (t1, t2) in self.ExpSegments.items():
+            # Init of direction.
+            self.UnitParams['PrefDir'][stim] = OrdDict()
+            self.UnitParams['PrefDirCoarse'][stim] = OrdDict()
 
-            self.UnitParams['PrefDir'][nstim] = dict()
-            self.UnitParams['PrefDirCoarse'][nstim] = dict()
+            # Get mean response to each direction.
+            dirs, mean_sp_count = self.calc_dir_response(stim)
 
-            # TODO: this should not be hardcoded!
-            pname = 'S1Dir' if nstim == 'S1' else 'S2Dir'
+            # Calculate preferred direction and direction selectivity index.
+            ds_idx, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_sp_count)
 
-            # Get list of all directions and their trials.
-            trials = self.trials_by_param_values(pname)
-            dirs = [pt.value for pt in trials]
+            # Add calculated values to unit.
+            self.UnitParams['PrefDir'][stim] = pref_dir
+            self.UnitParams['PrefDirCoarse'][stim] = pref_dir_c
+            self.UnitParams['DirSelectivity'][stim] = ds_idx
 
-            # Calculate binned spike count per direction.
-            mean_sp_count = [self.Spikes.avg_n_spikes(tr, t1, t2)
-                             for tr in trials]
+            # Plot direction selectivity.
+            plot.direction_selectivity(dirs, mean_sp_count, ds_idx, pref_dir,
+                                       color=color, ax=ax)
 
-            # Convert directions to Cartesian unit vectors.
-            cart_dirs = np.array([util.pol2cart(1, d.rescale(rad))
-                                  for d in dirs])
-            # Calculate mean along each dimension.
-            x_mean = np.average(cart_dirs[:, 0], weights=mean_sp_count)
-            y_mean = np.average(cart_dirs[:, 1], weights=mean_sp_count)
-            # Re-convert into angle in degrees.
-            rho, phi = util.cart2pol(x_mean, y_mean)
-            phi_deg = (phi*rad).rescale(deg)
-            pdir = phi_deg if phi_deg >= 0 else phi_deg + 360*deg
-            # Coarse to one of the directions used in the experiment.
-            deg_diffs = np.array([util.deg_diff(d, pdir) for d in dirs])
-            pdir_c = dirs[np.argmin(deg_diffs)]
+            # Collect stimulus params.
+            s_pd = str(float(round(pref_dir, 1)))
+            s_pd_c = str(int(pref_dir_c))
+            lgd_lbl = '{}: \t  {:.3f}'.format(stim, ds_idx)
+            lgd_lbl += ' \t{:>5} \t\t {:>3}'.format(s_pd, s_pd_c)
+            lgd_lbl = lgd_lbl.expandtabs()
+            patches.append(plot.get_proxy_patch(lgd_lbl, color))
 
-            # Register values.
-            self.UnitParams['PrefDir'][nstim] = pdir
-            self.UnitParams['PrefDirCoarse'][nstim] = pdir_c
+        # Set labels
+        plot.set_labels(title=self.Name, ytitle=1.10, ax=ax)
+
+        # Set legend
+        lgd_ttl = '\t\t\t DSI \t PD (deg)   PD8 (deg)'.expandtabs()
+        lgd = plot.set_legend(ax, handles=patches, title=lgd_ttl,
+                              bbox_to_anchor=(0., -0.30, 1., .0),
+                              loc='lower center')
+
+        # Save figure
+        if ffig_tmpl is not None:
+            ffig = ffig_tmpl.format(self.name_to_fname())
+            plot.save_fig(ffig=ffig, bbox_extra_artists=(lgd,))
 
     # %% Plotting methods.
 

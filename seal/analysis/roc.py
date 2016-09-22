@@ -238,7 +238,7 @@ def plot_AROC_results(Units, aroc, tvec, nrate, offsets,
             ax.axhline(y, color='k', linestyle=':', alpha=0.5, lw=0.5)
 
         # Plot AROC
-        plot.lines(aroc[i, :], tvec, ylim=[0, 1], xlab='Time (ms)',
+        plot.lines(tvec, aroc[i, :], ylim=[0, 1], xlab='Time (ms)',
                    ylab='AROC', ax=ax, color='m')
         plot.plot_segments(unit.ExpSegments, t_unit=ms, ax=ax)
         ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])

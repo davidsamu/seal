@@ -212,7 +212,7 @@ def plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes, unit_type,
     # All waveforms over spike time.
     wfs = np.transpose(waveforms)
     title = 'All waveforms, n = {} spikes'.format(waveforms.shape[0])
-    plot.lines(wfs, sp_t, xlim=wf_t_lim, ylim=glim, color='g', alpha=0.005,
+    plot.lines(sp_t, wfs, xlim=wf_t_lim, ylim=glim, color='g', alpha=0.005,
                title=title, xlab=wf_t_lab, ylab=volt_lab,
                ax=ax_wf_all)
 
@@ -265,7 +265,7 @@ def plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes, unit_type,
     snr_sd = np.std(snr_t)
     title = 'SNR: {:.2f} $\pm$ {:.2f}'.format(snr, snr_sd)
     ylim = [0, 1.1*np.max(snr_t)]
-    plot.lines(snr_t, tbin_vals, c='y', xlim=ses_t_lim, ylim=ylim,
+    plot.lines(tbin_vals, snr_t, c='y', xlim=ses_t_lim, ylim=ylim,
                title=title, xlab=ses_t_lab, ylab='SNR',
                ax=ax_snr)
     plot.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=tr_alpha,
@@ -277,7 +277,7 @@ def plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes, unit_type,
     srate = float(np.std(rates))
     title = 'Firing rate: {:.1f} $\pm$ {:.1f} spike/s'.format(mrate, srate)
     ylim = [0, 1.1*np.max(rates.magnitude)]
-    plot.lines(rates, tbin_vals, c='b', xlim=ses_t_lim, ylim=ylim,
+    plot.lines(tbin_vals, rates, c='b', xlim=ses_t_lim, ylim=ylim,
                title=title, xlab=ses_t_lab, ylab='Firing rate (spike/s)',
                ax=ax_rate)
     plot.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=tr_alpha,
@@ -290,7 +290,7 @@ def plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes, unit_type,
     title = ('ISI violations: {:.2f}%'.format(isi_viol) +
              ', true spikes: {:.1f}%'.format(true_spikes))
     ylim = [0, 1.1*np.max(isi_viols)]
-    plot.lines(isi_viols, tbin_vals, c='r', xlim=ses_t_lim, ylim=ylim,
+    plot.lines(tbin_vals, isi_viols, c='r', xlim=ses_t_lim, ylim=ylim,
                xlab=ses_t_lab, ylab=ylab, title=title, ax=ax_isi)
     plot.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=tr_alpha,
                      ax=ax_isi)

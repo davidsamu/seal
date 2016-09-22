@@ -20,7 +20,7 @@ from collections import Iterable
 
 from scipy import stats
 
-from quantities import Quantity, deg
+from quantities import Quantity, deg, rad
 
 
 # %% Input / output functions.
@@ -218,7 +218,6 @@ def deg_mod(d, max_d=360*deg):
 
     d = d.rescale(deg)
     d_mod = (d.magnitude % max_d.magnitude) * d.units
-
     return d_mod
 
 
@@ -230,6 +229,35 @@ def deg_diff(d1, d2):
     d = abs(d1-d2)
     d = d if d < 180*deg else 360*deg - d
     return d
+
+
+def deg_w_mean(dirs, weights=None):
+    """
+    Takes a vector of directions (2D unit vectors) and their weights, and returns
+        - index of unidirectionality of weights (inverse of spread, "direction selectivity")
+        - weighted mean of directions ("preferred direction")
+        - coarsed weighted mean of directions ("preferred one of the original direction").
+    """
+
+    if weights is None:
+        weights = np.ones(len(dirs))
+
+    # Convert directions to Cartesian unit vectors.
+    dirs_xy = np.array([pol2cart(1, d.rescale(rad)) for d in dirs])
+
+    # Calculate mean along x and y dimensions.
+    x_mean = np.average(dirs_xy[:, 0], weights=weights)
+    y_mean = np.average(dirs_xy[:, 1], weights=weights)
+
+    # Re-convert into angle in degrees.
+    rho, phi = cart2pol(x_mean, y_mean)
+    phi_deg = deg_mod(phi*rad)
+
+    # Coarse to one of the original directions.
+    deg_diffs = np.array([deg_diff(d, phi_deg) for d in dirs])
+    phi_deg_c = dirs[np.argmin(deg_diffs)]
+
+    return rho, phi_deg, phi_deg_c
 
 
 # %% General statistics functions.

@@ -7,9 +7,11 @@ Collection of plotting function.
 @author: David Samu
 """
 
+import warnings
+
 import numpy as np
 from scipy.stats.stats import pearsonr
-from quantities import ms
+from quantities import ms, rad
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -38,7 +40,7 @@ savefig_dpi = 150
 # matplotlib.rcdefaults()
 
 
-# %% Raster and rate plotting functions.
+# %% Functions to plot basic unit activity (raster, rate, tuning curve, etc).
 
 def raster_rate(spikes_list, rates, times, t1, t2, names,
                 t_unit=ms, segments=None,
@@ -84,10 +86,8 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
            ffig=None, ax=None):
     """Plot rasterplot."""
 
-    if ax is None:
-        ax = plt.gca()
-
     # Plot raster.
+    ax = axes(ax)
     plot_segments(segments, t_unit, ax=ax)
     for i, sp_tr in enumerate(spikes):
         t = sp_tr.rescale(t_unit)
@@ -116,10 +116,8 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
          ylab='Firing rate (sp/s)', legend=True, ffig=None, ax=None):
     """Plot firing rate."""
 
-    if ax is None:
-        ax = plt.gca()
-
     # Plot rate(s).
+    ax = axes(ax)
     plot_segments(segments, t_unit, ax=ax)
     for name, rts in zip(names, rates_list):
 
@@ -158,14 +156,39 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
     return ax
 
 
+def direction_selectivity(dirs, activity, ds_idx=None, pref_dir=None,
+                          color='g', title=None, ffig=None, ax=None):
+    """Plot direction selectivity."""
+
+    # Plot response to each directions on polar plot.
+    rad_dirs = np.array([d.rescale(rad) for d in dirs])
+    ndirs = rad_dirs.size
+    left_rad_dirs = rad_dirs - np.pi/ndirs
+    w = 2*np.pi / ndirs
+    ax = bars(activity, left_rad_dirs, polar=True, width=w, alpha=0.50,
+              color=color, edgecolor='w', linewidth=1, title=title,
+              ytitle=1.08, ax=ax)
+
+    # Add arrow representing preferred direction and direction selectivity.
+    if ds_idx is not None and pref_dir is not None:
+        rho = np.max(activity) * ds_idx
+        xy = (float(pref_dir.rescale(rad)), rho)
+        ax.annotate('', xy, xytext=(0, 0),
+                    arrowprops=dict(facecolor=color, edgecolor='k',
+                                    shrink=0.05, alpha=0.5))
+
+    # Save and return plot.
+    save_fig(plt.gcf(), ffig)
+    return ax
+
+
 # %% Generic plot decorator functions.
 
 def plot_significant_intervals(rates1, rates2, time, pval, ypos=0,
                                color='c', linewidth=4, ax=None):
     """Add significant intervals to axes."""
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
 
     # Get intervals of significant differences between rates.
     sign_periods = util.sign_periods(rates1, rates2, time, pval)
@@ -185,8 +208,7 @@ def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey', ax=None):
     if segments is None:
         return
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
     for key, (t_start, t_stop) in segments.items():
         t1 = t_start.rescale(t_unit)
         t2 = t_stop.rescale(t_unit)
@@ -197,8 +219,7 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
                 color='black', lw=1, ax=None, **kwargs):
     """Plot all events of unit."""
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
 
     # Add each event to plot as a vertical line.
     for key, time in events.items():
@@ -214,26 +235,24 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
                     verticalalignment='bottom', horizontalalignment='center')
 
 
-# %% Miscellanous plot setup functions.
+# %% Plot setup functions.
 
 def set_limits(xlim=None, ylim=None, ax=None):
     """Generic function to set limits on axes."""
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
     if xlim is not None:
         ax.set_xlim(xlim)
     if ylim is not None:
         ax.set_ylim(ylim)
 
 
-def set_labels(title=None, xlab=None, ylab=None, ax=None):
+def set_labels(title=None, xlab=None, ylab=None, ytitle=1.04, ax=None):
     """Generic function to set title, labels and ticks on axes."""
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
     if title is not None:
-        ax.set_title(title, y=1.04)
+        ax.set_title(title, y=ytitle)
     if xlab is not None:
         ax.set_xlabel(xlab)
     if ylab is not None:
@@ -244,12 +263,15 @@ def set_labels(title=None, xlab=None, ylab=None, ax=None):
 def show_spines(bottom=True, left=True, top=False, right=False, ax=None):
     """Remove selected spines (axis lines) from current axes."""
 
-    if ax is None:
-        ax = plt.gca()
-    ax.spines['bottom'].set_visible(bottom)
-    ax.spines['left'].set_visible(left)
-    ax.spines['top'].set_visible(top)
-    ax.spines['right'].set_visible(right)
+    ax = axes(ax)
+    if 'polar' in ax.spines:  # Polar coordinate
+        ax.spines['polar'].set_visible(top)
+
+    else:  # Cartesian coordinate
+        ax.spines['bottom'].set_visible(bottom)
+        ax.spines['left'].set_visible(left)
+        ax.spines['top'].set_visible(top)
+        ax.spines['right'].set_visible(right)
 
 
 def show_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
@@ -258,8 +280,7 @@ def show_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
        ytick_pos: [ 'left' | 'right' | 'both' | 'default' | 'none' ]
     """
 
-    if ax is None:
-        ax = plt.gca()
+    ax = axes(ax)
     ax.xaxis.set_ticks_position(xtick_pos)
     ax.yaxis.set_ticks_position(ytick_pos)
 
@@ -274,22 +295,29 @@ def colorbar(cbar, fig, cax, cb_title, cb_outline=False):
     return cb
 
 
-def set_legend(ax, add_legend=True):
+def set_legend(ax, add_legend=True, loc='upper right',
+               frameon=False, **kwargs):
     """Add legend to axes."""
 
     if add_legend:
-        legend = ax.legend(loc='upper right', frameon=False)
+        legend = ax.legend(loc=loc, frameon=frameon, **kwargs)
+
     return legend
 
 
-def save_fig(fig, ffig=None, close=True, dpi=savefig_dpi):
+def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
+             dpi=savefig_dpi):
     """Save figure to file."""
 
     if ffig is None:
         return
 
+    if fig is None:
+        fig = plt.gcf()
+
     util.create_dir(ffig)
-    fig.savefig(ffig, dpi=dpi)
+    fig.savefig(ffig, bbox_extra_artists=bbox_extra_artists,
+                dpi=dpi, bbox_inches='tight')
 
     if close:
         plt.close(fig)
@@ -303,16 +331,75 @@ def figure(fig=None, **kwargs):
     return fig
 
 
-# %% General purpose plotting functions.
-
-def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
-            add_r=False, ffig=None, ax=None, **kwargs):
-    """Plot scatter plot of two vectors."""
+def axes(ax=None, **kwargs):
+    """Return new axes instance."""
 
     if ax is None:
-        ax = plt.gca()
+        ax = plt.gca(**kwargs)
+    return ax
 
-    ax.scatter(x, y, **kwargs)
+
+# %% Miscellanous plot related functions.
+
+def get_colors_from_cycle():
+    """Return colour cycle."""
+
+    col_cylce = mpl.rcParams['axes.prop_cycle']
+    cols = [d['color'] for d in col_cylce]
+    return cols
+
+
+def get_proxy_patch(label, color):
+    """Return patch proxy artist. Useful for creating custom legends."""
+
+    patch = mpl.patches.Patch(color=color, label=label)
+    return patch
+
+
+# %% General purpose plotting functions.
+
+def plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
+         title=None, ytitle=None, polar=False, figtype='lines',
+         ffig=None, ax=None, **kwargs):
+    """Generic plotting function."""
+
+    ax = axes(ax, polar=polar)
+
+    if figtype == 'lines':
+        ax.plot(x, y, **kwargs)
+
+    elif figtype == 'bars':
+        ax.bar(x, y, **kwargs)
+
+    elif figtype == 'histogram':
+        x = x[~np.isnan(x)]  # remove NANs
+        ax.hist(x, **kwargs)
+
+    elif figtype == 'scatter':
+        ax.scatter(x, y, **kwargs)
+
+    else:
+        warnings.warn('Unidentified figure type: %s'.format(figtype))
+
+    # Format plot.
+    set_limits(xlim, ylim, ax)
+    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    show_spines(True, False, False, False, ax=ax)
+    set_labels(title, xlab, ylab, ytitle, ax=ax)
+
+    # Save and return plot.
+    save_fig(plt.gcf(), ffig)
+    return ax
+
+
+def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
+            title=None, ytitle=None, polar=False, add_r=False,
+            ffig=None, ax=None, **kwargs):
+    """Plot two vectors on scatter plot."""
+
+    # Plot scatter plot.
+    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'scatter',
+              ffig, ax=None, **kwargs)
 
     # Add correlation test results.
     if add_r:
@@ -320,59 +407,36 @@ def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
         r_text = 'r = {:.2f} ({})'.format(r, util.format_pvalue(p))
         ax.text(0.95, 0.05, r_text, transform=ax.transAxes,
                 horizontalalignment='right', verticalalignment='bottom')
-
-    # Format plot.
-    set_limits(xlim, ylim, ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, True, False, False, ax=ax)
-    set_labels(title, xlab, ylab, ax)
-
-    # Save and return plot.
-    save_fig(plt.gcf(), ffig)
     return ax
 
 
-def lines(y, x=None, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
-          ffig=None, ax=None, **kwargs):
+def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
+          ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot simple lines."""
 
-    if ax is None:
-        ax = plt.gca()
-
-    if x is None:
-        x = range(len(y))
-
-    ax.plot(x, y, **kwargs)
-
-    # Format plot.
-    set_limits(xlim, ylim, ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, False, False, False, ax=ax)
-    set_labels(title, xlab, ylab, ax=ax)
-
-    # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    # Plot line plot.
+    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'lines',
+              ffig, ax=None, **kwargs)
     return ax
 
 
-def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None,
-              title=None, ffig=None, ax=None, **kwargs):
+def bars(y, x=None, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
+         ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
+    """Plot simple lines."""
+
+    # Plot bar plot.
+    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'bars',
+              ffig, ax=None, **kwargs)
+    return ax
+
+
+def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
+              ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot histogram."""
 
-    if ax is None:
-        ax = plt.gca()
-
-    vals = vals[~np.isnan(vals)]  # remove NANs
-    ax.hist(vals, **kwargs)
-
-    # Format plot.
-    set_limits(xlim, ylim, ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, False, False, False, ax=ax)
-    set_labels(title, xlab, ylab, ax=ax)
-
-    # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    # Plot histogram.
+    ax = plot(vals, None, xlim, ylim, xlab, ylab, title, ytitle, polar, 'hist',
+              ffig, ax=None, **kwargs)
     return ax
 
 
