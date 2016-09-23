@@ -8,6 +8,7 @@ Collection of plotting function.
 """
 
 import warnings
+from itertools import cycle
 
 import numpy as np
 from scipy.stats.stats import pearsonr
@@ -38,6 +39,40 @@ savefig_dpi = 150
 
 # To restore matplotlib default settings
 # matplotlib.rcdefaults()
+
+
+# %% Functions to plot group level properties.
+
+def group_params(unit_params, params_to_plot=None, ffig=None):
+    """Plot histogram of parameter values across units."""
+
+    # Init params to plot.
+    if params_to_plot is None:
+        params_to_plot = [  # Session parameters
+                          'channel #', 'unit #', 'sort #',
+                          # Quality metrics
+                          'MeanWfAmplitude', 'MeanWfDuration (us)', 'SNR',
+                          'ISIviolation_%', #'TrueSpikes_%', 'UnitType',
+                          # Direction selectivity metrics
+                          'DSI_S1', 'DSI_S2 (deg)', 'PD_S1 (deg)',
+                          'PD_S2 (deg)', 'PD8_S1 (deg)'
+                         ]
+
+    # Init figure.
+    nplots = len(params_to_plot)
+    nrow = int(np.floor(np.sqrt(nplots)))
+    ncol = int(np.ceil(nplots / nrow))
+    fig, axs = plt.subplots(nrow, ncol, figsize=(4*ncol, 3*nrow))
+
+    # Plot distribution of each parameter.
+    colors = get_colors()
+    for pp, ax in zip(params_to_plot, axs.flat):
+        histogram(unit_params[pp], xlab=pp, ylab='n',
+                  title=pp, color=next(colors), ax=ax)
+
+    # Save and return plot.
+    save_fig(fig, ffig)
+    return fig
 
 
 # %% Functions to plot basic unit activity (raster, rate, tuning curve, etc).
@@ -100,8 +135,11 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     set_limits(xlim, ylim, ax=ax)
     ax.locator_params(axis='y', nbins=6)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(False, False, False, False, ax=ax)
+    show_spines(True, True, True, True, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
+
+    # Add '1' to tick labels
+    # ax.yaxis.set_ticks([1] + ax.yaxis.get_majorticklocs())
 
     # Order trials from top to bottom (has to happen after setting axis limits)
     ax.invert_yaxis()
@@ -247,11 +285,12 @@ def set_limits(xlim=None, ylim=None, ax=None):
         ax.set_ylim(ylim)
 
 
-def set_labels(title=None, xlab=None, ylab=None, ytitle=1.04, ax=None):
+def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None):
     """Generic function to set title, labels and ticks on axes."""
 
     ax = axes(ax)
     if title is not None:
+        ytitle = ytitle if ytitle is not None else 1.04
         ax.set_title(title, y=ytitle)
     if xlab is not None:
         ax.set_xlabel(xlab)
@@ -341,11 +380,18 @@ def axes(ax=None, **kwargs):
 
 # %% Miscellanous plot related functions.
 
-def get_colors_from_cycle():
+def get_colors(from_mpl_cycle=False, as_cycle=True):
     """Return colour cycle."""
 
-    col_cylce = mpl.rcParams['axes.prop_cycle']
-    cols = [d['color'] for d in col_cylce]
+    if from_mpl_cycle:
+        col_cylce = mpl.rcParams['axes.prop_cycle']
+        cols = [d['color'] for d in col_cylce]
+    else:
+        cols = ['b', 'g', 'r', 'c', 'm', 'y']
+
+    if as_cycle:
+        cols = cycle(cols)
+
     return cols
 
 
@@ -371,15 +417,16 @@ def plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
     elif figtype == 'bars':
         ax.bar(x, y, **kwargs)
 
-    elif figtype == 'histogram':
-        x = x[~np.isnan(x)]  # remove NANs
+    elif figtype == 'hist':
+        # x = np.array(x)
+        # x = x[~np.isnan(x)]  # remove NANs
         ax.hist(x, **kwargs)
 
     elif figtype == 'scatter':
         ax.scatter(x, y, **kwargs)
 
     else:
-        warnings.warn('Unidentified figure type: %s'.format(figtype))
+        warnings.warn('Unidentified figure type: {}'.format(figtype))
 
     # Format plot.
     set_limits(xlim, ylim, ax)
@@ -399,7 +446,7 @@ def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Plot scatter plot.
     ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'scatter',
-              ffig, ax=None, **kwargs)
+              ffig, ax=ax, **kwargs)
 
     # Add correlation test results.
     if add_r:
@@ -416,7 +463,7 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
 
     # Plot line plot.
     ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'lines',
-              ffig, ax=None, **kwargs)
+              ffig, ax=ax, **kwargs)
     return ax
 
 
@@ -426,7 +473,7 @@ def bars(y, x=None, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
 
     # Plot bar plot.
     ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'bars',
-              ffig, ax=None, **kwargs)
+              ffig, ax=ax, **kwargs)
     return ax
 
 
@@ -436,7 +483,7 @@ def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
 
     # Plot histogram.
     ax = plot(vals, None, xlim, ylim, xlab, ylab, title, ytitle, polar, 'hist',
-              ffig, ax=None, **kwargs)
+              ffig, ax=ax, **kwargs)
     return ax
 
 

@@ -118,13 +118,13 @@ def test_qm(u, ffig_template):
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur)
+    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur).rescale(us)
     u.QualityMetrics['ISIviolation'] = isi_viol
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['UnitType'] = unit_type
 
     # Plot quality metric results.
-    if ffig_template is not None and ffig_template is not '':
+    if ffig_template is not None:
         plot_qm(u, snr, wf_amp, wf_dur, isi_viol, true_spikes,
                 unit_type, ffig_template)
 

@@ -7,12 +7,13 @@ Class representing a unit, after spike sorting and preprocessing.
 @author: David Samu
 """
 
+from datetime import datetime as dt
 from itertools import product
 from collections import OrderedDict as OrdDict
 
 import numpy as np
 from pandas import DataFrame
-from quantities import s, ms, us, deg, Hz
+from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import plot, util
@@ -62,7 +63,7 @@ class Unit:
         self.SessParams = OrdDict()
         self.SessParams['experiment'] = exp
         self.SessParams['monkey'] = monkey
-        self.SessParams['date'] = date
+        self.SessParams['date'] = dt.date(dt.strptime(date, '%m%d%y'))
         self.SessParams['probe'] = probe
         self.SessParams['channel #'] = chan
         self.SessParams['unit #'] = un
@@ -148,14 +149,18 @@ class Unit:
         fname = util.format_to_fname(self.Name)
         return fname
 
-    def get_unit_params(self):
+    def get_unit_params(self, remove_dimensions=True):
         """Return main unit parameters."""
 
+        # Function to get value from dictionary, or None if key does not exist.
+        # Optionally, remove dimension from quantity values.
         def get_val(dic, key):
+            val = None
             if key in dic.keys():
-                return dic[key]
-            else:
-                return None
+                val = dic[key]
+                if remove_dimensions and isinstance(val, Quantity):
+                    val = float(val)
+            return val
 
         # Recording parameters.
         unit_params = OrdDict()
@@ -176,7 +181,7 @@ class Unit:
         qm = self.QualityMetrics
         unit_params['Quality metrics'] = ''
         unit_params['MeanWfAmplitude'] = get_val(qm, 'MeanWfAmplitude')
-        unit_params['MeanWfDuration'] = get_val(qm, 'MeanWfDuration')
+        unit_params['MeanWfDuration (us)'] = get_val(qm, 'MeanWfDuration')
         unit_params['SNR'] = get_val(qm, 'SNR')
         unit_params['ISIviolation_%'] = get_val(qm, 'ISIviolation')
         unit_params['TrueSpikes_%'] = get_val(qm, 'TrueSpikes')
@@ -188,12 +193,12 @@ class Unit:
         pd = get_val(up, 'PrefDir')
         pdc = get_val(up, 'PrefDirCoarse')
         unit_params['Direction selectivity'] = ''
-        unit_params['dir_selectivity_S1'] = get_val(dsi, 'S1')
-        unit_params['dir_selectivity_S2'] = get_val(dsi, 'S2')
-        unit_params['pref_dir_S1'] = get_val(pd, 'S1')
-        unit_params['pref_dir_S2'] = get_val(pd, 'S2')
-        unit_params['pref_dir_coarse_S1'] = get_val(pdc, 'S1')
-        unit_params['pref_dir_coarse_S2'] = get_val(pdc, 'S2')
+        unit_params['DSI_S1'] = get_val(dsi, 'S1')
+        unit_params['DSI_S2 (deg)'] = get_val(dsi, 'S2')
+        unit_params['PD_S1 (deg)'] = get_val(pd, 'S1')
+        unit_params['PD_S2 (deg)'] = get_val(pd, 'S2')
+        unit_params['PD8_S1 (deg)'] = get_val(pdc, 'S1')
+        unit_params['PD8_S2 (deg)'] = get_val(pdc, 'S2')
 
         return unit_params
 
@@ -439,19 +444,19 @@ class Unit:
             # Collect stimulus params.
             s_pd = str(float(round(pref_dir, 1)))
             s_pd_c = str(int(pref_dir_c))
-            lgd_lbl = '{}: \t  {:.3f}'.format(stim, ds_idx)
-            lgd_lbl += ' \t{:>5} \t\t {:>3}'.format(s_pd, s_pd_c)
-            lgd_lbl = lgd_lbl.expandtabs()
+            lgd_lbl = '{}:   {:.3f}'.format(stim, ds_idx)
+            lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
             patches.append(plot.get_proxy_patch(lgd_lbl, color))
 
         # Set labels
         plot.set_labels(title=self.Name, ytitle=1.10, ax=ax)
 
         # Set legend
-        lgd_ttl = '\t\t\t DSI \t PD (deg)   PD8 (deg)'.expandtabs()
+        lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
         lgd = plot.set_legend(ax, handles=patches, title=lgd_ttl,
                               bbox_to_anchor=(0., -0.30, 1., .0),
-                              loc='lower center')
+                              loc='lower center', prop={'family': 'monospace'})
+        lgd.get_title().set_ha('left')
 
         # Save figure
         if ffig_tmpl is not None:

@@ -7,11 +7,15 @@ These steps are done after [spike sorting](https://github.com/davidsamu/seal/blo
 
 The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality data (e.g. strong, inseparable multi-unit activity), and therefore may be considered as a quality assurance step, rather then cherrypicking the nice neurons.
 
+The metrics referred below are calculated for the duration of the entire session. Temporal changes in them are check during trial rejection below.
+
 Criteria:
 
-1. Insufficent activity: Overall session-average firing rate larger than 2 spikes / second.
-2. Insufficent coverage of receptive field: **To be added.**
-3. Insufficent stimulus response: **To be added.**
+1. Poor waveform consistency: SNR < 1.
+2. Insufficient unit activity: Firing rate < 2 spikes / second.
+3. Extreme ISI violation ratio: ISI v.r. > 2%.
+3. Insufficient coverage of receptive field: **To be added.**
+4. Insufficient stimulus response: **To be added.**
 
 
 

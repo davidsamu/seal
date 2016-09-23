@@ -53,6 +53,7 @@ def write_objects(obj_dict, f):
 
     create_dir(f)
     pickle.dump(obj_dict, open(f, 'wb'))
+    return
 
 
 def write_table(dataframe, excel_writer, **kwargs):
@@ -61,6 +62,7 @@ def write_table(dataframe, excel_writer, **kwargs):
     if excel_writer is not None:
         dataframe.to_excel(excel_writer, **kwargs)
         excel_writer.save()
+    return
 
 
 def get_latest_file(dir_name, ext='.data'):
@@ -119,6 +121,7 @@ def create_dir(f):
     d = os.path.dirname(f)
     if not os.path.exists(d):
         os.makedirs(d)
+    return
 
 
 def timestamp():
@@ -138,7 +141,16 @@ def is_iterable(obj):
     string = isinstance(obj, str)
     np_scalar = isinstance(obj, (np.ndarray, Quantity)) and len(obj.shape) == 0
 
-    return iterable and not string and not np_scalar
+    is_itrbl = iterable and not string and not np_scalar
+
+    return is_itrbl
+
+
+def is_numpy_array(obj):
+    """Check if object is numpy array."""
+
+    is_np_arr = type(obj).__module__ == np.__name__
+    return is_np_arr
 
 
 def indices(vec, val):
@@ -169,7 +181,9 @@ def indices_in_window(v, vmin=None, vmax=None):
         vmin = -np.inf
     if vmax is None:
         vmax = np.inf
-    return np.logical_and(v >= vmin, v <= vmax)
+    idxs = np.logical_and(v >= vmin, v <= vmax)
+
+    return idxs
 
 
 def values_in_window(v, vmin=None, vmax=None):
