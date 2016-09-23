@@ -76,4 +76,4 @@ TBA
 
 ## References
 
-Hill, N. H., Mehta, S. B., and Kleinfeld, D. (2011). *Quality metrics to accompany spike sorting of extracellular signals.* J Neurosci 31, 8699–8705. ([link to PubMed](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3123734/))
+Hill, N. H., Mehta, S. B., and Kleinfeld, D. (2011). *Quality metrics to accompany spike sorting of extracellular signals.* J Neurosci 31, 8699–8705. ([PubMed link](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3123734/))
