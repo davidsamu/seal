@@ -160,6 +160,7 @@ class Unit:
         # Recording parameters.
         unit_params = OrdDict()
         sp = self.SessParams
+        unit_params['Session information'] = ''
         unit_params['Name'] = self.Name
         unit_params['experiment'] = get_val(sp, 'experiment')
         unit_params['monkey'] = get_val(sp, 'monkey')
@@ -173,6 +174,7 @@ class Unit:
 
         # Quality metrics.
         qm = self.QualityMetrics
+        unit_params['Quality metrics'] = ''
         unit_params['MeanWfAmplitude'] = get_val(qm, 'MeanWfAmplitude')
         unit_params['MeanWfDuration'] = get_val(qm, 'MeanWfDuration')
         unit_params['SNR'] = get_val(qm, 'SNR')
@@ -182,13 +184,16 @@ class Unit:
 
         # Stimulus response properties.
         up = self.UnitParams
-        unit_params['dir_selectivity_S1'] = get_val(get_val(up, 'DirSelectivity'), 'S1')
-        unit_params['dir_selectivity_S2'] = get_val(get_val(up, 'DirSelectivity'), 'S2')
-        unit_params['pref_dir_S1'] = get_val(get_val(up, 'PrefDir'), 'S1')
-        unit_params['pref_dir_S2'] = get_val(get_val(up, 'PrefDir'), 'S2')
-        unit_params['pref_dir_coarse_S1'] = get_val(get_val(up, 'PrefDirCoarse'), 'S1')
-        unit_params['pref_dir_coarse_S2'] = get_val(get_val(up, 'PrefDirCoarse'), 'S2')
-        # TODO: add index of direction discrimination
+        dsi = get_val(up, 'DirSelectivity')
+        pd = get_val(up, 'PrefDir')
+        pdc = get_val(up, 'PrefDirCoarse')
+        unit_params['Direction selectivity'] = ''
+        unit_params['dir_selectivity_S1'] = get_val(dsi, 'S1')
+        unit_params['dir_selectivity_S2'] = get_val(dsi, 'S2')
+        unit_params['pref_dir_S1'] = get_val(pd, 'S1')
+        unit_params['pref_dir_S2'] = get_val(pd, 'S2')
+        unit_params['pref_dir_coarse_S1'] = get_val(pdc, 'S1')
+        unit_params['pref_dir_coarse_S2'] = get_val(pdc, 'S2')
 
         return unit_params
 

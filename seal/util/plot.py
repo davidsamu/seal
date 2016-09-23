@@ -175,7 +175,7 @@ def direction_selectivity(dirs, activity, ds_idx=None, pref_dir=None,
         xy = (float(pref_dir.rescale(rad)), rho)
         ax.annotate('', xy, xytext=(0, 0),
                     arrowprops=dict(facecolor=color, edgecolor='k',
-                                    shrink=0.05, alpha=0.5))
+                                    shrink=0.0, alpha=0.5))
 
     # Save and return plot.
     save_fig(plt.gcf(), ffig)
