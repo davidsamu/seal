@@ -57,7 +57,7 @@ Receptive fields of each channel are mapped at the beginning of the experiments.
 
 ### Direction selectivity
 
-See (Direction selectivity)[https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Direction%20selectivity.md].
+See [Direction selectivity](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Direction%20selectivity.md).
 
 
 ## Unit characterisation
