@@ -24,7 +24,7 @@
 ### 2. Do spike sorting in OfflineSorter.
 
 - Open the merged file.
-- Do spike sorting on all channels (1 – 16). See (SOPs on spike sorting)[https://github.com/davidsamu/seal/blob/master/doc/SOPs/Spike%20sorting%20SOPs.md].
+- Do spike sorting on all channels (1 – 16). See [SOPs on spike sorting](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Spike%20sorting%20SOPs.md).
 - When finished with all channels, save sorted data. File name is Monkey#_DateElectrode_TaskSession#_Sorter#_mrg.plx, e.g. 201_071516v1_locMot1_1_mrg.plx.
 
 ### 3. Split sorted recording using PlexUtil.
