@@ -1,6 +1,6 @@
 # Unit and trial rejection
 
-These steps are done after spike sorting and calculating the quality metrics and stimulus response properties of the units.
+These steps are done after [spike sorting](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Spike%20sorting%20SOPs.md) and calculating the [quality metrics](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Quality%20metrics.md) and [stimulus response properties](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Direction%20selectivity.md) of the units. See also [SOP](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Preprocessing%20SOPs.md) on whole process.
 
 
 ## Unit rejection
@@ -17,7 +17,7 @@ Criteria:
 
 ## Trial rejection
 
-The goal is to detect electrode drifts and changes in the state of the unit. We do this by checking for strong drift, drop and jump in various quality metrics (see *Quality Metrics*).
+The goal is to detect electrode drifts and changes in the state of the unit. We do this by checking for strong drift, drop and jump in various quality metrics (see [Quality Metrics](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Quality%20metrics.md)).
 
 Criteria:
 
