@@ -11,8 +11,8 @@ The metrics referred below are calculated for the duration of the entire session
 
 Criteria:
 
-1. Poor waveform consistency: SNR < 1.
-2. Insufficient unit activity: Firing rate < 2 spikes / second.
+1. Extremely low waveform consistency: SNR < 0.5.
+2. Insufficient unit activity: Firing rate < 1 spikes / second.
 3. Extreme ISI violation ratio: ISI v.r. > 2%.
 3. Insufficient coverage of receptive field: **To be added.**
 4. Insufficient stimulus response: **To be added.**

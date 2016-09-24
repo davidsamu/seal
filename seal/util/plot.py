@@ -9,6 +9,7 @@ Collection of plotting function.
 
 import warnings
 from itertools import cycle
+from collections import Counter
 
 import numpy as np
 from scipy.stats.stats import pearsonr
@@ -18,6 +19,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
+from matplotlib import dates as md
 
 from seal.util import util
 
@@ -49,25 +51,29 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
     # Init params to plot.
     if params_to_plot is None:
         params_to_plot = [  # Session parameters
-                          'channel #', 'unit #', 'sort #',
+                          'date', 'channel #', 'unit #', 'sort #',
                           # Quality metrics
                           'MeanWfAmplitude', 'MeanWfDuration (us)', 'SNR',
-                          'ISIviolation_%', #'TrueSpikes_%', 'UnitType',
+                          'MeanFiringRate (sp/s)', 'ISIviolation (%)',
+                          'TrueSpikes (%)',
                           # Direction selectivity metrics
-                          'DSI_S1', 'DSI_S2 (deg)', 'PD_S1 (deg)',
-                          'PD_S2 (deg)', 'PD8_S1 (deg)'
+                          'DSI S1', 'DSI S2 (deg)',
+                          'PD S1 (deg)', 'PD S2 (deg)',
+                          'PD8 S1 (deg)', 'PD8 S2 (deg)'
                          ]
+    categorical = ['date', 'channel #', 'unit #', 'sort #', 'UnitType',
+                   'PD8 S1 (deg)', 'PD8 S2 (deg)']
 
     # Init figure.
-    nplots = len(params_to_plot)
-    nrow = int(np.floor(np.sqrt(nplots)))
-    ncol = int(np.ceil(nplots / nrow))
-    fig, axs = plt.subplots(nrow, ncol, figsize=(4*ncol, 3*nrow))
+    fig, axs = get_subplots(len(params_to_plot))
 
     # Plot distribution of each parameter.
     colors = get_colors()
-    for pp, ax in zip(params_to_plot, axs.flat):
-        histogram(unit_params[pp], xlab=pp, ylab='n',
+    for pp, ax in zip(params_to_plot, axs):
+        v = unit_params[pp]
+        if pp in categorical:
+            v = np.array(v, dtype='object')
+        histogram(v, xlab=pp, ylab='n',
                   title=pp, color=next(colors), ax=ax)
 
     # Save and return plot.
@@ -84,10 +90,8 @@ def raster_rate(spikes_list, rates, times, t1, t2, names,
                 legend=True, nlegend=True, ffig=None, fig=None, outer_gs=None):
     """Plot raster and rate plots."""
 
-    if fig is None:
-        fig = plt.figure()
-
     # Create subplots (as nested gridspecs).
+    fig = figure(fig)
     if outer_gs is None:
         outer_gs = gs.GridSpec(2, 1, height_ratios=[1, 1])
     gs_raster = gs.GridSpecFromSubplotSpec(len(spikes_list), 1,
@@ -240,7 +244,8 @@ def plot_significant_intervals(rates1, rates2, time, pval, ypos=0,
     ax.add_collection(lc)
 
 
-def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey', ax=None):
+def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
+                  ax=None, **kwargs):
     """Plot all segments of unit."""
 
     if segments is None:
@@ -250,7 +255,7 @@ def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey', ax=None):
     for key, (t_start, t_stop) in segments.items():
         t1 = t_start.rescale(t_unit)
         t2 = t_stop.rescale(t_unit)
-        ax.axvspan(t1, t2, alpha=alpha, color=color)
+        ax.axvspan(t1, t2, alpha=alpha, color=color, **kwargs)
 
 
 def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
@@ -378,6 +383,22 @@ def axes(ax=None, **kwargs):
     return ax
 
 
+def get_subplots(nplots, sp_width=4, sp_height=3):
+    """Returns figures with given number of axes initialised."""
+
+    # Create figure with axes arranged in grid pattern.
+    nrow = int(np.floor(np.sqrt(nplots)))
+    ncol = int(np.ceil(nplots / nrow))
+    figsize = (sp_width*ncol, sp_height*nrow)
+    fig, axs = plt.subplots(nrow, ncol, figsize=figsize)
+
+    # Turn off last axes on grid.
+    axsf = axs.flatten()
+    [ax.axis('off') for ax in axsf[nplots:]]
+
+    return fig, axsf
+
+
 # %% Miscellanous plot related functions.
 
 def get_colors(from_mpl_cycle=False, as_cycle=True):
@@ -404,9 +425,9 @@ def get_proxy_patch(label, color):
 
 # %% General purpose plotting functions.
 
-def plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
-         title=None, ytitle=None, polar=False, figtype='lines',
-         ffig=None, ax=None, **kwargs):
+def base_plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
+              title=None, ytitle=None, polar=False, figtype='lines',
+              ffig=None, ax=None, **kwargs):
     """Generic plotting function."""
 
     ax = axes(ax, polar=polar)
@@ -418,9 +439,25 @@ def plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
         ax.bar(x, y, **kwargs)
 
     elif figtype == 'hist':
-        # x = np.array(x)
-        # x = x[~np.isnan(x)]  # remove NANs
-        ax.hist(x, **kwargs)
+
+        x = np.array(x)
+
+        # Categorical data.
+        if not util.is_numeric_array(x):
+            counts = np.array(Counter(x).most_common())
+            counts = counts[counts[:, 0].argsort()]  # sort by category
+            cats, cnts = counts[:, 0], counts[:, 1]
+            xx = range(len(cats))
+            width = 0.8
+            ax.bar(xx, cnts, width, **kwargs)
+            ax.set_xticks([i+width/2 for i in xx])
+            rot_x_labs = np.mean([len(str(cat)) for cat in cats]) > 8
+            rot = 45 if rot_x_labs else 0
+            ha = 'right' if rot_x_labs else 'center'
+            ax.set_xticklabels(cats, rotation=rot, ha=ha)
+        else:  # Plot Numeric data.
+            x = x[~np.isnan(x)]  # remove NANs
+            ax.hist(x, **kwargs)
 
     elif figtype == 'scatter':
         ax.scatter(x, y, **kwargs)
@@ -445,8 +482,8 @@ def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
     """Plot two vectors on scatter plot."""
 
     # Plot scatter plot.
-    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'scatter',
-              ffig, ax=ax, **kwargs)
+    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
+                   'scatter', ffig, ax=ax, **kwargs)
 
     # Add correlation test results.
     if add_r:
@@ -462,8 +499,8 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
     """Plot simple lines."""
 
     # Plot line plot.
-    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'lines',
-              ffig, ax=ax, **kwargs)
+    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
+                   'lines', ffig, ax=ax, **kwargs)
     return ax
 
 
@@ -472,8 +509,8 @@ def bars(y, x=None, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
     """Plot simple lines."""
 
     # Plot bar plot.
-    ax = plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar, 'bars',
-              ffig, ax=ax, **kwargs)
+    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
+                   'bars', ffig, ax=ax, **kwargs)
     return ax
 
 
@@ -482,8 +519,8 @@ def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
     """Plot histogram."""
 
     # Plot histogram.
-    ax = plot(vals, None, xlim, ylim, xlab, ylab, title, ytitle, polar, 'hist',
-              ffig, ax=ax, **kwargs)
+    ax = base_plot(vals, None, xlim, ylim, xlab, ylab, title, ytitle, polar,
+                   'hist', ffig, ax=ax, **kwargs)
     return ax
 
 
@@ -531,8 +568,7 @@ def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
     if t2 is None:
         t2 = tvec[-1]
 
-    if fig is None:
-        fig = plt.figure()
+    fig = figure(fig)
     ax = fig.add_subplot(1, 1, 1)
 
     # Plot raster.

@@ -152,6 +152,8 @@ class Unit:
     def get_unit_params(self, remove_dimensions=True):
         """Return main unit parameters."""
 
+        # TODO: remove this by exporting all available metrics automatically?
+
         # Function to get value from dictionary, or None if key does not exist.
         # Optionally, remove dimension from quantity values.
         def get_val(dic, key):
@@ -183,8 +185,9 @@ class Unit:
         unit_params['MeanWfAmplitude'] = get_val(qm, 'MeanWfAmplitude')
         unit_params['MeanWfDuration (us)'] = get_val(qm, 'MeanWfDuration')
         unit_params['SNR'] = get_val(qm, 'SNR')
-        unit_params['ISIviolation_%'] = get_val(qm, 'ISIviolation')
-        unit_params['TrueSpikes_%'] = get_val(qm, 'TrueSpikes')
+        unit_params['MeanFiringRate (sp/s)'] = get_val(qm, 'MeanFiringRate')
+        unit_params['ISIviolation (%)'] = get_val(qm, 'ISIviolation')
+        unit_params['TrueSpikes (%)'] = get_val(qm, 'TrueSpikes')
         unit_params['UnitType'] = get_val(qm, 'UnitType')
 
         # Stimulus response properties.
@@ -193,12 +196,12 @@ class Unit:
         pd = get_val(up, 'PrefDir')
         pdc = get_val(up, 'PrefDirCoarse')
         unit_params['Direction selectivity'] = ''
-        unit_params['DSI_S1'] = get_val(dsi, 'S1')
-        unit_params['DSI_S2 (deg)'] = get_val(dsi, 'S2')
-        unit_params['PD_S1 (deg)'] = get_val(pd, 'S1')
-        unit_params['PD_S2 (deg)'] = get_val(pd, 'S2')
-        unit_params['PD8_S1 (deg)'] = get_val(pdc, 'S1')
-        unit_params['PD8_S2 (deg)'] = get_val(pdc, 'S2')
+        unit_params['DSI S1'] = get_val(dsi, 'S1')
+        unit_params['DSI S2 (deg)'] = get_val(dsi, 'S2')
+        unit_params['PD S1 (deg)'] = get_val(pd, 'S1')
+        unit_params['PD S2 (deg)'] = get_val(pd, 'S2')
+        unit_params['PD8 S1 (deg)'] = get_val(pdc, 'S1')
+        unit_params['PD8 S2 (deg)'] = get_val(pdc, 'S2')
 
         return unit_params
 

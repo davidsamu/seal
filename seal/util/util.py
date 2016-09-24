@@ -147,10 +147,25 @@ def is_iterable(obj):
 
 
 def is_numpy_array(obj):
-    """Check if object is numpy array."""
+    """Check if object is Numpy array."""
 
     is_np_arr = type(obj).__module__ == np.__name__
     return is_np_arr
+
+
+def is_numeric_array(obj):
+    """Check if object is numeric Numpy array."""
+
+    is_num_arr = is_numpy_array(obj) and np.issubdtype(obj.dtype, np.number)
+    return is_num_arr
+
+
+def is_date(obj):
+    """Check if object is datetime object or array of datetimes."""
+
+    is_date = (isinstance(obj, datetime.date) or
+               (is_iterable(obj) and isinstance(obj[0], datetime.date)))
+    return is_date
 
 
 def indices(vec, val):
@@ -198,6 +213,25 @@ def quantity_linspace(q1, q2, unit, n, endpoint=True, retstep=False):
     v2 = np.array(q2.rescale(unit))
     vec = np.linspace(v1, v2, n, endpoint, retstep) * unit
     return vec
+
+
+def quantity_arange(q1, q2, step):
+    """Implement numpy.arange on phyisical quantities."""
+
+    unit = step.units
+    v1 = np.array(q1.rescale(unit))
+    v2 = np.array(q2.rescale(unit))
+    vec = np.arange(v1, v2, float(step)) * unit
+    return vec
+
+
+def pd_to_np_quantity(pd_vec):
+    """Convert Pandas vector containing quantity values to Numpy vector."""
+
+    v_unit = pd_vec[0].units
+    np_vec = np.array([v for v in pd_vec]) * v_unit
+
+    return np_vec
 
 
 def zscore_timeseries(timeseries):
