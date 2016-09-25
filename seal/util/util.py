@@ -190,13 +190,19 @@ def index(vec, val):
     return idx
 
 
-def indices_in_window(v, vmin=None, vmax=None):
+def indices_in_window(v, vmin=None, vmax=None, l_inc=True, r_inc=True):
     """Return indices of values between min and max values."""
+
+    # Default limits.
     if vmin is None:
         vmin = -np.inf
     if vmax is None:
         vmax = np.inf
-    idxs = np.logical_and(v >= vmin, v <= vmax)
+
+    # Get indices within limits (inclusive or exclusive).
+    idx_small = v >= vmin if l_inc else v > vmin
+    idx_large = v <= vmax if r_inc else v < vmax
+    idxs = np.logical_and(idx_small, idx_large)
 
     return idxs
 

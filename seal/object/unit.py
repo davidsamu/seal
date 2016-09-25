@@ -190,6 +190,12 @@ class Unit:
         unit_params['TrueSpikes (%)'] = get_val(qm, 'TrueSpikes')
         unit_params['UnitType'] = get_val(qm, 'UnitType')
 
+        # Trial stats.
+        unit_params['Trial stats'] = ''
+        unit_params['NTrialsTotal'] = get_val(qm, 'NTrialsTotal')
+        unit_params['NTrialsIncluded'] = get_val(qm, 'NTrialsIncluded')
+        unit_params['NTrialsExcluded'] = get_val(qm, 'NTrialsExcluded')
+
         # Stimulus response properties.
         up = self.UnitParams
         dsi = get_val(up, 'DirSelectivity')

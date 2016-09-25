@@ -28,7 +28,7 @@ WF_T_START = 9  # start INDEX of spiked (aligned by Plexon)
 MAX_DRIFT_RATIO = 2  # maximum tolerable drift ratio
 MIN_STABLE_PERIOD_LENGTH = 1000 * s  # length of minimal stable period to keep
 
-BIN_LEN = 120 * s  # window length for firing binned statistics
+MIN_BIN_LEN = 120 * s  # minimum window length for firing binned statistics
 
 
 # %% Utility functions.
@@ -50,23 +50,27 @@ def time_bin_data(spike_times, waveforms):
     """Return time binned data for statistics over session time."""
 
     # Time bins and binned waveforms and spike times.
-    tbin_lims = util.quantity_arange(spike_times.t_start,
-                                     spike_times.t_stop, BIN_LEN)
-    tbin_lims = [(tbin_lims[i], tbin_lims[i+1])
-                 for i in range(len(tbin_lims)-1)]
-    tbin_vals = np.array([np.mean([t1, t2]) for t1, t2 in tbin_lims])*s
+    t_start, t_stop = spike_times.t_start, spike_times.t_stop
+    nbins = int(np.floor((t_stop - t_start) / MIN_BIN_LEN))
+    tbin_lims = util.quantity_linspace(t_start, t_stop, s, nbins)
+    tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
+    tbin_vals = np.array([np.mean([t1, t2]) for t1, t2 in tbins])*s
     sp_idx_binned = [util.indices_in_window(spike_times, t1, t2)
-                     for t1, t2 in tbin_lims]
+                     for t1, t2 in tbins]
     wf_binned = [waveforms[sp_idx] for sp_idx in sp_idx_binned]
     sp_times_binned = [spike_times[sp_idx] for sp_idx in sp_idx_binned]
 
-    return tbin_lims, tbin_vals, wf_binned, sp_times_binned
+    return tbins, tbin_vals, wf_binned, sp_times_binned
 
 
 # %% Core methods .
 
 def waveform_stats(wfs, wtime):
     """Calculates SNR, amplitude and durations of spike waveforms."""
+
+    # No waveforms passed.
+    if not wfs.size:
+        return np.nan, np.array([]) * us, np.array([]) * us
 
     # SNR: std of mean waveform divided by std of residual waveform (noise).
     wf_mean = np.mean(wfs, 0)
@@ -94,11 +98,15 @@ def waveform_stats(wfs, wtime):
 def isi_stats(spike_times):
     """Returns ISIs and some related statistics."""
 
+    # No spikes passed.
+    if not spike_times.size:
+        return np.nan, np.nan
+
     isi = statistics.isi(spike_times).rescale(ms)
 
     # Percent of spikes violating ISI treshold.
-    n_isi_viol = sum(isi < ISI_TH)
-    percent_isi_viol = 100 * n_isi_viol / isi.size
+    n_ISI_vr = sum(isi < ISI_TH)
+    percent_ISI_vr = 100 * n_ISI_vr / isi.size
 
     # Percent of spikes estimated to originate from the sorted single unit.
     # Based on refractory period violations.
@@ -106,13 +114,13 @@ def isi_stats(spike_times):
     # Extracellular Signals
     N = spike_times.size
     T = (spike_times.t_stop - spike_times.t_start).rescale(ms)
-    r = n_isi_viol
+    r = n_ISI_vr
     tmax = ISI_TH
     tmin = CENSORED_PRD_LEN
     tdif = tmax - tmin
     true_spikes = 100*(1/2 + np.sqrt(1/4 - float(r*T / (2*tdif*N**2))))
 
-    return true_spikes, percent_isi_viol
+    return true_spikes, percent_ISI_vr
 
 
 def classify_unit(snr, true_spikes=np.nan):
@@ -130,7 +138,7 @@ def classify_unit(snr, true_spikes=np.nan):
     return unit_type
 
 
-def test_drift(t, v, tbin_lims, trial_start, spike_times):
+def test_drift(t, v, tbins, trial_start, spike_times):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
     # Find longest period with acceptible drift.
@@ -150,26 +158,29 @@ def test_drift(t, v, tbin_lims, trial_start, spike_times):
         prd_end_idx[i] = i+j
 
     # Keep it only if it's longer than minimum limit of stable period length.
-    t1, t2 = tbin_lims[0][0], tbin_lims[0][0]
-    first_tr_incl, first_tr_excl = 0, 0
+    n_tr = len(trial_start)
+    t1, t2 = tbins[0][0], tbins[0][0]
+    first_tr_inc, first_tr_exc = -1, 0
     longest_period_length = np.max(prd_lens)
     if longest_period_length >= MIN_STABLE_PERIOD_LENGTH:
         # Get indices of longest period.
         start_i = np.argmax(prd_lens)
         end_i = prd_end_idx[start_i]
         # Get times of longest period.
-        t1 = tbin_lims[start_i][0]
-        t2 = tbin_lims[end_i][1]
+        t1 = tbins[start_i][0]
+        t2 = tbins[end_i][1]
         # Get trial indices within longest period.
         tr_start = util.pd_to_np_quantity(trial_start)
-        first_tr_incl = np.argmax(tr_start > t1)
-        first_tr_excl = first_tr_incl + (np.argmax(tr_start[first_tr_incl:] > t2))
+        first_tr_inc = np.min(np.where(tr_start > t1))
+        first_tr_exc = (n_tr if np.max(tr_start) < t2 else
+                        np.min(np.where(tr_start[first_tr_inc:] > t2)))
 
     # Return included trials and spikes.
-    tr_incl = list(range(first_tr_incl, first_tr_excl))
-    sp_incl = util.indices_in_window(spike_times, t1, t2)
+    tr_inc = util.indices_in_window(np.array(range(n_tr)),
+                                    first_tr_inc, first_tr_exc, r_inc=False)
+    sp_inc = util.indices_in_window(spike_times, t1, t2)
 
-    return tr_incl, sp_incl
+    return t1, t2, tr_inc, sp_inc
 
 
 # %% Calculate quality metrics.
@@ -177,6 +188,8 @@ def test_drift(t, v, tbin_lims, trial_start, spike_times):
 def test_qm(u, ffig_template):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
+    Exclude trials with unacceptable drift.
+
     Non-stationarities can happen due to e.g.:
     - electrode drift, or
     - change in the state of the neuron.
@@ -185,63 +198,65 @@ def test_qm(u, ffig_template):
     # Init values.
     waveforms, wavetime, spike_dur, spike_times, sampl_per = get_base_data(u)
 
-    # Waveform statistics.
-    snr, wf_amp, wf_dur = waveform_stats(waveforms, wavetime)
-
-    # Firing rate.
-    ses_length = spike_times.t_stop - spike_times.t_start
-    mean_rate = float(spike_times.size / ses_length)
-
-    # ISI statistics.
-    true_spikes, isi_viol = isi_stats(spike_times)
-    unit_type = classify_unit(snr, true_spikes)
-
     # Time binned statistics.
     tbinned_stats = time_bin_data(spike_times, waveforms)
-    tbin_lims, tbin_vals, wf_binned, sp_times_binned = tbinned_stats
+    tbins, tbin_vals, wf_binned, sp_times_binned = tbinned_stats
     snr_t = [waveform_stats(wfb, wavetime)[0] for wfb in wf_binned]
-    rate_t = [spt.size for spt in sp_times_binned] / BIN_LEN
-    ISIvr_t = np.array([isi_stats(spt)[1] for spt in sp_times_binned])
+    rate_t = np.array([spt.size/(t2-t1).rescale(s)
+                       for spt, (t1, t2) in zip(sp_times_binned, tbins)]) / s
     tr_starts = u.TrialParams.TrialStart
-    tr_incl, sp_incl = test_drift(tbin_vals, rate_t, tbin_lims,
-                                  tr_starts, spike_times)
+    t1_inc, t2_inc, tr_inc, sp_inc = test_drift(tbin_vals, rate_t, tbins,
+                                                tr_starts, spike_times)
+
+    # Waveform statistics of included spikes only.
+    snr, wf_amp, wf_dur = waveform_stats(waveforms[sp_inc], wavetime)
+
+    # Firing rate.
+    mean_rate = float(np.sum(sp_inc) / (t2_inc - t1_inc))
+
+    # ISI statistics.
+    true_spikes, ISI_vr = isi_stats(spike_times[sp_inc])
+    unit_type = classify_unit(snr, true_spikes)
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur).rescale(us)
+    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur[sp_inc]).rescale(us)
     u.QualityMetrics['MeanFiringRate'] = mean_rate
-    u.QualityMetrics['ISIviolation'] = isi_viol
+    u.QualityMetrics['ISIviolation'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['UnitType'] = unit_type
 
     # Trial removal info.
-    ntr = len(tr_starts)
-    ntr_inc = len(tr_incl)
-    u.QualityMetrics['NumTrialsRecorded'] = ntr
-    u.QualityMetrics['NumTrialsKept'] = ntr_inc
-    u.QualityMetrics['NumTrialsExcluded'] = ntr - ntr_inc
-    u.QualityMetrics['TrialsKept'] = tr_incl
-    u.QualityMetrics['NumTrialsExcluded'] = set(range(ntr)) - set(tr_incl)
+    u.QualityMetrics['NTrialsTotal'] = len(tr_starts)
+    u.QualityMetrics['NTrialsIncluded'] = np.sum(tr_inc)
+    u.QualityMetrics['NTrialsExcluded'] = len(tr_starts) - np.sum(tr_inc)
+    u.QualityMetrics['TrialsIncluded'] = tr_inc
+    u.QualityMetrics['TrialsExcluded'] = np.invert(tr_inc)
 
     # Plot quality metric results.
     if ffig_template is not None:
-        plot_qm(u, snr, wf_amp, wf_dur, mean_rate, isi_viol, true_spikes,
-                unit_type, tbin_vals, snr_t, rate_t, ISIvr_t,
-                tr_incl, sp_incl, ffig_template)
+        plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vals,
+                snr_t, rate_t, t1_inc, t2_inc, tr_inc, sp_inc, ffig_template)
 
     return u
 
 
 # %% Plot quality metrics.
 
-def plot_qm(u, snr, wf_amp, wf_dur, mean_rate, isi_viol, true_spikes,
-            unit_type, tbin_vals, snr_t, rate_t, ISIvr_t,
-            tr_incl, sp_incl, ffig_template):
+def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vals,
+            snr_t, rate_t, t1_inc, t2_inc, tr_inc, sp_inc, ffig_template):
     """Plot quality metrics related figures."""
 
     # Init values.
     waveforms, wavetime, spike_dur, spike_times, sampl_per = get_base_data(u)
+
+    # Get waveform stats of included and excluded spikes.
+    wf_inc = waveforms[sp_inc]
+    wf_exc = waveforms[np.invert(sp_inc)]
+    snr_all, wf_amp_all, wf_dur_all = waveform_stats(waveforms, wavetime)
+    snr_inc, wf_amp_inc, wf_dur_inc = waveform_stats(wf_inc, wavetime)
+    snr_exc, wf_amp_exc, wf_dur_exc = waveform_stats(wf_exc, wavetime)
 
     # Minimum and maximum gain.
     gmin = min(-REC_GAIN/2, np.min(waveforms))
@@ -253,11 +268,12 @@ def plot_qm(u, snr, wf_amp, wf_dur, mean_rate, isi_viol, true_spikes,
     fig = plot.figure(figsize=(12, 12))
     gs1 = gs.GridSpec(3, 3)
     sp = np.array([plt.subplot(gs) for gs in gs1]).reshape(gs1.get_geometry())
-    ax_wf_inc, ax_wf_exc, ax_filler = sp[0, 0], sp[1, 0], sp[2, 0]
+    ax_wf_inc, ax_wf_exc, ax_filler1 = sp[0, 0], sp[1, 0], sp[2, 0]
     ax_wf_amp, ax_wf_dur, ax_amp_dur = sp[0, 1], sp[1, 1], sp[2, 1]
-    ax_snr, ax_rate, ax_isi = sp[0, 2], sp[1, 2], sp[2, 2]
+    ax_snr, ax_rate, ax_filler2 = sp[0, 2], sp[1, 2], sp[2, 2]
 
-    ax_filler.axis('off')
+    ax_filler1.axis('off')
+    ax_filler2.axis('off')
 
     # Common variables, limits and labels.
     sp_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
@@ -267,21 +283,22 @@ def plot_qm(u, snr, wf_amp, wf_dur, mean_rate, isi_viol, true_spikes,
     sa = .8  # marker alpha on scatter plot
     glim = [gmin, gmax]  # gain axes limit
     wf_t_lim = [min(sp_t), max(sp_t)]
-    dur_lim = [0*us, wavetime[-1] - wavetime[WF_T_START]]  # same across units
-    amp_lim = [0, gmax - gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
+    dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
+    amp_lim = [0, gmax-gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
 
     tr_alpha = 0.25  # alpha of trial event lines
 
     # Color spikes by their occurance over session time.
     my_cmap = plt.get_cmap('jet')
-    sp_cols = np.tile(np.array([0., 0., 0., 0.]), (len(spike_times), 1))
-    sp_t_inc = np.array(spike_times[sp_incl])
-    sp_t_inc_shifted = sp_t_inc - sp_t_inc.min()
-    sp_cols[sp_incl, :] = my_cmap(sp_t_inc_shifted/sp_t_inc_shifted.max())
+    sp_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
+    if not np.all(np.invert(sp_inc)):  # check if there is any spike included
+        sp_t_inc = np.array(spike_times[sp_inc])
+        sp_t_inc_shifted = sp_t_inc - sp_t_inc.min()
+        sp_cols[sp_inc, :] = my_cmap(sp_t_inc_shifted/sp_t_inc_shifted.max())
     # Put excluded trials to the front, and randomise order of included trials
     # so later spikes don't cover earlier ones.
-    sp_order = np.hstack((np.where(np.invert(sp_incl))[0],
-                          np.random.permutation(np.where(sp_incl)[0])))
+    sp_order = np.hstack((np.where(np.invert(sp_inc))[0],
+                          np.random.permutation(np.where(sp_inc)[0])))
 
     # Trial markers.
     trial_starts = u.TrialParams.TrialStart
@@ -297,108 +314,107 @@ def plot_qm(u, snr, wf_amp, wf_dur, mean_rate, isi_viol, true_spikes,
 
     # %% Waveform shape analysis.
 
-    # All waveforms over spike time.
-#    wfs = np.transpose(waveforms)
-#    title = 'All waveforms, n = {} spikes'.format(waveforms.shape[0])
-#    plot.lines(sp_t, wfs, xlim=wf_t_lim, ylim=glim, color='g', alpha=0.005,
-#               title=title, xlab=wf_t_lab, ylab=volt_lab,
-#               ax=ax_wf_all)
-#
-#    # Waveform density: 2-D histrogram of waveforms over spike time.
-#    x = np.tile(sp_t, waveforms.shape[0])
-#    y = waveforms.reshape((1, waveforms.size))[0, ]
-#    title = 'Waveform density'
-#    nbins = waveforms.shape[1]
-#    plot.histogram2D(x, y, nbins, hist_type='hist2d', xlim=wf_t_lim, ylim=glim,
-#                     xlab=wf_t_lab, ylab=volt_lab, title=title, ax=ax_wf_den)
-
-    title = 'All waveforms, n = {} spikes'.format(waveforms.shape[0])
-
     # Plot excluded and included waveforms on different axes.
     # Color included by occurance in session time to help detect drifts.
     wfs = np.transpose(waveforms)
     for i in sp_order:
-        ax = ax_wf_inc if sp_incl[i] else ax_wf_exc
+        ax = ax_wf_inc if sp_inc[i] else ax_wf_exc
         ax.plot(sp_t, wfs[:, i], color=sp_cols[i, :], alpha=0.05)
 
     # Format waveform plots
-    inc_ttl = 'Included waveforms, n = {} spikes'.format(sum(sp_incl))
-    exl_ttl = 'Excluded waveforms, n = {} spikes'.format(sum(np.invert(sp_incl)))
-    for ax, ttl in [(ax_wf_inc, inc_ttl), (ax_wf_exc, exl_ttl)]:
+    n_sp_inc, n_sp_exc = sum(sp_inc), sum(np.invert(sp_inc))
+    n_tr_inc, n_tr_exc = sum(tr_inc), sum(np.invert(tr_inc))
+    for ax, st, n_sp, n_tr in [(ax_wf_inc, 'Included', n_sp_inc, n_tr_inc),
+                               (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
+        title = '{} waveforms, {} spikes, {} trials'.format(st, n_sp, n_tr)
         plot.set_limits(xlim=wf_t_lim, ylim=glim, ax=ax)
         plot.show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
         plot.show_spines(True, False, False, False, ax=ax)
-        plot.set_labels(title=ttl, xlab=wf_t_lab, ylab=volt_lab, ax=ax)
+        plot.set_labels(title=title, xlab=wf_t_lab, ylab=volt_lab, ax=ax)
 
     # %% Waveform summary metrics.
 
     # Function to return colors of spikes / waveforms
     # based on whether they are included / excluded.
     def get_color(col_incld, col_bckgrnd='grey'):
-        cols = np.array(len(sp_incl) * [col_bckgrnd])
-        cols[sp_incl] = col_incld
+        cols = np.array(len(sp_inc) * [col_bckgrnd])
+        cols[sp_inc] = col_incld
         return cols
 
     # Waveform amplitude across session time.
-    m_amp, sd_amp = np.mean(wf_amp), np.std(wf_amp)
+    m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
     title = 'Waveform amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
-    plot.scatter(spike_times, wf_amp, add_r=False, c=get_color('m'), s=ss,
+    plot.scatter(spike_times, wf_amp_all, add_r=False, c=get_color('m'), s=ss,
                  xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
-    wf_dur = spike_dur.rescale(us)  # to use TPLCell's waveform duration
-    mdur, sdur = float(np.mean(wf_dur)), float(np.std(wf_dur))
+    wf_dur_all = spike_dur.rescale(us)  # to use TPLCell's waveform duration
+    wf_dur_inc = wf_dur_all[sp_inc]
+    mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
     title = 'Waveform duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
-    plot.scatter(spike_times, wf_dur, add_r=False, c=get_color('c'), s=ss,
+    plot.scatter(spike_times, wf_dur_all, add_r=False, c=get_color('c'), s=ss,
                  xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_dur)
 
     # Waveform duration against amplitude.
     title = 'Waveform duration - amplitude'
-    plot.scatter(wf_dur[sp_order], wf_amp[sp_order], c=sp_cols[sp_order], s=ss,
-                 xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
+    plot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=sp_cols[sp_order],
+                 s=ss, xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_amp_dur)
 
     # %% SNR, firing rate and spike timing.
 
+    # Check which segments are included / excluded.
+    t_middle = np.convolve(tbin_vals, np.ones((2,))/2, mode='valid')
+    is_prd_inc = util.indices_in_window(t_middle, t1_inc, t2_inc,
+                                        l_inc=False, r_inc=False)
+
+    def plot_periods(v, color, ax):
+        for i, is_inc in enumerate(is_prd_inc):
+            col = color if is_inc else 'grey'
+            x, y = [(tbin_vals[i], tbin_vals[i+1]), (v[i], v[i+1])]
+            ax.plot(x, y, color=col)
+
     # SNR over session time.
-    snr_sd = np.std(snr_t)
-    title = 'SNR: {:.2f} $\pm$ {:.2f}'.format(snr, snr_sd)
+    title = 'SNR: {:.2f}'.format(snr_inc)
     ylim = [0, 1.1*np.max(snr_t)]
-    plot.lines(tbin_vals, snr_t, c='y', xlim=ses_t_lim, ylim=ylim,
-               title=title, xlab=ses_t_lab, ylab='SNR',
-               ax=ax_snr)
+    plot_periods(snr_t, 'y', ax_snr)
+    plot.lines([], [], c='y', xlim=ses_t_lim, ylim=ylim,
+               title=title, xlab=ses_t_lab, ylab='SNR', ax=ax_snr)
 
     # Firing rate over session time.
-    srate = float(np.std(rate_t))
-    title = 'Firing rate: {:.1f} $\pm$ {:.1f} spike/s'.format(mean_rate, srate)
+    title = 'Firing rate: {:.1f} spike/s'.format(mean_rate)
     ylim = [0, 1.1*np.max(rate_t.magnitude)]
-    plot.lines(tbin_vals, rate_t, c='b', xlim=ses_t_lim, ylim=ylim,
+    plot_periods(rate_t, 'b', ax_rate)
+    plot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim,
                title=title, xlab=ses_t_lab, ylab='Firing rate (spike/s)',
                ax=ax_rate)
 
-    # Interspike interval distribution.
-    ylab = 'ISI violations (%)'
-    title = ('ISI violations: {:.2f}%'.format(isi_viol) +
-             ', true spikes: {:.1f}%'.format(true_spikes))
-    ylim = [0, 1.1*np.max(ISIvr_t)]
-    plot.lines(tbin_vals, ISIvr_t, c='r', xlim=ses_t_lim, ylim=ylim,
-               xlab=ses_t_lab, ylab=ylab, title=title, ax=ax_isi)
-
     # Add trial markers and highlight included period in each plot.
-    for ax in [ax_snr, ax_rate, ax_isi]:
+    for ax in [ax_snr, ax_rate]:
+
+        # Trial markers.
         plot.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--',
                          alpha=tr_alpha, ax=ax)
-        t1, t2 = trial_starts[min(tr_incl)], trial_starts[max(tr_incl)]
-        incl_segment = dict(selected=[t1, t2])
-        plot.plot_segments(incl_segment, t_unit=s, alpha=0.2,
-                           color='grey', ymax=0.96, ax=ax)
+
+        # Included period.
+        if not np.all(np.invert(tr_inc)):  # check if there is any trials
+            t1 = trial_starts[np.min(np.where(tr_inc))]
+            t2 = trial_starts[np.max(np.where(tr_inc))]
+            incl_segment = dict(selected=[t1, t2])
+            plot.plot_segments(incl_segment, t_unit=s, alpha=0.2,
+                               color='grey', ymax=0.96, ax=ax)
 
     # %% Save figure and metrics
 
-    fig_title = '{}: "{}"'.format(u.Name, unit_type)
+    # Create title
+    fig_title = ('{}: "{}"'.format(u.Name, unit_type) +
+                 # '\n\nSNR: {:.2f}%'.format(snr_inc) +
+                 ',   ISI vr: {:.2f}%'.format(ISI_vr) +
+                 ',   Tr Sp: {:.1f}%'.format(true_spikes))
+
     fig.suptitle(fig_title, y=0.98, fontsize='xx-large')
-    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.94])
+    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
     ffig = ffig_template.format(u.name_to_fname())
     plot.save_fig(fig, ffig)
