@@ -28,7 +28,7 @@ Time for waveform to reach maximal value, relative to waveform onset (waveform a
 
 ### Based on spike times
 
-All the below statistics are calculated over the entire session, as well as over the session using a non-overlapping 1 minute long sliding window (width: 60 s, step: 60 s).
+All the below statistics are calculated over the entire session, as well as over the session using a non-overlapping 1 minute long sliding window (equal width and step of ~120 s, precise value may be slighly higher due to session length not being exact multiple of 120 s).
 
 
 #### Firing rate
