@@ -5,7 +5,7 @@ These steps are done after [spike sorting](https://github.com/davidsamu/seal/blo
 
 ## Unit rejection
 
-The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality data (e.g. strong, inseparable multi-unit activity), and therefore may be considered as a quality assurance step, rather then cherrypicking the nice neurons.
+The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality data (e.g. strong, inseparable multi-unit activity), and therefore may be considered as a necesary quality assurance step, rather then cherrypicking the nice neurons.
 
 The metrics referred below are calculated for the duration of the entire session. Temporal changes in them are check during trial rejection below.
 
@@ -21,11 +21,11 @@ Criteria:
 
 ## Trial rejection
 
-The goal is to detect electrode drifts and changes in the state of the unit. We do this by checking for strong drift, drop and jump in various quality metrics (see [Quality Metrics](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Quality%20metrics.md)).
+The goal is to detect electrode drifts and changes in the state of the unit. We do this by checking for strong drifts, drops and jumps in firing rate (see [Quality Metrics](https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/Quality%20metrics.md)). 
 
-Criteria:
+More specifically, the algorithm selects the period of the session that
 
-1. Firing rate: **To be added.**
-2. Waveform amplitude: **To be added.**
-3. Waveform duration: **To be added.**
-4. ISI violation: **To be added.**
+1. has at most a factor of 2 between the lowest and the highest firing rate values within the period, and
+2. contains the highest number of trials.
+
+Trials outside of this period are excluded.
