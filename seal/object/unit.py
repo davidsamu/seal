@@ -192,9 +192,9 @@ class Unit:
 
         # Trial stats.
         unit_params['Trial stats'] = ''
-        unit_params['NTrialsTotal'] = get_val(qm, 'NTrialsTotal')
-        unit_params['NTrialsIncluded'] = get_val(qm, 'NTrialsIncluded')
-        unit_params['NTrialsExcluded'] = get_val(qm, 'NTrialsExcluded')
+        unit_params['total # trials'] = get_val(qm, 'NTrialsTotal')
+        unit_params['# rejected trials'] = get_val(qm, 'NTrialsExcluded')
+        unit_params['# remaining trials'] = get_val(qm, 'NTrialsIncluded')
 
         # Stimulus response properties.
         up = self.UnitParams

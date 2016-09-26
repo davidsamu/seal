@@ -55,7 +55,8 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
                           # Quality metrics
                           'MeanWfAmplitude', 'MeanWfDuration (us)', 'SNR',
                           'MeanFiringRate (sp/s)', 'ISIviolation (%)',
-                          'TrueSpikes (%)',
+                          'TrueSpikes (%)', 'UnitType', 'total # trials',
+                          '# rejected trials', '# remaining trials',
                           # Direction selectivity metrics
                           'DSI S1', 'DSI S2 (deg)',
                           'PD S1 (deg)', 'PD S2 (deg)',
@@ -73,8 +74,13 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
         v = unit_params[pp]
         if pp in categorical:
             v = np.array(v, dtype='object')
-        histogram(v, xlab=pp, ylab='n',
-                  title=pp, color=next(colors), ax=ax)
+        histogram(v, xlab=pp, ylab='n', title=pp, color=next(colors), ax=ax)
+
+    # Add main title
+    fig_title = ('Distributions of session parameters, quality metrics ' +
+                 'and stimulus response properties across units' +
+                 ' (n = {})'.format(unit_params.shape[0]))
+    fig.suptitle(fig_title, y=1.06, fontsize='xx-large')
 
     # Save and return plot.
     save_fig(fig, ffig)
@@ -446,12 +452,12 @@ def base_plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
         if not util.is_numeric_array(x):
             counts = np.array(Counter(x).most_common())
             counts = counts[counts[:, 0].argsort()]  # sort by category
-            cats, cnts = counts[:, 0], counts[:, 1]
+            cats, cnts = counts[:, 0], np.array(counts[:, 1], dtype=int)
             xx = range(len(cats))
             width = 0.7
             ax.bar(xx, cnts, width, **kwargs)
             ax.set_xticks([i+width/2 for i in xx])
-            rot_x_labs = np.mean([len(str(cat)) for cat in cats]) > 8
+            rot_x_labs = np.sum([len(str(cat)) for cat in cats]) > 60
             rot = 45 if rot_x_labs else 0
             ha = 'right' if rot_x_labs else 'center'
             ax.set_xticklabels(cats, rotation=rot, ha=ha)

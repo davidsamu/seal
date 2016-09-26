@@ -27,9 +27,6 @@ CENSORED_PRD_LEN = 0.675 * ms  # width of censored period
 ISI_TH = 1.0 * ms  # ISI violation threshold
 WF_T_START = 9  # start INDEX of spiked (aligned by Plexon)
 MAX_DRIFT_RATIO = 2  # maximum tolerable drift ratio
-
-MIN_RATIO_TRIALS = 0.5  # minimum ratio of trials to keep
-
 MIN_BIN_LEN = 120 * s  # minimum window length for firing binned statistics
 
 
@@ -150,7 +147,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
     n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
                     for t1, t2 in tbins]
 
-    # Find longest period with acceptible drift.
+    # Find period within acceptible drift range for each bin.
     cols = ['prd_start_i', 'prd_end_i', 'n_prd',
             't_start', 't_end', 't_len',
             'tr_start_i', 'tr_end_i', 'n_tr']
@@ -176,27 +173,21 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
         period_res.tr_end_i[i] = n_tr_prd_end[end_i]
         period_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
 
-    # Keep it only if it contains more trials than minimum limit.
-    n_tr = len(tr_starts)
-    t1, t2 = tbins[0][0], tbins[0][0]
-    first_tr_inc, last_tr_inc = -1, -1
-    prd1, prd2 = -1, -1
-    most_trs = period_res.n_tr.max()
-    if most_trs >= MIN_RATIO_TRIALS * n_tr:
-        idx = period_res.n_tr.argmax()
-        # Indices of longest period.
-        prd1 = period_res.prd_start_i[idx]
-        prd2 = period_res.prd_end_i[idx]
-        # Times of longest period.
-        t1 = period_res.t_start[idx]
-        t2 = period_res.t_end[idx]
-        # Trial indices within longest period.
-        first_tr_inc = period_res.tr_start_i[idx]
-        last_tr_inc = period_res.tr_end_i[idx] - 1
+    # Find bin with longest period.
+    idx = period_res.n_tr.argmax()
+    # Indices of longest period.
+    prd1 = period_res.prd_start_i[idx]
+    prd2 = period_res.prd_end_i[idx]
+    # Times of longest period.
+    t1 = period_res.t_start[idx]
+    t2 = period_res.t_end[idx]
+    # Trial indices within longest period.
+    first_tr_inc = period_res.tr_start_i[idx]
+    last_tr_inc = period_res.tr_end_i[idx] - 1
 
     # Return included trials and spikes.
     prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
-    tr_inc = util.indices_in_window(np.array(range(n_tr)),
+    tr_inc = util.indices_in_window(np.array(range(len(tr_starts))),
                                     first_tr_inc, last_tr_inc)
     sp_inc = util.indices_in_window(spike_times, t1, t2)
 
@@ -305,7 +296,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     sp_t = sp_i * sampl_per
     ses_t_lim = [spike_times.t_start, spike_times.t_stop]
     ss = 1.0  # marker size on scatter plot
-    sa = .8  # marker alpha on scatter plot
+    sa = .80  # marker alpha on scatter plot
     glim = [gmin, gmax]  # gain axes limit
     wf_t_lim = [min(sp_t), max(sp_t)]
     dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
@@ -403,7 +394,6 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
             x, y = [tbin_vmid[i], v[i]]
             ax.plot(x, y, color=col, marker='o',
                     markersize=3, markeredgecolor=col)
-
 
     # SNR over session time.
     title = 'SNR: {:.2f}'.format(snr_inc)
