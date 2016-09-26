@@ -448,7 +448,7 @@ def base_plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
             counts = counts[counts[:, 0].argsort()]  # sort by category
             cats, cnts = counts[:, 0], counts[:, 1]
             xx = range(len(cats))
-            width = 0.8
+            width = 0.7
             ax.bar(xx, cnts, width, **kwargs)
             ax.set_xticks([i+width/2 for i in xx])
             rot_x_labs = np.mean([len(str(cat)) for cat in cats]) > 8
