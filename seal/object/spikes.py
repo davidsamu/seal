@@ -18,7 +18,7 @@ from seal.object.trials import Trials
 
 
 class Spikes:
-    """Class for array of spike trains and associated properties."""
+    """Class for spike trains per trial and associated properties."""
 
     # %% Constructor
     def __init__(self, spike_train_list, t_start=None, t_stop=None):

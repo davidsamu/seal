@@ -19,7 +19,6 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
-from matplotlib import dates as md
 
 from seal.util import util
 
@@ -145,7 +144,7 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     set_limits(xlim, ylim, ax=ax)
     ax.locator_params(axis='y', nbins=6)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, True, True, True, ax=ax)
+    show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
     # Add '1' to tick labels

@@ -76,13 +76,13 @@ def ROC(x, y, n_perm=None, clf=None):
 
 # %% Wrapper functions.
 
-def run_unit_ROC(unit, get_trials, get_trials_kwargs, nrate,
+def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
                  t1=None, t2=None, n_perm=None):
     """Run ROC analysis on single unit."""
 
     # Get rates for two sets of trials.
-    all_trials = get_trials(unit, **get_trials_kwargs)
-    all_rates = np.array([[unit.Rates[nrate].get_rates(tr.trials, t1, t2)
+    all_trials = get_trials(u, **get_trials_kwargs)
+    all_rates = np.array([[u.Rates[nrate].get_rates(tr.trials, t1, t2)
                           for tr in trials] for trials in all_trials])
 
     # Create rate matrix and target vector.
@@ -140,8 +140,8 @@ def run_AROC(Units, nrate, t1, t2, offsets, n_perm,
     else:
 
         # Set up parameters for parallel computing.
-        params = [(unit, get_trials, get_trials_kwargs, nrate, t1, t2, n_perm)
-                  for unit in Units]
+        params = [(u, get_trials, get_trials_kwargs, nrate, t1, t2, n_perm)
+                  for u in Units]
 
         # Calculate AROC and p-value by permutation test.
         res = np.array(util.run_in_pool(run_unit_ROC, params))
@@ -217,12 +217,12 @@ def plot_AROC_results(Units, aroc, tvec, nrate, offsets,
                       get_trials, get_trials_kwargs, fig_dir):
     """Plots AROC results for each unit."""
 
-    for i, unit in enumerate(Units):
+    for i, u in enumerate(Units):
 
         # Plot standard raster-rate plot
-        trials = get_trials(unit, **get_trials_kwargs)
+        trials = get_trials(u, **get_trials_kwargs)
         outer_gs = gs.GridSpec(3, 1, height_ratios=[1, 1, 1])
-        fig = unit.plot_raster_rate(nrate, trials, outer_gs=outer_gs)
+        fig = u.plot_raster_rate(nrate, trials, outer_gs=outer_gs)
 
         # Remove x axis and label from rate plot
         ax_rate = fig.axes[-1]
@@ -240,12 +240,12 @@ def plot_AROC_results(Units, aroc, tvec, nrate, offsets,
         # Plot AROC
         plot.lines(tvec, aroc[i, :], ylim=[0, 1], xlab='Time (ms)',
                    ylab='AROC', ax=ax, color='m')
-        plot.plot_segments(unit.ExpSegments, t_unit=ms, ax=ax)
+        plot.plot_segments(u.ExpSegments, t_unit=ms, ax=ax)
         ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
         plot.show_spines(True, False, True, False, ax)
 
         # Save plot
-        ffig = fig_dir + unit.name_to_fname() + '.png'
+        ffig = fig_dir + u.name_to_fname() + '.png'
         plot.save_fig(fig, ffig)
 
 
@@ -269,7 +269,7 @@ def results_table(Units, aroc, pval, tvec, tmin, tmax, prd_len,
     # Put results into data table.
     T = pd.DataFrame()
     T['index'] = range(1, aroc_w.shape[0]+1)
-    T['name'] = [unit.Name for unit in Units]
+    T['name'] = [u.Name for u in Units]
     T['effect'] = eff_time[:, 0]
     T['time (ms)'] = np.array(eff_time[:, 1], dtype=float)
     T['AROC'] = [aroc_w[i, util.index(tvec_w, t)] if pd.notnull(t) else None

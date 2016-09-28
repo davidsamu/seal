@@ -43,7 +43,7 @@ class Unit:
         self.t_start = t_start
         self.t_stop = t_stop
 
-        # Return if no data is passed.
+        # Return if no TPLCell is passed.
         if TPLCell is None:
             return
 
@@ -135,7 +135,8 @@ class Unit:
         self.Spikes = Spikes(spk_trains, t_start, t_stop)
 
         # Estimate firing rate per trial.
-        self.Rates = OrdDict([(name, Rate(kernel, self.Spikes.get_spikes(), step))
+        spikes = self.Spikes.get_spikes()
+        self.Rates = OrdDict([(name, Rate(name, kernel, spikes, step))
                               for name, kernel in kernels.items()])
 
         # Calculate preferred direction.
@@ -215,7 +216,7 @@ class Unit:
         """Return default values of some common parameters."""
 
         if trials is None:
-            trials = self.all_trials()
+            trials = [self.all_trials()]
         if t1 is None:
             t1 = self.t_start
         if t2 is None:
@@ -238,14 +239,40 @@ class Unit:
 
     # %% Generic methods to get various set of trials
 
-    def all_trials(self):
+    def included_trials(self):
+        """Return included trials (i.e. not rejected after quality test)."""
+
+        included_trials = self.QualityMetrics['IncludedTrials']
+        return included_trials
+
+    def filter_trials(self, trials):
+        """Filter trials by excluding rejected ones."""
+
+        tr_idxs = np.logical_and(trials.trials, self.included_trials().trials)
+        filtered_trials = Trials(tr_idxs, trials.value, trials.name)
+        return filtered_trials
+
+    def ftrials(self, trials, value=None, name=None, filtered=True):
+        """
+        Create and return trial object for specific unit from
+        list of trial indices after excluding unit's rejected trials.
+        """
+
+        trials = Trials(trials, value, name)
+        if filtered:
+            trials = self.filter_trials(trials)
+
+        return trials
+
+    def all_trials(self, filtered=True):
         """Return indices of all trials."""
 
         tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
-        trials = [Trials(tr_idxs, 'all trials')]
+        trials = self.ftrials(tr_idxs, 'all trials')
+
         return trials
 
-    def param_values_by_trials(self, trials, pnames=None):
+    def param_values_in_trials(self, trials, pnames=None):
         """Return list of parameter values during given trials."""
 
         if pnames is None:
@@ -273,7 +300,7 @@ class Unit:
             return idxs == ival
 
         # Create Trials object for each parameter value, separately.
-        ptrials = [Trials(trials_idxs(v), v, n)
+        ptrials = [self.ftrials(trials_idxs(v), v, n)
                    for i, (n, v) in enumerate(zip(tr_names, pvals))]
 
         # Optionally, combine trials across parameter values.

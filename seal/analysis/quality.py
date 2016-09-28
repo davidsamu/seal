@@ -18,6 +18,7 @@ from matplotlib import gridspec as gs
 from elephant import statistics
 
 from seal.util import plot, util
+from seal.object.trials import Trials
 
 
 # %% Constants.
@@ -196,7 +197,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
 
 # %% Calculate quality metrics.
 
-def test_qm(u, ffig_template):
+def test_qm(u, ffig_template=None):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
     Exclude trials with unacceptable drift.
@@ -242,11 +243,13 @@ def test_qm(u, ffig_template):
     u.QualityMetrics['UnitType'] = unit_type
 
     # Trial removal info.
+    tr_exc = np.invert(tr_inc)
     u.QualityMetrics['NTrialsTotal'] = len(tr_starts)
     u.QualityMetrics['NTrialsIncluded'] = np.sum(tr_inc)
-    u.QualityMetrics['NTrialsExcluded'] = len(tr_starts) - np.sum(tr_inc)
-    u.QualityMetrics['TrialsIncluded'] = tr_inc
-    u.QualityMetrics['TrialsExcluded'] = np.invert(tr_inc)
+    u.QualityMetrics['NTrialsExcluded'] = np.sum(tr_exc)
+    u.QualityMetrics['IncludedTrials'] = Trials(tr_inc, 'included trials')
+    u.QualityMetrics['ExcludedTrials'] = Trials(tr_exc, 'excluded trials')
+    u.QualityMetrics['IncludedSpikes'] = sp_inc
 
     # Plot quality metric results.
     if ffig_template is not None:
