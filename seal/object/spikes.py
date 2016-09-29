@@ -70,12 +70,14 @@ class Spikes:
         n_spikes = np.array([sp.size for sp in spikes])
         return n_spikes
 
-    def avg_n_spikes(self, trials=None, t1=None, t2=None):
+    def mean_spike_count(self, trials=None, t1=None, t2=None):
         """Return average number of spikes across selected trials."""
 
         n_spikes = self.n_spikes(trials, t1, t2)
-        avg_n_spikes = np.mean(n_spikes)
-        return avg_n_spikes
+        mean_sp_cnt = np.mean(n_spikes)
+        std_sp_cnt = np.std(n_spikes)
+        sem_sp_cnt = std_sp_cnt / np.sqrt(n_spikes.size)
+        return mean_sp_cnt, std_sp_cnt, sem_sp_cnt
 
     def isi(self, trials=None, t1=None, t2=None):
         """Return interspike intervals per trial."""

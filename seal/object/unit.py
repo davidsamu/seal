@@ -28,7 +28,7 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell, t_start, t_stop, kernels, step=10*ms,
-                 params_info=None, i=None):
+                 params_info=None):
         """Create Unit instance, optionally from TPLCell data structure."""
 
         # Create empty instance.
@@ -57,8 +57,7 @@ class Unit:
 
         [date, probe] = [dateprobe[0:6], dateprobe[6:].upper()]
         [chan, un] = TPLCell.ChanUnit
-        self.Name = 'Unit {:0>3}  '.format(i)
-        self.Name += ' '.join([exp, monkey, date, probe])
+        self.Name = ' '.join([exp, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
 
         self.SessParams = OrdDict()
@@ -94,13 +93,26 @@ class Unit:
         self.TrialParams = DataFrame(TPLCell.TrialParams,
                                      columns=TPLCell.Header)
         if params_info is not None:  # This takes a lot of time, speed it up?
-            for name, (new_name, unit) in params_info.items():
+            for name, (new_name, dim) in params_info.items():
                 if name not in self.TrialParams.columns:
                     print('Warning: Parameter {0} not found!'.format(name))
                     continue
                 self.TrialParams.rename(columns={name: new_name}, inplace=True)
-                new_col = np.asarray(self.TrialParams[new_name]) * unit
-                self.TrialParams[new_name] = DataFrame([new_col]).T
+                if dim is not None:
+                    if isinstance(dim, str):  # change data type
+                        new_col = self.TrialParams[new_name].astype(dim)
+                    else:   # add physical dimension
+                        new_col = np.array(self.TrialParams[new_name]) * dim
+                    self.TrialParams[new_name] = DataFrame([new_col]).T
+
+        # Add column for subject response (saccade direction).
+        if 'AnswCorr' in self.TrialParams.columns:
+            self.TrialParams['AnswCorr'] = self.TrialParams['AnswCorr'] == 1
+            same_dir = self.TrialParams['S1Dir'] == self.TrialParams['S2Dir']
+            corr_ans = self.TrialParams['AnswCorr']
+            self.TrialParams['Answ'] = ((same_dir & corr_ans) |
+                                        (~same_dir & ~corr_ans))
+
         # Start and end times of each trials.
         trial_times = [(TPLCell.Timestamps[i1-1]*s, TPLCell.Timestamps[i2-1]*s)
                        for i1, i2 in TPLCell.Info.successfull_trials_indices]
@@ -423,7 +435,7 @@ class Unit:
 
     # %% Methods to calculate tuning curves and preferred feature values.
 
-    def calc_mean_response(self, pname, t1, t2):
+    def calc_response_stats(self, pname, t1, t2):
         """Calculate mean response to different values of trial parameter."""
 
         # Get trials for each parameter value.
@@ -431,10 +443,13 @@ class Unit:
 
         # Calculate binned spike count per value.
         p_values = [tr.value for tr in trials]
-        mean_sp_count = np.array([self.Spikes.avg_n_spikes(tr, t1, t2)
-                                  for tr in trials])
+        sp_stats = [self.Spikes.mean_spike_count(tr, t1, t2) for tr in trials]
+        mean_sp_cnt, std_sp_cnt, sem_sp_cnt = zip(*sp_stats)
+        mean_sp_cnt = np.array(mean_sp_cnt)
+        std_sp_cnt = np.array(std_sp_cnt)
+        sem_sp_cnt = np.array(sem_sp_cnt)
 
-        return p_values, mean_sp_count
+        return p_values, mean_sp_cnt, std_sp_cnt, sem_sp_cnt
 
     def calc_dir_response(self, stim):
         """Calculate mean response to each direction during given stimulus."""
@@ -442,9 +457,10 @@ class Unit:
         # Calculate binned spike count per direction.
         pname = stim + 'Dir'
         t1, t2 = self.ExpSegments[stim]
-        dirs, mean_sp_count = self.calc_mean_response(pname, t1, t2)
+        response_stats = self.calc_response_stats(pname, t1, t2)
+        dirs, mean_sp_cnt, std_sp_cnt, sem_sp_cnt = response_stats
 
-        return dirs, mean_sp_count
+        return dirs, mean_sp_cnt, std_sp_cnt, sem_sp_cnt
 
     def test_direction_selectivity(self, stims=['S1', 'S2'], ffig_tmpl=None):
         """
@@ -464,10 +480,10 @@ class Unit:
             self.UnitParams['PrefDirCoarse'][stim] = OrdDict()
 
             # Get mean response to each direction.
-            dirs, mean_sp_count = self.calc_dir_response(stim)
+            dirs, mean_resp, std_resp, sem_resp = self.calc_dir_response(stim)
 
             # Calculate preferred direction and direction selectivity index.
-            ds_idx, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_sp_count)
+            ds_idx, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_resp)
 
             # Add calculated values to unit.
             self.UnitParams['PrefDir'][stim] = pref_dir
@@ -475,7 +491,7 @@ class Unit:
             self.UnitParams['DirSelectivity'][stim] = ds_idx
 
             # Plot direction selectivity.
-            plot.direction_selectivity(dirs, mean_sp_count, ds_idx, pref_dir,
+            plot.direction_selectivity(dirs, mean_resp, ds_idx, pref_dir,
                                        color=color, ax=ax)
 
             # Collect stimulus params.
