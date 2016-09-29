@@ -21,6 +21,7 @@ from seal.object.trials import Trials
 from seal.object.spikes import Spikes
 from seal.object.rate import Rate
 
+# TODO: add receptive field coverage information!
 
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""

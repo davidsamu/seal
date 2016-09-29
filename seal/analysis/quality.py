@@ -8,6 +8,8 @@ Collection of functions related to quality metrics of recording.
 @author: David Samu
 """
 
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us
@@ -195,7 +197,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
     return t1, t2, prd_inc, tr_inc, sp_inc
 
 
-# %% Calculate quality metrics.
+# %% Calculate quality metrics, and find trials and units to be excluded.
 
 def test_qm(u, ffig_template=None):
     """
@@ -258,6 +260,41 @@ def test_qm(u, ffig_template=None):
                 ffig_template)
 
     return u
+
+
+def test_rejection(u):
+    """Check whether unit is to be rejected from analysis."""
+
+    qm = u.QualityMetrics
+    exclude = False
+
+    # Insufficient receptive field coverage.
+    # TODO: add receptive field coverage information!
+
+    # Extremely low waveform consistency: SNR < 0.5.
+    exclude = exclude or qm['SNR'] < 0.5
+
+    # Extremely low unit activity: Firing rate < 1 spikes / second.
+    exclude = exclude or qm['MeanFiringRate'] < 1.0
+
+    # Extremely high ISI violation: ISI v.r. > 2%.
+    exclude = exclude or qm['ISIviolation'] > 2.0
+
+    # Insufficient number of trials:
+    #  # of trials after rejection < 50% of total # of trials.
+    exclude = exclude or qm['NTrialsIncluded'] / qm['NTrialsTotal'] < 0.5
+
+    # Insufficient direction selectivity: DSI < 0.1 during either stimulus.
+    ds = u.UnitParams['DirSelectivity'].values()
+    exclude = exclude or np.any([dsi < 0.1 for dsi in ds])
+
+    # Preferred direction is not one (with some wide margin)
+    # with most activity for either of the stimuli.
+    # TODO
+
+    u.QualityMetrics['ExcludeUnit'] = exclude
+
+    return exclude
 
 
 # %% Plot quality metrics.
