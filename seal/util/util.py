@@ -288,7 +288,7 @@ def deg_mod(d, max_d=360*deg):
     """Converts cirulcar value (degree) into modulo interval."""
 
     d = d.rescale(deg)
-    d_mod = (d.magnitude % max_d.magnitude) * d.units
+    d_mod = np.mod(d, max_d)
     return d_mod
 
 

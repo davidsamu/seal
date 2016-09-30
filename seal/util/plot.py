@@ -13,7 +13,7 @@ from collections import Counter
 
 import numpy as np
 from scipy.stats.stats import pearsonr
-from quantities import ms, rad
+from quantities import ms, rad, deg
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -224,12 +224,29 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
         polar_direction_response(dirs, mean_resp, dsi, pref_dir,
                                  color=color, ax=ax_polar)
 
-        # Plot direction tuning curve.
+        # Shift direction - response values to center preferred direction.
+        ndirs = len(dirs)
+        idx = np.array(range(ndirs))
         dirs_offset = dirs - pref_dir
+        to_right = dirs_offset < -180*deg   # indices to move to the right
+        to_left = dirs_offset > 180*deg     # indices to move to the left
+        center = np.invert(np.logical_or(to_right, to_left))  # indices to keep
+        idx = np.hstack((idx[to_left], idx[center], idx[to_right]))
+        dirs_shifted = util.deg_mod(dirs_offset[idx])
+        idx_to_flip = dirs_shifted > 180*deg
+        dirs_shifted[idx_to_flip] = dirs_shifted[idx_to_flip] - 360*deg
+        mean_resp_shifted = mean_resp[idx]
+        sem_resp_shifted = sem_resp[idx]
+
+        # Calculate and plot direction tuning curve.
+        xlim = [-180-5, 180+5]
+        ylim = None  # [0, None]
         xlab = 'Difference from preferred direction (deg)'
-        ylab='Firing rate (sp/s)'
-        tuning.test_tuning(dirs_offset, mean_resp, sem_resp,
-                           xlab=xlab, ylab=ylab, color=color, ax=ax_tuning)
+        ylab = 'Firing rate (sp/s)'
+        tuning.test_tuning(dirs_shifted, mean_resp_shifted, sem_resp_shifted,
+                           stim_min=-180*deg, stim_max=180*deg,
+                           xlim=xlim, ylim=ylim, xlab=xlab, ylab=ylab,
+                           color=color, ax=ax_tuning)
 
         # Collect stimulus params.
         s_pd = str(float(round(pref_dir, 1)))
@@ -238,9 +255,9 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
         lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
         patches.append(get_proxy_patch(lgd_lbl, color))
 
-
     # Add zero reference line to tuning curve.
     ax_tuning.axvline(0, color='k', ls='--', alpha=0.2)
+    ax_tuning.axhline(0, color='k')
 
     # Set labels.
     set_labels('Tuning curve', ax=ax_tuning)
@@ -287,16 +304,16 @@ def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
     return ax
 
 
-def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b',
-                 title=None, xlab=None, ylab=None, ffig=None, ax=None):
+def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b', title=None,
+                 xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
     """Plot tuning curve."""
 
-    # Plot data samples of tuning curve.
-    ax = errorbar(val, mean_resp, yerr=sem_resp, fmt='o', color=color,
-                  title=title, xlab=xlab, ylab=ylab, ax=ax)
-
     # Add fitted curve.
-    lines(xfit, yfit, color=color, ax=ax)
+    ax = lines(xfit, yfit, color=color, ax=ax)
+
+    # Plot data samples of tuning curve.
+    errorbar(val, mean_resp, yerr=sem_resp, fmt='o', color=color,
+             title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
 
     # Save and return plot.
     save_fig(plt.gcf(), ffig)
