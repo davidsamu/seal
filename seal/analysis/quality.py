@@ -144,7 +144,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
     # Number of trials from session start until start and end of each period.
-    tr_starts = util.pd_to_np_quantity(tr_starts)
+    tr_starts = util.list_to_quantity(tr_starts)
     n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
                       for t1, t2 in tbins]
     n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))

@@ -20,6 +20,7 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
 
+from seal.analysis import tuning
 from seal.util import util
 
 
@@ -203,26 +204,99 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
     return ax
 
 
-def direction_selectivity(dirs, activity, ds_idx=None, pref_dir=None,
-                          color='g', title=None, ffig=None, ax=None):
-    """Plot direction selectivity."""
+def direction_selectivity(dir_select_dict, title=None, ffig=None):
+    """Plot direction selectivity on polar plot and tuning curve."""
+
+    # Init plots.
+    fig = figure(figsize=(12, 5))
+    ax_polar = fig.add_subplot(121, polar=True)
+    ax_tuning = fig.add_subplot(122)
+    colors = get_colors()
+    patches = []
+
+    for name, values in dir_select_dict.items():
+
+        # Init stimulus plotting.
+        dirs, mean_resp, sem_resp, dsi, pref_dir, pref_dir_c = values
+        color = next(colors)
+
+        # Plot direction selectivity on polar plot.
+        polar_direction_response(dirs, mean_resp, dsi, pref_dir,
+                                 color=color, ax=ax_polar)
+
+        # Plot direction tuning curve.
+        dirs_offset = dirs - pref_dir
+        xlab = 'Difference from preferred direction (deg)'
+        ylab='Firing rate (sp/s)'
+        tuning.test_tuning(dirs_offset, mean_resp, sem_resp,
+                           xlab=xlab, ylab=ylab, color=color, ax=ax_tuning)
+
+        # Collect stimulus params.
+        s_pd = str(float(round(pref_dir, 1)))
+        s_pd_c = str(int(pref_dir_c))
+        lgd_lbl = '{}:   {:.3f}'.format(name, dsi)
+        lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
+        patches.append(get_proxy_patch(lgd_lbl, color))
+
+
+    # Add zero reference line to tuning curve.
+    ax_tuning.axvline(0, color='k', ls='--', alpha=0.2)
+
+    # Set labels.
+    set_labels('Tuning curve', ax=ax_tuning)
+    fig.suptitle(title, y=1.12, fontsize='xx-large')
+
+    # Set legend.
+    lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
+    lgd = set_legend(ax_polar, handles=patches, title=lgd_ttl,
+                     bbox_to_anchor=(0., -0.30, 1., .0),
+                     loc='lower center', prop={'family': 'monospace'})
+    lgd.get_title().set_ha('left')
+
+    # Save figure.
+    save_fig(ffig=ffig, bbox_extra_artists=(lgd,))
+
+
+def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
+                             color='g', title=None, ffig=None, ax=None):
+    """
+    Plot response to each directions on polar plot, with direction selectivity
+    vector.
+    """
 
     # Plot response to each directions on polar plot.
     rad_dirs = np.array([d.rescale(rad) for d in dirs])
     ndirs = rad_dirs.size
     left_rad_dirs = rad_dirs - np.pi/ndirs
     w = 2*np.pi / ndirs
-    ax = bars(activity, left_rad_dirs, polar=True, width=w, alpha=0.50,
+    ax = bars(left_rad_dirs, resp, polar=True, width=w, alpha=0.50,
               color=color, edgecolor='w', linewidth=1, title=title,
               ytitle=1.08, ax=ax)
 
-    # Add arrow representing preferred direction and direction selectivity.
-    if ds_idx is not None and pref_dir is not None:
-        rho = np.max(activity) * ds_idx
+    # Add arrow representing preferred direction and
+    # direction selectivity index (DSI).
+    if DSI is not None and pref_dir is not None:
+        rho = np.max(resp) * DSI
         xy = (float(pref_dir.rescale(rad)), rho)
         ax.annotate('', xy, xytext=(0, 0),
                     arrowprops=dict(facecolor=color, edgecolor='k',
                                     shrink=0.0, alpha=0.5))
+
+    # Save and return plot.
+    save_fig(plt.gcf(), ffig)
+    return ax
+
+
+def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b',
+                 title=None, xlab=None, ylab=None, ffig=None, ax=None):
+    """Plot tuning curve."""
+
+    # Plot data samples of tuning curve.
+    ax = errorbar(val, mean_resp, yerr=sem_resp, fmt='o', color=color,
+                  title=title, xlab=xlab, ylab=ylab, ax=ax)
+
+    # Add fitted curve.
+    lines(xfit, yfit, color=color, ax=ax)
 
     # Save and return plot.
     save_fig(plt.gcf(), ffig)
@@ -388,14 +462,14 @@ def axes(ax=None, **kwargs):
     return ax
 
 
-def get_subplots(nplots, sp_width=4, sp_height=3):
+def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
     """Returns figures with given number of axes initialised."""
 
     # Create figure with axes arranged in grid pattern.
     nrow = int(np.floor(np.sqrt(nplots)))
     ncol = int(np.ceil(nplots / nrow))
     figsize = (sp_width*ncol, sp_height*nrow)
-    fig, axs = plt.subplots(nrow, ncol, figsize=figsize)
+    fig, axs = plt.subplots(nrow, ncol, figsize=figsize, **kwargs)
 
     # Turn off last axes on grid.
     axsf = axs.flatten()
@@ -410,12 +484,12 @@ def get_colors(from_mpl_cycle=False, as_cycle=True):
     """Return colour cycle."""
 
     if from_mpl_cycle:
-        col_cylce = mpl.rcParams['axes.prop_cycle']
+        col_cylce = mpl.rcParams['axes.prop_cycle']  # MPL default color list
         cols = [d['color'] for d in col_cylce]
     else:
-        cols = ['b', 'g', 'r', 'c', 'm', 'y']
+        cols = ['m', 'g', 'r', 'c', 'b', 'y']  # custom list of colors
 
-    if as_cycle:
+    if as_cycle:  # for cyclic indexing
         cols = cycle(cols)
 
     return cols
@@ -430,7 +504,7 @@ def get_proxy_patch(label, color):
 
 # %% General purpose plotting functions.
 
-def base_plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
+def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
               title=None, ytitle=None, polar=False, figtype='lines',
               ffig=None, ax=None, **kwargs):
     """Generic plotting function."""
@@ -442,6 +516,9 @@ def base_plot(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
 
     elif figtype == 'bars':
         ax.bar(x, y, **kwargs)
+
+    elif figtype == 'errorbar':
+        ax.errorbar(x, y, **kwargs)
 
     elif figtype == 'hist':
 
@@ -509,13 +586,24 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
     return ax
 
 
-def bars(y, x=None, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
+def bars(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
          ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot simple lines."""
 
     # Plot bar plot.
     ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
                    'bars', ffig, ax=ax, **kwargs)
+    return ax
+
+
+def errorbar(x, y, ylim=None, xlim=None, xlab=None, ylab=None,
+             title=None, ytitle=None, polar=False, ffig=None, ax=None,
+             **kwargs):
+    """Plot error bars."""
+
+    # Plot line plot.
+    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
+                   'errorbar', ffig, ax=ax, **kwargs)
     return ax
 
 

@@ -15,6 +15,7 @@ import datetime
 import string
 import numpy as np
 import scipy as sp
+import pandas as pd
 import multiprocessing as mp
 from collections import Iterable
 
@@ -160,6 +161,13 @@ def is_numeric_array(obj):
     return is_num_arr
 
 
+def is_quantity(obj):
+    """Check if object is Quantity array."""
+
+    is_quant = isinstance(obj, Quantity)
+    return is_quant
+
+
 def is_date(obj):
     """Check if object is datetime object or array of datetimes."""
 
@@ -212,32 +220,41 @@ def values_in_window(v, vmin=None, vmax=None):
     return v[indices_in_window(v, vmin, vmax)]
 
 
-def quantity_linspace(q1, q2, unit, n, endpoint=True, retstep=False):
+def quantity_linspace(q1, q2, dim, n, endpoint=True, retstep=False):
     """Implement numpy.linspace on phyisical quantities."""
 
-    v1 = np.array(q1.rescale(unit))
-    v2 = np.array(q2.rescale(unit))
-    vec = np.linspace(v1, v2, n, endpoint, retstep) * unit
+    v1 = np.array(q1.rescale(dim))
+    v2 = np.array(q2.rescale(dim))
+    vec = np.linspace(v1, v2, n, endpoint, retstep) * dim
     return vec
 
 
 def quantity_arange(q1, q2, step):
     """Implement numpy.arange on phyisical quantities."""
 
-    unit = step.units
-    v1 = np.array(q1.rescale(unit))
-    v2 = np.array(q2.rescale(unit))
-    vec = np.arange(v1, v2, float(step)) * unit
+    dim = step.units
+    v1 = np.array(q1.rescale(dim))
+    v2 = np.array(q2.rescale(dim))
+    vec = np.arange(v1, v2, float(step)) * dim
     return vec
 
 
-def pd_to_np_quantity(pd_vec):
-    """Convert Pandas vector containing quantity values to Numpy vector."""
+def list_to_quantity(lvec, dim=None):
+    """Convert list, or Pandas vector, of quantity values to Quantity array."""
 
-    v_unit = pd_vec[0].units
-    np_vec = np.array([v for v in pd_vec]) * v_unit
+    dim = lvec[0].units if dim is None else dim
+    np_vec = np.array([v for v in lvec]) * dim
 
     return np_vec
+
+
+def add_dim_to_df_col(col, dim):
+    """Add physical dimension to Pandas dataframe column."""
+
+    quantity_col = list_to_quantity(col, dim)
+    dim_col = pd.DataFrame([quantity_col], columns=col.index).T
+
+    return dim_col
 
 
 def zscore_timeseries(timeseries):

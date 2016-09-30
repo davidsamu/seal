@@ -16,6 +16,7 @@ from pandas import DataFrame
 from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
+from seal.analysis import tuning
 from seal.util import plot, util
 from seal.object.trials import Trials
 from seal.object.spikes import Spikes
@@ -442,14 +443,14 @@ class Unit:
         trials = self.trials_by_param_values(pname)
 
         # Calculate binned spike count per value.
-        p_values = [tr.value for tr in trials]
-        sp_stats = [self.Spikes.mean_spike_count(tr, t1, t2) for tr in trials]
-        mean_sp_cnt, std_sp_cnt, sem_sp_cnt = zip(*sp_stats)
-        mean_sp_cnt = np.array(mean_sp_cnt)
-        std_sp_cnt = np.array(std_sp_cnt)
-        sem_sp_cnt = np.array(sem_sp_cnt)
+        p_values = util.list_to_quantity([tr.value for tr in trials])
+        sp_stats = [self.Spikes.spike_count_stats(tr, t1, t2) for tr in trials]
+        mean_rate, std_rate, sem_rate = zip(*sp_stats)
+        mean_rate = util.list_to_quantity(mean_rate)
+        std_rate = util.list_to_quantity(std_rate)
+        sem_rate = util.list_to_quantity(sem_rate)
 
-        return p_values, mean_sp_cnt, std_sp_cnt, sem_sp_cnt
+        return p_values, mean_rate, std_rate, sem_rate
 
     def calc_dir_response(self, stim):
         """Calculate mean response to each direction during given stimulus."""
@@ -458,9 +459,9 @@ class Unit:
         pname = stim + 'Dir'
         t1, t2 = self.ExpSegments[stim]
         response_stats = self.calc_response_stats(pname, t1, t2)
-        dirs, mean_sp_cnt, std_sp_cnt, sem_sp_cnt = response_stats
+        dirs, mean_rate, std_rate, sem_rate = response_stats
 
-        return dirs, mean_sp_cnt, std_sp_cnt, sem_sp_cnt
+        return dirs, mean_rate, std_rate, sem_rate
 
     def test_direction_selectivity(self, stims=['S1', 'S2'], ffig_tmpl=None):
         """
@@ -470,51 +471,27 @@ class Unit:
         """
 
         # Init for multi-stimulus plotting.
-        ax = plot.axes(polar=True)
-        colors = ['m', 'g']  # plot.get_colors_from_cycle()
-        patches = []
-        for stim, color in zip(stims, colors):
-
-            # Init of direction.
-            self.UnitParams['PrefDir'][stim] = OrdDict()
-            self.UnitParams['PrefDirCoarse'][stim] = OrdDict()
+        dir_select_dict = OrdDict()
+        for stim in stims:
 
             # Get mean response to each direction.
             dirs, mean_resp, std_resp, sem_resp = self.calc_dir_response(stim)
 
             # Calculate preferred direction and direction selectivity index.
-            ds_idx, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_resp)
+            dsi, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_resp)
+            dir_select_dict[stim] = (dirs, mean_resp, sem_resp,
+                                     dsi, pref_dir, pref_dir_c)
 
             # Add calculated values to unit.
             self.UnitParams['PrefDir'][stim] = pref_dir
             self.UnitParams['PrefDirCoarse'][stim] = pref_dir_c
-            self.UnitParams['DirSelectivity'][stim] = ds_idx
+            self.UnitParams['DirSelectivity'][stim] = dsi
 
-            # Plot direction selectivity.
-            plot.direction_selectivity(dirs, mean_resp, ds_idx, pref_dir,
-                                       color=color, ax=ax)
-
-            # Collect stimulus params.
-            s_pd = str(float(round(pref_dir, 1)))
-            s_pd_c = str(int(pref_dir_c))
-            lgd_lbl = '{}:   {:.3f}'.format(stim, ds_idx)
-            lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
-            patches.append(plot.get_proxy_patch(lgd_lbl, color))
-
-        # Set labels
-        plot.set_labels(title=self.Name, ytitle=1.10, ax=ax)
-
-        # Set legend
-        lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
-        lgd = plot.set_legend(ax, handles=patches, title=lgd_ttl,
-                              bbox_to_anchor=(0., -0.30, 1., .0),
-                              loc='lower center', prop={'family': 'monospace'})
-        lgd.get_title().set_ha('left')
-
-        # Save figure
+        # Plot direction response and selectivity results.
+        ffig = None
         if ffig_tmpl is not None:
             ffig = ffig_tmpl.format(self.name_to_fname())
-            plot.save_fig(ffig=ffig, bbox_extra_artists=(lgd,))
+        plot.direction_selectivity(dir_select_dict, self.Name, ffig)
 
     # %% Plotting methods.
 
