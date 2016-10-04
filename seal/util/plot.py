@@ -212,7 +212,8 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
     ax_polar = fig.add_subplot(121, polar=True)
     ax_tuning = fig.add_subplot(122)
     colors = get_colors()
-    patches = []
+    polar_patches = []
+    tuning_patches = []
 
     for name, values in dir_select_dict.items():
 
@@ -239,33 +240,52 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
         sem_resp_shifted = sem_resp[idx]
 
         # Calculate and plot direction tuning curve.
-        xlim = [-180-5, 180+5]
-        ylim = None  # [0, None]
         xlab = 'Difference from preferred direction (deg)'
         ylab = 'Firing rate (sp/s)'
-        tuning.test_tuning(dirs_shifted, mean_resp_shifted, sem_resp_shifted,
-                           stim_min=-180*deg, stim_max=180*deg,
-                           xlim=xlim, ylim=ylim, xlab=xlab, ylab=ylab,
-                           color=color, ax=ax_tuning)
+        r = tuning.test_tuning(dirs_shifted, mean_resp_shifted, sem_resp_shifted,
+                               stim_min=-180*deg, stim_max=180*deg,
+                               xlab=xlab, ylab=ylab, color=color, ax=ax_tuning)
+        a, b, x0, sigma = r[0].loc['fit']
 
-        # Collect stimulus params.
+        # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(pref_dir, 1)))
         s_pd_c = str(int(pref_dir_c))
         lgd_lbl = '{}:   {:.3f}'.format(name, dsi)
         lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
-        patches.append(get_proxy_patch(lgd_lbl, color))
+        polar_patches.append(get_proxy_patch(lgd_lbl, color))
+
+        # Collect parameters of tuning curve fit.
+        s_a = str(float(round(a, 1)))
+        s_b = str(float(round(b, 1)))
+        s_x0 = str(float(round(x0, 1)))
+        s_sigma = str(float(round(sigma, 1)))
+        lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(name, 5 * ' ', s_a, 5 * ' ', s_b)
+        lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
+        tuning_patches.append(get_proxy_patch(lgd_lbl, color))
 
     # Add zero reference line to tuning curve.
     ax_tuning.axvline(0, color='k', ls='--', alpha=0.2)
-    ax_tuning.axhline(0, color='k')
+
+    # Set limits of tuning curve (after all curves have been plotted).
+    xlim = [-180-5, 180+5]
+    ylim = [0, None]
+    set_limits(xlim, ylim, ax_tuning)
 
     # Set labels.
     set_labels('Tuning curve', ax=ax_tuning)
     fig.suptitle(title, y=1.12, fontsize='xx-large')
 
-    # Set legend.
+    # Set legend of polar plot.
     lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
-    lgd = set_legend(ax_polar, handles=patches, title=lgd_ttl,
+    lgd = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
+                     bbox_to_anchor=(0., -0.30, 1., .0),
+                     loc='lower center', prop={'family': 'monospace'})
+    lgd.get_title().set_ha('left')
+
+    # Set legend of tuning plot.
+    lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
+               'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
+    lgd = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
                      bbox_to_anchor=(0., -0.30, 1., .0),
                      loc='lower center', prop={'family': 'monospace'})
     lgd.get_title().set_ha('left')
