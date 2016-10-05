@@ -209,8 +209,9 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
 
     # Init plots.
     fig = figure(figsize=(12, 5))
-    ax_polar = fig.add_subplot(121, polar=True)
-    ax_tuning = fig.add_subplot(122)
+    gs1 = gs.GridSpec(1, 2)
+    ax_polar = fig.add_subplot(gs1[0], polar=True)
+    ax_tuning = fig.add_subplot(gs1[1])
     colors = get_colors()
     polar_patches = []
     tuning_patches = []
@@ -272,26 +273,28 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
     set_limits(xlim, ylim, ax_tuning)
 
     # Set labels.
-    set_labels('Tuning curve', ax=ax_tuning)
-    fig.suptitle(title, y=1.12, fontsize='xx-large')
+    set_labels('Polar plot', ytitle=1.08, ax=ax_polar)
+    set_labels('Tuning curve', ytitle=1.08, ax=ax_tuning)
+    fig.suptitle(title, y=0.98, fontsize='xx-large')
 
     # Set legend of polar plot.
     lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
-    lgd = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
-                     bbox_to_anchor=(0., -0.30, 1., .0),
-                     loc='lower center', prop={'family': 'monospace'})
-    lgd.get_title().set_ha('left')
+    lgd_polar = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
+                           bbox_to_anchor=(0., -0.30, 1., .0),
+                           loc='lower center', prop={'family': 'monospace'})
+    lgd_polar.get_title().set_ha('left')
 
     # Set legend of tuning plot.
     lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
                'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
-    lgd = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
-                     bbox_to_anchor=(0., -0.30, 1., .0),
-                     loc='lower center', prop={'family': 'monospace'})
-    lgd.get_title().set_ha('left')
+    lgd_tuning = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
+                            bbox_to_anchor=(0., -0.30, 1., .0),
+                            loc='lower center', prop={'family': 'monospace'})
+    lgd_tuning.get_title().set_ha('left')
 
     # Save figure.
-    save_fig(ffig=ffig, bbox_extra_artists=(lgd,))
+    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
+    save_fig(fig, ffig)
 
 
 def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
