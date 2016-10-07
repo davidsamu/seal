@@ -2,7 +2,7 @@
 """
 Created on Sat Aug 20 14:06:14 2016
 
-Class representing a unit, after spike sorting and preprocessing.
+Class representing a (spike sorted) unit (single or multi).
 
 @author: David Samu
 """
@@ -16,7 +16,6 @@ from pandas import DataFrame
 from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
-from seal.analysis import tuning
 from seal.util import plot, util
 from seal.object.trials import Trials
 from seal.object.spikes import Spikes

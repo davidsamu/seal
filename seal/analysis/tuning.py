@@ -39,6 +39,12 @@ def fit_gaus_curve(x, y, y_err=None):
     xmin, xmax = np.min(x), np.max(x)
     ymin, ymax = np.min(y), np.max(y)
 
+    # Every element of y_err has to be positive.
+    if np.all(y_err <= 0):
+        y_err = None
+    else:
+        y_err[y_err <= 0] = np.min(y_err[y_err > 0])  # default value: minimum
+
     # Set initial values.
     a_init = ymin                    # baseline (vertical shift)
     b_init = ymax - ymin             # height (vertical stretch)
@@ -48,7 +54,6 @@ def fit_gaus_curve(x, y, y_err=None):
     p_init = [a_init, b_init, x0_init, sigma_init]
 
     # Lower and upper bounds of variables.
-
     bounds = ([0.8*ymin,   0,               xmin, 0.],
               [np.mean(y), 1.2*(ymax-ymin), xmax, xmax-xmin])
 

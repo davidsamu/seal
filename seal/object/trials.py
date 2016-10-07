@@ -17,7 +17,7 @@ class Trials:
     def __init__(self, trials=None, value=None, name=None):
         """Create a Trials instance."""
 
-        # Create empty instance.
+        # Create instance.
         self.trials = np.array(trials)
         self.value = value
         self.name = name if name is not None else str(value)
