@@ -1,5 +1,11 @@
 # Spike Sorting Standard Operating Procedures
 
+## Before  starting
+
+This scholarpedia page is good background reading before reading the SOPs:
+
+http://www.scholarpedia.org/article/Spike_sorting
+
 
 ## Steps and approaches to spike sorting
 
