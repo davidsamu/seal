@@ -359,7 +359,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # Trial markers.
     trial_starts = u.TrialParams.TrialStart
     trms = trial_starts[9::10]
-    tr_markers = dict((tr_i+1, tr_t) for tr_i, tr_t in zip(trms.index, trms))
+    tr_markers = {tr_i+1: tr_t for tr_i, tr_t in zip(trms.index, trms)}
 
     # Common labels for plots
     wf_t_lab = 'Waveform time ($\mu$s)'

@@ -26,12 +26,23 @@ from quantities import Quantity, deg, rad
 
 # %% Input / output functions.
 
-def read_matlab_object(f, obj_name=None):
+def read_matlab_object(f, obj_names=None):
     """Return Matlab structure or object from it."""
 
     mat_struct = sp.io.loadmat(f, struct_as_record=False, squeeze_me=True)
-    if obj_name is not None:
-        mat_struct = mat_struct[obj_name]
+
+    # If not specified, return all objects.
+    if obj_names is None:
+        obj_names = mat_struct.keys()
+
+    # Return a single object.
+    if not is_iterable(obj_names):
+        mat_struct = mat_struct[obj_names]
+
+    # Return dictionary of objects.
+    else:
+        mat_struct = {k: mat_struct[k] for k in obj_names if k in mat_struct}
+
     return mat_struct
 
 
