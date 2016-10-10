@@ -12,6 +12,7 @@ from itertools import cycle
 from collections import Counter
 
 import numpy as np
+import pandas as pd
 from scipy.stats.stats import pearsonr
 from quantities import ms, rad, deg
 
@@ -566,8 +567,14 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
         # Categorical data.
         if not util.is_numeric_array(x):
+
+            # Sort by category value (with missing values at the end).
             counts = np.array(Counter(x).most_common())
-            counts = counts[counts[:, 0].argsort()]  # sort by category
+            idx = pd.notnull(counts[:, 0])
+            non_null_order = counts[idx, 0].argsort()
+            null_order = np.where(np.logical_not(idx))[0]
+            counts = counts[np.hstack((non_null_order, null_order)), :]
+
             cats, cnts = counts[:, 0], np.array(counts[:, 1], dtype=int)
             xx = range(len(cats))
             width = 0.7
