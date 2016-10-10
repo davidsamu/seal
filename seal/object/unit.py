@@ -23,12 +23,13 @@ from seal.object.rate import Rate
 
 # TODO: add receptive field coverage information!
 
+
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell, t_start, t_stop, kernels, step=10*ms,
-                 params_info=None):
+    def __init__(self, t_start=None, t_stop=None, kernels=None, step=10*ms,
+                 TPLCell=None, params_info=None):
         """Create Unit instance, optionally from TPLCell data structure."""
 
         # Create empty instance.
@@ -50,24 +51,20 @@ class Unit:
 
         # Extract session parameters.
         file_parts = TPLCell.File[:-4].split('_')
-        if len(file_parts) == 4:
-            [monkey, dateprobe, exp, sortno] = file_parts
-        else:  # this a test case
-            [monkey, dateprobe, exp, sortno, my_name, test] = file_parts
+        [monkey, dateprobe, exp, sortno] = file_parts
 
         [date, probe] = [dateprobe[0:6], dateprobe[6:].upper()]
         [chan, un] = TPLCell.ChanUnit
         self.Name = ' '.join([exp, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
 
-        self.SessParams = OrdDict()
         self.SessParams['experiment'] = exp
         self.SessParams['monkey'] = monkey
         self.SessParams['date'] = dt.date(dt.strptime(date, '%m%d%y'))
         self.SessParams['probe'] = probe
         self.SessParams['channel #'] = chan
         self.SessParams['unit #'] = un
-        self.SessParams['sort #'] = int(sortno)
+        self.SessParams['sort #'] = sortno
         self.SessParams['filepath'] = TPLCell.Filename
         self.SessParams['filename'] = TPLCell.File
         self.SessParams['paraminfo'] = [p.tolist() if isinstance(p, np.ndarray)
@@ -76,7 +73,6 @@ class Unit:
         self.SessParams['SamplPer'] = sampl_per
 
         # Unit parameters/stats.
-        self.UnitParams = OrdDict()
         wf_time = range(TPLCell.Waves.shape[1]) * self.SessParams['SamplPer']
         self.UnitParams['WaveformTime'] = wf_time
         self.UnitParams['SpikeWaveforms'] = TPLCell.Waves
@@ -172,7 +168,7 @@ class Unit:
         # Optionally, remove dimension from quantity values.
         def get_val(dic, key):
             val = None
-            if key in dic.keys():
+            if dic is not None and key in dic.keys():
                 val = dic[key]
                 if remove_dimensions and isinstance(val, Quantity):
                     val = float(val)
