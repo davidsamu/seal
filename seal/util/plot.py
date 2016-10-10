@@ -251,7 +251,7 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
 
         # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(pref_dir, 1)))
-        s_pd_c = str(int(pref_dir_c))
+        s_pd_c = str(int(pref_dir_c)) if not np.isnan(pref_dir_c.magnitude) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(name, dsi)
         lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_patch(lgd_lbl, color))

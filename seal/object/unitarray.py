@@ -8,6 +8,7 @@ Class representing an array of units.
 @author: David Samu
 """
 
+import numpy as np
 import pandas as pd
 
 from seal.object import unit
@@ -48,10 +49,10 @@ class UnitArray:
         nsess = len(self.Units.columns)
         return nsess
 
-    def get_unit_indices(self):
-        """Return (channel, unit) indices."""
+    def get_rec_chan_unit_indices(self):
+        """Return (recording, channel, unit) index triples."""
 
-        chan_unit_idxs = self.Units.index.tolist()
+        chan_unit_idxs = self.Units.index.to_series()
         return chan_unit_idxs
 
     def get_sessions(self):
@@ -64,24 +65,45 @@ class UnitArray:
         """Add new session data as extra column to Units table of UnitArray."""
 
         # Concatenate new session as last column.
-        # This ensures  that channels and units are consistent across
+        # This ensures that channels and units are consistent across
         # sessions (along rows) by inserting extra null units where necessary.
-        index = [(u.SessParams['channel #'], u.SessParams['unit #'])
-                 for u in session_units]
+        idxs = [(u.SessParams['monkey'] + '_' + util.date_to_str(u.SessParams['date']),
+                 u.SessParams['channel #'], u.SessParams['unit #'])
+                for u in session_units]
+        names = ['rec', 'chan # ', 'unit #']
+        multi_idx = pd.MultiIndex.from_tuples(idxs, names=names)
         session_df = pd.DataFrame(session_units, columns=[session_name],
-                                  index=index)
+                                  index=multi_idx)
         self.Units = pd.concat([self.Units, session_df], axis=1, join='outer')
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
 
+    def get_unit_list(self, sessions=None, chan_unit_idxs=None,
+                      return_empty=False):
+        """Returns units in a list."""
+
+        if sessions is None:
+            sessions = self.get_sessions()
+        if chan_unit_idxs is None:
+            chan_unit_idxs = self.get_rec_chan_unit_indices()
+
+        # Put selected units from selected sessions into a list.
+        unit_list = [r for row in self.Units[sessions].itertuples()
+                     for r in row[1:]
+                     if row[0] in chan_unit_idxs]
+
+        # Exclude empty units.
+        if not return_empty:
+            unit_list = [u for u in unit_list if not u.is_empty()]
+
+        return unit_list
+
     # %% Exporting and reporting methods.
     def get_unit_params(self):
         """Return unit parameters as Pandas table."""
 
-        unit_params = [u.get_unit_params()
-                       for idx, row in self.Units.iterrows()
-                       for u in row]
+        unit_params = [u.get_unit_params() for u in self.get_unit_list()]
         unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
         return unit_params
 

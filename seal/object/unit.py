@@ -73,9 +73,12 @@ class Unit:
         self.SessParams['SamplPer'] = sampl_per
 
         # Unit parameters/stats.
-        wf_time = range(TPLCell.Waves.shape[1]) * self.SessParams['SamplPer']
+        wfs = TPLCell.Waves
+        if wfs.ndim == 1:  # there only a single spike: extend it to matrix
+            wfs = np.reshape(wfs, (1, len(wfs)))
+        wf_time = range(wfs.shape[1]) * self.SessParams['SamplPer']
         self.UnitParams['WaveformTime'] = wf_time
-        self.UnitParams['SpikeWaveforms'] = TPLCell.Waves
+        self.UnitParams['SpikeWaveforms'] = wfs
         self.UnitParams['SpikeDuration'] = TPLCell.Spikes_dur * s
         self.UnitParams['MeanSpikeDur'] = TPLCell.MeanSpikeDur * s
         t_max = np.max(TPLCell.Spikes)
@@ -152,6 +155,12 @@ class Unit:
         # self.test_direction_selectivity()
 
     # %% Utility methods.
+
+    def is_empty(self):
+        """Checks if unit is empty."""
+
+        im_empty = self.Name == ''
+        return im_empty
 
     def name_to_fname(self):
         """Return filename compatible name string."""

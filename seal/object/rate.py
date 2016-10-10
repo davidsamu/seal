@@ -7,6 +7,7 @@ Class for storing firing rates and associated properties.
 @author: David Samu
 """
 
+import warnings
 import numpy as np
 from quantities import s, ms, Hz
 
@@ -29,8 +30,13 @@ class Rate:
         self.kernel = None
 
         # Calculate, scale and trim rate.
-        rates = [instantaneous_rate(sp, step, kernel)
-                 for sp in spikes]
+        with warnings.catch_warnings():
+            # Let's ignore warnings about negative firing rate values,
+            # they are corrected below.
+            warnings.simplefilter("ignore")
+            rates = [instantaneous_rate(sp, step, kernel)
+                     for sp in spikes]
+
         rhz = [r[:, 0].rescale(Hz) for r in rates]  # rescale all to Hz
         rhz = np.maximum(np.array(rhz), 0) * Hz     # zero out negative values
         if min_rate is not None:

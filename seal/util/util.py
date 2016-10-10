@@ -100,6 +100,13 @@ def format_to_fname(s):
     return fname
 
 
+def date_to_str(datetime):
+    """Convert and return datetime object to string."""
+
+    date_str = datetime.strftime('%d%m%y')
+    return date_str
+
+
 def format_pvalue(pval):
     """Format a p-value into readable string."""
 
@@ -323,6 +330,10 @@ def deg_w_mean(dirs, weights=None):
 
     if weights is None:
         weights = np.ones(len(dirs))
+
+    # Uniform zero weights (eg. no response).
+    if np.all(weights == 0):
+        return 0, np.nan*deg, np.nan*deg
 
     # Convert directions to Cartesian unit vectors.
     dirs_xy = np.array([pol2cart(1, d.rescale(rad)) for d in dirs])

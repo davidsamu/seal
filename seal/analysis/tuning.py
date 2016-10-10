@@ -38,36 +38,42 @@ def fit_gaus_curve(x, y, y_err=None):
     x, y = np.array(x), np.array(y)
     xmin, xmax = np.min(x), np.max(x)
     ymin, ymax = np.min(y), np.max(y)
-
-    # Every element of y_err has to be positive.
-    if np.all(y_err <= 0):
-        y_err = None
-    else:
-        y_err[y_err <= 0] = np.min(y_err[y_err > 0])  # default value: minimum
-
-    # Set initial values.
-    a_init = ymin                    # baseline (vertical shift)
-    b_init = ymax - ymin             # height (vertical stretch)
-    x0_init = np.sum(x*y)/np.sum(y)  # mean (horizontal shift)
-    # spread (horizontal stretch)
-    sigma_init = np.sqrt(np.sum(y*(x-x0_init)**2)/np.sum(y))
-    p_init = [a_init, b_init, x0_init, sigma_init]
-
-    # Lower and upper bounds of variables.
-    bounds = ([0.8*ymin,   0,               xmin, 0.],
-              [np.mean(y), 1.2*(ymax-ymin), xmax, xmax-xmin])
-
-    # Find optimal Gaussian curve fit,
-    # using ‘trf’ (Trust Region Reflective) method.
-    p_opt, p_cov = curve_fit(gaus, x, y, p0=p_init, bounds=bounds,
-                             sigma=y_err, absolute_sigma=True)
-
-    # Errors on (standard deviation of) parameter estimates.
-    p_err = np.sqrt(np.diag(p_cov))
-
-    # Convert results into Pandas dataframe and add back units.
-    fit_res = pd.DataFrame([p_opt, p_err], index=['fit', 'std err'],
+    fit_res = pd.DataFrame(index=['fit', 'std err'],
                            columns=['a', 'b', 'x0', 'sigma'])
+
+    # Y values cannot be all 0 data (eg. no response).
+    if not np.all(y == 0):
+
+        # Every element of y_err has to be positive.
+        if np.all(y_err <= 0):
+            y_err = None
+        else:
+            y_err[y_err <= 0] = np.min(y_err[y_err > 0])  # def. value: minimum
+
+        # Set initial values.
+        a_init = ymin                    # baseline (vertical shift)
+        b_init = ymax - ymin             # height (vertical stretch)
+        x0_init = np.sum(x*y)/np.sum(y)  # mean (horizontal shift)
+        # spread (horizontal stretch)
+        sigma_init = np.sqrt(np.sum(y*(x-x0_init)**2)/np.sum(y))
+        p_init = [a_init, b_init, x0_init, sigma_init]
+
+        # Lower and upper bounds of variables.
+        bounds = ([0.8*ymin,   0,               xmin, 0.],
+                  [np.mean(y), 1.2*(ymax-ymin), xmax, xmax-xmin])
+
+        # Find optimal Gaussian curve fit,
+        # using ‘trf’ (Trust Region Reflective) method.
+        p_opt, p_cov = curve_fit(gaus, x, y, p0=p_init, bounds=bounds,
+                                 sigma=y_err, absolute_sigma=True)
+
+        # Errors on (standard deviation of) parameter estimates.
+        p_err = np.sqrt(np.diag(p_cov))
+
+        # Convert results into Pandas dataframe.
+        fit_res.loc['fit'] = p_opt
+        fit_res.loc['std_err'] = p_err
+
     fit_res.a = util.add_dim_to_df_col(fit_res.a, y_dim)
     fit_res.b = util.add_dim_to_df_col(fit_res.b, y_dim)
     fit_res.x0 = util.add_dim_to_df_col(fit_res.x0, x_dim)
@@ -81,7 +87,7 @@ def test_tuning(stim, mean_resp, sem_resp, do_plot=True,
     """Test tuning of stimulus - response data."""
 
     # Fit tuning curve to stimulus - response.
-    # Currently only fits gaussian tunining curve.
+    # Currently only fitting gaussian tunining curve.
     fit_res = fit_gaus_curve(stim, mean_resp, sem_resp)
 
     # Plot stimulus - response pairs and fitted tuning curve.
