@@ -8,8 +8,6 @@ Collection of functions related to quality metrics of recording.
 @author: David Samu
 """
 
-from itertools import combinations
-
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us
@@ -53,8 +51,8 @@ def time_bin_data(spike_times, waveforms):
 
     # Time bins and binned waveforms and spike times.
     t_start, t_stop = spike_times.t_start, spike_times.t_stop
-    nbins = int(np.floor((t_stop - t_start) / MIN_BIN_LEN))
-    tbin_lims = util.quantity_linspace(t_start, t_stop, s, nbins)
+    nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
+    tbin_lims = util.quantity_linspace(t_start, t_stop, s, nbins+1)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
     tbin_vmid = np.array([np.mean([t1, t2]) for t1, t2 in tbins])*s
     sp_idx_binned = [util.indices_in_window(spike_times, t1, t2)
@@ -100,8 +98,8 @@ def waveform_stats(wfs, wtime):
 def isi_stats(spike_times):
     """Returns ISIs and some related statistics."""
 
-    # No spikes passed.
-    if not spike_times.size:
+    # If less then 2 spikes passed.
+    if not spike_times.size or spike_times.size < 2:
         return np.nan, np.nan
 
     isi = statistics.isi(spike_times).rescale(ms)

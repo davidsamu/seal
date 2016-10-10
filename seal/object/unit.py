@@ -74,16 +74,19 @@ class Unit:
 
         # Unit parameters/stats.
         wfs = TPLCell.Waves
-        if wfs.ndim == 1:  # there only a single spike: extend it to matrix
+        if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
         wf_time = range(wfs.shape[1]) * self.SessParams['SamplPer']
         self.UnitParams['WaveformTime'] = wf_time
         self.UnitParams['SpikeWaveforms'] = wfs
-        self.UnitParams['SpikeDuration'] = TPLCell.Spikes_dur * s
+        self.UnitParams['SpikeDuration'] = util.fill_dim(TPLCell.Spikes_dur * s)
         self.UnitParams['MeanSpikeDur'] = TPLCell.MeanSpikeDur * s
+
+        t_min = np.min(TPLCell.Spikes)
         t_max = np.max(TPLCell.Spikes)
-        self.UnitParams['SpikeTimes'] = SpikeTrain(TPLCell.Spikes*s,
-                                                   t_start=0*s, t_stop=t_max)
+        sp_train = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
+        self.UnitParams['SpikeTimes'] = util.fill_dim(sp_train)
+
         self.UnitParams['PrefDir'] = OrdDict()
         self.UnitParams['PrefDirCoarse'] = OrdDict()
         self.UnitParams['DirSelectivity'] = OrdDict()
@@ -222,7 +225,7 @@ class Unit:
         pdc = get_val(up, 'PrefDirCoarse')
         unit_params['Direction selectivity'] = ''
         unit_params['DSI S1'] = get_val(dsi, 'S1')
-        unit_params['DSI S2 (deg)'] = get_val(dsi, 'S2')
+        unit_params['DSI S2'] = get_val(dsi, 'S2')
         unit_params['PD S1 (deg)'] = get_val(pd, 'S1')
         unit_params['PD S2 (deg)'] = get_val(pd, 'S2')
         unit_params['PD8 S1 (deg)'] = get_val(pdc, 'S1')

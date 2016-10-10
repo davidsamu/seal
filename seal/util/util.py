@@ -72,6 +72,7 @@ def write_table(dataframe, excel_writer, **kwargs):
     """Write out Pandas dataframe as Excel table."""
 
     if excel_writer is not None:
+        create_dir(excel_writer.path)
         dataframe.to_excel(excel_writer, **kwargs)
         excel_writer.save()
     return
@@ -144,11 +145,19 @@ def create_dir(f):
 
 
 def timestamp():
-    """Returns time stamp."""
+    """Return time stamp."""
 
     now = datetime.datetime.now()
     timestamp = '{:%Y%m%d_%H%M%S}'.format(now)
     return timestamp
+
+
+def datestamp():
+    """Return date stamp."""
+
+    now = datetime.datetime.now()
+    datestamp = '{:%Y%m%d}'.format(now)
+    return datestamp
 
 
 # %% Basic data manipulation functions.
@@ -194,6 +203,14 @@ def is_date(obj):
     return is_date
 
 
+def fill_dim(v):
+    """Add dimension (fill shape) to scalar 'array'."""
+
+    if not v.shape:
+        v.shape = (1)
+    return v
+
+
 def indices(vec, val):
     """Return all indices of value in vector."""
 
@@ -228,14 +245,19 @@ def indices_in_window(v, vmin=None, vmax=None, l_inc=True, r_inc=True):
     # Get indices within limits (inclusive or exclusive).
     idx_small = v >= vmin if l_inc else v > vmin
     idx_large = v <= vmax if r_inc else v < vmax
-    idxs = np.logical_and(idx_small, idx_large)
+    idxs = np.array(np.logical_and(idx_small, idx_large))
+    idxs = fill_dim(idxs)  # special case of scalar value
 
     return idxs
 
 
 def values_in_window(v, vmin=None, vmax=None):
     """Return values between min and max values."""
-    return v[indices_in_window(v, vmin, vmax)]
+
+    v = fill_dim(v)  # special case of scalar value
+    v_idxs = v[indices_in_window(v, vmin, vmax)]
+
+    return v_idxs
 
 
 def quantity_linspace(q1, q2, dim, n, endpoint=True, retstep=False):
@@ -331,8 +353,12 @@ def deg_w_mean(dirs, weights=None):
     if weights is None:
         weights = np.ones(len(dirs))
 
+    # Remove values correspinding to NaN weights.
+    idxs = np.logical_not(np.isnan(weights))
+    dirs, weights = dirs[idxs], weights[idxs]
+
     # Uniform zero weights (eg. no response).
-    if np.all(weights == 0):
+    if dirs.size == 0 or np.all(weights == 0):
         return 0, np.nan*deg, np.nan*deg
 
     # Convert directions to Cartesian unit vectors.

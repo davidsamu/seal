@@ -33,16 +33,28 @@ def fit_gaus_curve(x, y, y_err=None):
     parameter values and their std of error in Pandas data frame.
     """
 
-    # Init
-    x_dim, y_dim = x.units, y.units
-    x, y = np.array(x), np.array(y)
-    xmin, xmax = np.min(x), np.max(x)
-    ymin, ymax = np.min(y), np.max(y)
+    # Init fit results.
     fit_res = pd.DataFrame(index=['fit', 'std err'],
                            columns=['a', 'b', 'x0', 'sigma'])
 
-    # Y values cannot be all 0 data (eg. no response).
-    if not np.all(y == 0):
+    # Remove NaN values from input.
+    idx = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
+    if y_err is not None:
+        idx = np.logical_and(idx, np.logical_not(np.isnan(y_err)))
+        y_err = y_err[idx]
+    x, y = x[idx], y[idx]
+
+    # Save input dimensions
+    x_dim, y_dim = x.units, y.units
+
+    # Check thet there is non-NaN data
+    # and that Y values are not all 0 (eg. no response).
+    if x.size > 1 or not np.all(y == 0):
+
+        # Init input params.
+        x, y = np.array(x), np.array(y)
+        xmin, xmax = np.min(x), np.max(x)
+        ymin, ymax = np.min(y), np.max(y)
 
         # Every element of y_err has to be positive.
         if np.all(y_err <= 0):

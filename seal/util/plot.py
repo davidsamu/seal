@@ -59,7 +59,7 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
                           'TrueSpikes (%)', 'UnitType', 'total # trials',
                           '# rejected trials', '# remaining trials',
                           # Direction selectivity metrics
-                          'DSI S1', 'DSI S2 (deg)',
+                          'DSI S1', 'DSI S2',
                           'PD S1 (deg)', 'PD S2 (deg)',
                           'PD8 S1 (deg)', 'PD8 S2 (deg)'
                          ]
