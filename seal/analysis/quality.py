@@ -270,22 +270,23 @@ def test_rejection(u):
     # Insufficient receptive field coverage.
     # TODO: add receptive field coverage information!
 
-    # Extremely low waveform consistency: SNR < 0.5.
-    exclude = exclude or qm['SNR'] < 0.5
+    # Extremely low waveform consistency: SNR < 1.0.
+    exclude = exclude or qm['SNR'] < 1.0
 
     # Extremely low unit activity: Firing rate < 1 spikes / second.
     exclude = exclude or qm['MeanFiringRate'] < 1.0
 
-    # Extremely high ISI violation: ISI v.r. > 2%.
-    exclude = exclude or qm['ISIviolation'] > 2.0
+    # Extremely high ISI violation: ISI v.r. > 1%.
+    exclude = exclude or qm['ISIviolation'] > 1.0
 
     # Insufficient number of trials:
     #  # of trials after rejection < 50% of total # of trials.
     exclude = exclude or qm['NTrialsIncluded'] / qm['NTrialsTotal'] < 0.5
 
-    # Insufficient direction selectivity: DSI < 0.1 during either stimulus.
+    # Insufficient direction selectivity: DSI < 0.1 during both stimulus.
+    # DSI is low during remote sample!!!
     ds = u.UnitParams['DirSelectivity'].values()
-    exclude = exclude or np.any([dsi < 0.1 for dsi in ds])
+    exclude = exclude or np.all([dsi < 0.1 for dsi in ds])
 
     # Preferred direction is not one (with some wide margin)
     # with most activity for either of the stimuli.
@@ -502,11 +503,13 @@ def check_recording_stability(UnitArr, fname):
         frate_tr_time = pd.Series(frate, index=tr_time)
         return frate_tr_time
 
+    ch_units = UnitArr.get_rec_chan_unit_indices()
     for (prd_name, (t1, t2)), ax in zip(periods.items(), ax_list):
         # Calculate and plot firing rate during given period within each trial
         # across session for all units.
         all_FR = []
-        for ch_unit_name in UnitArr.get_rec_chan_unit_indices():
+        task_starts = OrdDict()
+        for ch_unit_name in ch_units:
             ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name],
                                             return_empty=True) # for color cycle consistency
             FR_tr_list = [get_FR_by_trial(u, t1, t2) for u in ch_unit]
@@ -534,9 +537,13 @@ def check_recording_stability(UnitArr, fname):
         plot.lines(tr_time, mean_FR, ax=ax, lw=2, color='k')
 
         # Add task start marker lines.
-        task_starts = OrdDict([(u.SessParams['experiment'],
-                                u.TrialParams['TrialStart'].iloc[0])
-                              for u in ch_unit if not u.is_empty()])
+        task_starts = OrdDict()
+        for ch_unit_name in ch_units:
+            ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name])
+            for u in ch_unit:
+                exp_name = u.SessParams['experiment']
+                exp_start = u.TrialParams['TrialStart'].iloc[0]
+                task_starts[exp_name] = exp_start
         plot.plot_events(task_starts, t_unit=s, alpha=1.0,
                          color='black', lw=1, ax=ax)
 

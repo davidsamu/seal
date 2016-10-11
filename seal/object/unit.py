@@ -275,8 +275,8 @@ class Unit:
 
     def ftrials(self, trials, value=None, name=None, filtered=True):
         """
-        Create and return trial object for specific unit from
-        list of trial indices after excluding unit's rejected trials.
+        Create and return trial object from list of trial indices
+        after excluding unit's rejected trials.
         """
 
         trials = Trials(trials, value, name)
