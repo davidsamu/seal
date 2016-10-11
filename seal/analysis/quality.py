@@ -485,16 +485,18 @@ def check_recording_stability(UnitArr, fname):
     # Init params.
     periods = OrdDict([('Fixation', [-1.0*s, 0.0*s]),
                        ('S1',       [ 0.0*s, 0.5*s]),
-                       ('Delay',    [ 0.5*s, 1.5*s]),
-                       ('S2',       [ 1.5*s, 2.0*s]),
-                       ('Post-S2',  [ 2.0*s, 3.0*s])])
+                       ('Delay',    [ 0.5*s, 2.0*s]),
+                       ('S2',       [ 2.0*s, 2.5*s]),
+                       ('Post-S2',  [ 2.5*s, 4.0*s])])
 
     # Init figure.
-    fig = plot.figure(figsize=(3*len(periods.keys()), 8))
+    fig = plot.figure(figsize=(12, 3*len(periods.keys())))
     gs1 = gs.GridSpec(len(periods), 1)
     ax_list = [plt.subplot(gs) for gs in gs1]
 
     def get_FR_by_trial(u, t1, t2):
+        if u.is_empty():
+            return None
         frate = np.array(u.Spikes.n_spikes(t1=t1, t2=t2)[1])
         tr_time = np.array([float(t) for t in u.TrialParams['TrialStart']])
         frate_tr_time = pd.Series(frate, index=tr_time)
@@ -505,9 +507,19 @@ def check_recording_stability(UnitArr, fname):
         # across session for all units.
         all_FR = []
         for ch_unit_name in UnitArr.get_rec_chan_unit_indices():
-            ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name])
-            FR_tr = pd.concat([get_FR_by_trial(u, t1, t2) for u in ch_unit])
-            plot.lines(FR_tr.index, FR_tr, ax=ax, zorder=1, alpha=0.5)
+            ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name],
+                                            return_empty=True) # for color cycle consistency
+            FR_tr_list = [get_FR_by_trial(u, t1, t2) for u in ch_unit]
+            # Plot each FRs per task discontinuously.
+            colors = plot.get_colors()
+            for FR_tr in FR_tr_list:
+                color = next(colors)
+                if FR_tr is not None:
+                    # For (across-task) continuous plot,
+                    # need to concatenate across tasks first (see below).
+                    plot.lines(FR_tr.index, FR_tr, ax=ax, zorder=1,
+                               alpha=0.5, color=color)
+            FR_tr = pd.concat(FR_tr_list)
             all_FR.append(FR_tr)
 
         # Add mean +- sem FR.
@@ -524,11 +536,12 @@ def check_recording_stability(UnitArr, fname):
         # Add task start marker lines.
         task_starts = OrdDict([(u.SessParams['experiment'],
                                 u.TrialParams['TrialStart'].iloc[0])
-                              for u in ch_unit])
+                              for u in ch_unit if not u.is_empty()])
         plot.plot_events(task_starts, t_unit=s, alpha=1.0,
                          color='black', lw=1, ax=ax)
 
-        # Add labels to plot.
+        # Set limits and add labels to plot.
+        plot.set_limits(xlim=[None, max(tr_time)], ax=ax)
         plot.set_labels(title=prd_name, xlab='Session time (s)',
                         ylab='Firing rate (sp/s)', ax=ax)
 

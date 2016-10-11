@@ -8,7 +8,6 @@ Class representing an array of units.
 @author: David Samu
 """
 
-import numpy as np
 import pandas as pd
 
 from seal.object import unit
@@ -33,8 +32,8 @@ class UnitArray:
         self.Units = pd.DataFrame()
 
         # Fill Units array with session data provided.
-        [self.add_task(s_name, s_units)
-         for s_name, s_units in session_dict.items()]
+        for s_name, s_units in session_dict.items():
+            self.add_task(s_name, s_units)
 
     # %% Utility methods.
     def get_n_units(self):
