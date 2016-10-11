@@ -11,6 +11,7 @@ Collection of functions related to quality metrics of recording.
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us
+from collections import OrderedDict as OrdDict
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
@@ -68,14 +69,14 @@ def time_bin_data(spike_times, waveforms):
 def waveform_stats(wfs, wtime):
     """Calculates SNR, amplitude and durations of spike waveforms."""
 
-    # No waveforms passed.
+    # No waveforms: waveform stats are uninterpretable.
     if not wfs.size:
         return np.nan, np.array([]) * us, np.array([]) * us
 
     # SNR: std of mean waveform divided by std of residual waveform (noise).
     wf_mean = np.mean(wfs, 0)
     wf_std = wfs - wf_mean
-    snr = np.std(wf_mean) / np.std(wf_std)
+    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else 10 # single spike
 
     # Indices of minimum and maximum times.
     # imin = np.argmin(wfs, 1)  # actual minimum of waveform
@@ -98,9 +99,13 @@ def waveform_stats(wfs, wtime):
 def isi_stats(spike_times):
     """Returns ISIs and some related statistics."""
 
-    # If less then 2 spikes passed.
-    if not spike_times.size or spike_times.size < 2:
+    # No spike: ISI v.r. and TrueSpikes are uninterpretable.
+    if not spike_times.size:
         return np.nan, np.nan
+
+    # Only one spike: ISI v.r. is 0%, TrueSpikes is 100%.
+    if spike_times.size == 1:
+        return 100, 0
 
     isi = statistics.isi(spike_times).rescale(ms)
 
@@ -123,12 +128,8 @@ def isi_stats(spike_times):
     return true_spikes, percent_ISI_vr
 
 
-def classify_unit(snr, true_spikes=np.nan):
+def classify_unit(snr, true_spikes):
     """Classify unit as single or multi-unit."""
-
-    # Check if we have true spikes ratio calculated.
-    if np.isnan(true_spikes):
-        true_spikes = 100
 
     if true_spikes >= 90 and snr >= 2.0:
         unit_type = 'single unit'
@@ -329,10 +330,16 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     ax_filler1.axis('off')
     ax_filler2.axis('off')
 
+    # Trial markers.
+    trial_starts = u.TrialParams.TrialStart
+    trms = trial_starts[9::10]
+    tr_markers = {tr_i+1: tr_t for tr_i, tr_t in zip(trms.index, trms)}
+
     # Common variables, limits and labels.
     sp_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
     sp_t = sp_i * sampl_per
-    ses_t_lim = [spike_times.t_start, spike_times.t_stop]
+    ses_t_lim = [min(spike_times.t_start, trial_starts.iloc[0]),
+                 max(spike_times.t_stop, trial_starts.iloc[-1])]
     ss = 1.0  # marker size on scatter plot
     sa = .80  # marker alpha on scatter plot
     glim = [gmin, gmax]  # gain axes limit
@@ -353,11 +360,6 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # so later spikes don't cover earlier ones.
     sp_order = np.hstack((np.where(np.invert(sp_inc))[0],
                           np.random.permutation(np.where(sp_inc)[0])))
-
-    # Trial markers.
-    trial_starts = u.TrialParams.TrialStart
-    trms = trial_starts[9::10]
-    tr_markers = {tr_i+1: tr_t for tr_i, tr_t in zip(trms.index, trms)}
 
     # Common labels for plots
     wf_t_lab = 'Waveform time ($\mu$s)'
@@ -473,3 +475,63 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
     ffig = ffig_template.format(u.name_to_fname())
     plot.save_fig(fig, ffig)
+
+
+# %% Quality tests across tasks.
+
+def check_recording_stability(UnitArr, fname):
+    """Check stability of recording session across tasks."""
+
+    # Init params.
+    periods = OrdDict([('Fixation', [-1.0*s, 0.0*s]),
+                       ('S1',       [ 0.0*s, 0.5*s]),
+                       ('Delay',    [ 0.5*s, 1.5*s]),
+                       ('S2',       [ 1.5*s, 2.0*s]),
+                       ('Post-S2',  [ 2.0*s, 3.0*s])])
+
+    # Init figure.
+    fig = plot.figure(figsize=(3*len(periods.keys()), 8))
+    gs1 = gs.GridSpec(len(periods), 1)
+    ax_list = [plt.subplot(gs) for gs in gs1]
+
+    def get_FR_by_trial(u, t1, t2):
+        frate = np.array(u.Spikes.n_spikes(t1=t1, t2=t2)[1])
+        tr_time = np.array([float(t) for t in u.TrialParams['TrialStart']])
+        frate_tr_time = pd.Series(frate, index=tr_time)
+        return frate_tr_time
+
+    for (prd_name, (t1, t2)), ax in zip(periods.items(), ax_list):
+        # Calculate and plot firing rate during given period within each trial
+        # across session for all units.
+        all_FR = []
+        for ch_unit_name in UnitArr.get_rec_chan_unit_indices():
+            ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name])
+            FR_tr = pd.concat([get_FR_by_trial(u, t1, t2) for u in ch_unit])
+            plot.lines(FR_tr.index, FR_tr, ax=ax, zorder=1, alpha=0.5)
+            all_FR.append(FR_tr)
+
+        # Add mean +- sem FR.
+        all_FR = pd.concat(all_FR, axis=1)
+        tr_time = all_FR.index
+        mean_FR = all_FR.mean(axis=1)
+        std_FR = all_FR.std(axis=1)
+        lower, upper = mean_FR-std_FR, mean_FR+std_FR
+        lower[lower < 0] = 0
+        ax.fill_between(tr_time, lower, upper, zorder=2,
+                        alpha=.75, facecolor='grey', edgecolor='grey')
+        plot.lines(tr_time, mean_FR, ax=ax, lw=2, color='k')
+
+        # Add task start marker lines.
+        task_starts = OrdDict([(u.SessParams['experiment'],
+                                u.TrialParams['TrialStart'].iloc[0])
+                              for u in ch_unit])
+        plot.plot_events(task_starts, t_unit=s, alpha=1.0,
+                         color='black', lw=1, ax=ax)
+
+        # Add labels to plot.
+        plot.set_labels(title=prd_name, xlab='Session time (s)',
+                        ylab='Firing rate (sp/s)', ax=ax)
+
+    fig.suptitle(UnitArr.Name, y=0.98, fontsize='xx-large')
+    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
+    plot.save_fig(fig, fname)

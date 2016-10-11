@@ -379,7 +379,7 @@ def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
 
 
 def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
-                color='black', lw=1, ax=None, **kwargs):
+                color='black', lw=1, lbl_rotation=90, ax=None, **kwargs):
     """Plot all events of unit."""
 
     ax = axes(ax)
@@ -394,7 +394,7 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
         if add_names:
             ylim = ax.get_ylim()
             yloc = ylim[0] + 0.98 * (ylim[1] - ylim[0])
-            ax.text(time, yloc, key, rotation=90, fontsize='small',
+            ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
                     verticalalignment='bottom', horizontalalignment='center')
 
 
