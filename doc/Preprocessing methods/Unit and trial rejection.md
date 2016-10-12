@@ -23,9 +23,9 @@ The metrics referred below are calculated for the duration of the entire session
 
 Criteria:
 
-1. Extremely low waveform consistency: SNR < 0.5.
-2. Extremely low unit activity: Firing rate < 1 spikes / second.
-3. Extremely high ISI violation: ISI v.r. > 2%.
-4. Insufficient number of trials: # trials (after trial rejection) < 50% of total # of trials 
+1. Extremely low waveform consistency: SNR < 1.
+2. Extremely low unit activity: Firing rate < 2 spikes / second.
+3. Extremely high ISI violation: ISI v.r. > 1%.
+4. Insufficient number of trials: # trials (after trial rejection) < 50% of total # of trials.
 5. Insufficient coverage of receptive field: **To be added.**
-6. Insufficient stimulus response: **To be added.**
+6. Insufficient stimulus response: DSI < 0.1 for both stimuli.
