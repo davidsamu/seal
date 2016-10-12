@@ -108,15 +108,17 @@ def date_to_str(datetime):
     return date_str
 
 
-def format_pvalue(pval):
+def format_pvalue(pval, max_digit=4):
     """Format a p-value into readable string."""
 
-    if pval < 10**-4:
+    if pval < 10**-4 and max_digit >= 4:
         pstr = 'p < 0.0001'
-    elif pval < 10**-3:
+    elif pval < 10**-3 and max_digit >= 3:
         pstr = 'p < 0.001'
+    elif pval < 0.01 and max_digit >= 3:
+        pstr = 'p = {:.3f}'.format(pval)
     else:
-        pstr = '{:.3f}'.format(pval)
+        pstr = 'p = {:.2f}'.format(pval)
 
     return pstr
 

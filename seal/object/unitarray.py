@@ -8,6 +8,7 @@ Class representing an array of units.
 @author: David Samu
 """
 
+
 import pandas as pd
 
 from seal.object import unit
@@ -21,31 +22,38 @@ class UnitArray:
     """
 
     # %% Constructor.
-    def __init__(self, name, session_dict):
-        """
-        Create UnitArray instance from dictionary of
-        task name - list of Units key-value pairs.
-        """
+    def __init__(self, name, Unit_list, task_order=None):
+        """Create UnitArray instance from list of units."""
 
         # Init instance.
         self.Name = name
         self.Units = pd.DataFrame()
 
-        # Fill Units array with session data provided.
-        for s_name, s_units in session_dict.items():
-            self.add_task(s_name, s_units)
+        # Fill Units array with unit list provided.
+        # Get available tasks, if task_order not provided.
+        if not task_order:
+            task_order = sorted(set([u.SessParams['experiment']
+                                     for u in Unit_list]))
+
+        # Add units to UnitArray in task order
+        # (determining column order of unit table).
+        for task in task_order:
+            units = [u for u in Unit_list
+                     if u.SessParams['experiment'] == task]
+            self.add_task(task, units)
 
     # %% Utility methods.
-    def get_n_units(self):
-        """Return number of units."""
 
-        nunits = len(self.Units.index)
-        return nunits
+    def get_tasks(self):
+        """Return task names."""
+
+        task_names = self.Units.columns
+        return task_names
 
     def get_n_tasks(self):
         """Return number of tasks."""
 
-        nsess = len(self.Units.columns)
+        nsess = len(self.get_tasks())
         return nsess
 
     def get_rec_chan_unit_indices(self):
@@ -54,11 +62,11 @@ class UnitArray:
         chan_unit_idxs = self.Units.index.to_series()
         return chan_unit_idxs
 
-    def get_tasks(self):
-        """Return task names."""
+    def get_n_units(self):
+        """Return number of units (number of rows of UnitArray)."""
 
-        task_names = self.Units.columns
-        return task_names
+        nunits = len(self.get_rec_chan_unit_indices())
+        return nunits
 
     def add_task(self, task_name, task_units):
         """Add new task data as extra column to Units table of UnitArray."""
@@ -97,6 +105,17 @@ class UnitArray:
             unit_list = [u for u in unit_list if not u.is_empty()]
 
         return unit_list
+
+    def get_n_units_by_task(self, task_list=None, return_empty=False):
+        """Return number of units in each task."""
+
+        if task_list is None:
+            task_list = self.get_tasks()
+
+        n_unit_per_task = [(task, len(self.get_unit_list(tasks=[task],
+                                                         return_empty=return_empty)))
+                           for task in task_list]
+        return n_unit_per_task
 
     # %% Exporting and reporting methods.
     def get_unit_params(self):

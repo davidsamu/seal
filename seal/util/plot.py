@@ -379,7 +379,8 @@ def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
 
 
 def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
-                color='black', lw=1, lbl_rotation=90, ax=None, **kwargs):
+                color='black', lw=1, lbl_rotation=90, lbl_height=0.98,
+                lbl_ha='center', ax=None, **kwargs):
     """Plot all events of unit."""
 
     ax = axes(ax)
@@ -387,15 +388,15 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
     # Add each event to plot as a vertical line.
     for key, time in events.items():
         time = time.rescale(t_unit)
-        ymax = 0.96 if add_names else 1
+        ymax = lbl_height-0.02 if add_names else 1
         ax.axvline(time, color=color, alpha=alpha, lw=lw, ymax=ymax, **kwargs)
 
         # Add event label if requested
         if add_names:
             ylim = ax.get_ylim()
-            yloc = ylim[0] + 0.98 * (ylim[1] - ylim[0])
+            yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
             ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
-                    verticalalignment='bottom', horizontalalignment='center')
+                    verticalalignment='bottom', horizontalalignment=lbl_ha)
 
 
 # %% Plot setup functions.

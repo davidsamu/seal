@@ -263,7 +263,10 @@ class Unit:
     def included_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
-        included_trials = self.QualityMetrics['IncludedTrials']
+        if 'IncludedTrials' in self.QualityMetrics:
+            included_trials = self.QualityMetrics['IncludedTrials']
+        else:
+            included_trials = self.all_trials(filtered=False)
         return included_trials
 
     def filter_trials(self, trials):
@@ -289,7 +292,7 @@ class Unit:
         """Return indices of all trials."""
 
         tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
-        trials = self.ftrials(tr_idxs, 'all trials')
+        trials = self.ftrials(tr_idxs, 'all trials', filtered)
 
         return trials
 
