@@ -12,7 +12,7 @@ from itertools import product
 from collections import OrderedDict as OrdDict
 
 import numpy as np
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
@@ -100,12 +100,9 @@ class Unit:
                     print('Warning: Parameter {0} not found!'.format(name))
                     continue
                 self.TrialParams.rename(columns={name: new_name}, inplace=True)
-                if dim is not None:
-                    if isinstance(dim, str):  # change data type
-                        new_col = self.TrialParams[new_name].astype(dim)
-                    else:   # add physical dimension
-                        new_col = np.array(self.TrialParams[new_name]) * dim
-                    self.TrialParams[new_name] = DataFrame([new_col]).T
+                if dim is not None:  # add physical dimension
+                    c = util.add_dim_to_df_col(self.TrialParams[new_name], dim)
+                    self.TrialParams[new_name] = c
 
         # Add column for subject response (saccade direction).
         if 'AnswCorr' in self.TrialParams.columns:
@@ -258,7 +255,7 @@ class Unit:
         adir = util.deg_mod(pdir+180*deg)
         return adir
 
-    # %% Generic methods to get various set of trials
+    # %% Generic methods to get various set of trials.
 
     def included_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
@@ -292,7 +289,7 @@ class Unit:
         """Return indices of all trials."""
 
         tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
-        trials = self.ftrials(tr_idxs, 'all trials', filtered)
+        trials = self.ftrials(tr_idxs, 'all trials', None, filtered)
 
         return trials
 
@@ -356,6 +353,24 @@ class Unit:
             ptrials = ptrials[0]  # single parameter value
 
         return ptrials
+
+    # %% Methods that provide interface to Unit's Spikes data.
+
+    def get_rates_by_trial(self, trials=None, t1=None, t2=None):
+        """Return spike statistics of time interval in given trials."""
+
+        if self.is_empty():
+            return None
+
+        if trials is None:
+            trials = self.included_trials()
+
+        frate = self.Spikes.spike_stats_in_prd(trials, t1, t2)[1]
+        tr_time = self.TrialParams['TrialStart'][trials.trials]
+        tr_time = util.remove_dim_to_df_col(tr_time)
+        frate_tr_time = Series(frate, index=tr_time, name='FR (1/s)')
+
+        return frate_tr_time
 
     # %% Methods to trials with specific directions.
 
@@ -527,6 +542,9 @@ class Unit:
     def plot_raster(self, trials=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
+        if self.is_empty():
+            return
+
         # Set up params.
         plot_params = self.prep_plot_params(trials, t1, t2, nrate=None)
         trials, t1, t2, spikes, rates, times, names = plot_params
@@ -541,6 +559,9 @@ class Unit:
     def plot_rate(self, nrate, trials=None, t1=None, t2=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
+        if self.is_empty():
+            return
+
         # Set up params.
         plot_params = self.prep_plot_params(trials, t1, t2, nrate)
         trials, t1, t2, spikes, rates, times, names = plot_params
@@ -550,15 +571,28 @@ class Unit:
                        segments=self.ExpSegments, title=self.Name, **kwargs)
         return ax
 
-    def plot_raster_rate(self, nrate, trials=None, t1=None, t2=None, **kwargs):
+    def plot_raster_rate(self, nrate, trials=None, t1=None, t2=None,
+                         no_labels=False, **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
+
+        if self.is_empty():
+            return
 
         # Set up params.
         plot_params = self.prep_plot_params(trials, t1, t2, nrate)
         trials, t1, t2, spikes, rates, times, names = plot_params
 
+        title = self.Name
+
+        # Minimalise label on plot.
+        if no_labels:
+            title = None
+            kwargs['xlab'] = None
+            kwargs['ylab_rate'] = None
+            kwargs['add_ylab_raster'] = False
+
         # Plot raster and rate.
         fig = plot.raster_rate(spikes, rates, times, t1, t2, names,
                                segments=self.ExpSegments,
-                               title=self.Name, **kwargs)
+                               title=title, **kwargs)
         return fig

@@ -14,9 +14,6 @@ import pandas as pd
 from quantities import s, ms, us
 from collections import OrderedDict as OrdDict
 
-from matplotlib import pyplot as plt
-from matplotlib import gridspec as gs
-
 from elephant import statistics
 
 from seal.util import plot, util
@@ -322,9 +319,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # %% Init plots.
 
     # Init plotting.
-    fig = plot.figure(figsize=(12, 12))
-    gs1 = gs.GridSpec(3, 3)
-    sp = np.array([plt.subplot(gs) for gs in gs1]).reshape(gs1.get_geometry())
+    fig, gsp, sp = plot.get_gs_subplots(nrow=3, ncol=3, subw=4, subh=4)
     ax_wf_inc, ax_wf_exc, ax_filler1 = sp[0, 0], sp[1, 0], sp[2, 0]
     ax_wf_amp, ax_wf_dur, ax_amp_dur = sp[0, 1], sp[1, 1], sp[2, 1]
     ax_snr, ax_rate, ax_filler2 = sp[0, 2], sp[1, 2], sp[2, 2]
@@ -352,7 +347,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     tr_alpha = 0.25  # alpha of trial event lines
 
     # Color spikes by their occurance over session time.
-    my_cmap = plt.get_cmap('jet')
+    my_cmap = plot.get_colormap('jet')
     sp_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
     if not np.all(np.invert(sp_inc)):  # check if there is any spike included
         sp_t_inc = np.array(spike_times[sp_inc])
@@ -365,7 +360,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Common labels for plots
     wf_t_lab = 'Waveform time ($\mu$s)'
-    ses_t_lab = 'Session time (s)'
+    ses_t_lab = 'Recording time (s)'
     volt_lab = 'Voltage (normalized)'
     amp_lab = 'Amplitude'
     dur_lab = 'Duration ($\mu$s)'
@@ -474,38 +469,77 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                  ',   Tr Sp: {:.1f}%'.format(true_spikes))
 
     fig.suptitle(fig_title, y=0.98, fontsize='xx-large')
-    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
+    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
     ffig = ffig_template.format(u.name_to_fname())
     plot.save_fig(fig, ffig)
 
 
 # %% Quality tests across tasks.
 
+def within_trial_unit_test(UnitArr, fname):
+    """Test unit responses within trails."""
+
+    nraster = 1  # change this if needed!
+
+    # Init plotting.
+    tasks = UnitArr.get_tasks()
+    unit_ids = UnitArr.get_rec_chan_unit_indices()
+    ntask = len(tasks)
+    nunit = len(unit_ids)
+    Unit_list = UnitArr.get_unit_list(tasks, unit_ids, return_empty=True)
+    fig, gsp, _ = plot.get_gs_subplots(nrow=nunit, ncol=ntask,
+                                       subw=3, subh=2.5, create_axes=False)
+
+    # Plot within-trial activity of each unit during each task.
+    for sub_gs, u in zip(gsp, Unit_list):
+        outer_gsp = plot.embed_gsp(sub_gs, 2, 1)
+        if u.is_empty():  # add mock subplots.
+            mock_gsp_rasters = plot.embed_gsp(outer_gsp[0], nraster, 1, hspace=.15)
+            for i in range(nraster):
+                ax = fig.add_subplot(mock_gsp_rasters[i, 0])
+                plot.hide_axes(ax=ax)
+            mock_gsp_rate = plot.embed_gsp(outer_gsp[1], 1, 1)
+            ax = fig.add_subplot(mock_gsp_rate[0, 0])
+            plot.hide_axes(ax=ax)
+        else:
+            u.plot_raster_rate('R100', no_labels=True,
+                               fig=fig, outer_gsp=outer_gsp)
+
+    # Add unit names to beginning of each row.
+    ylab_kwargs = {'rotation': 0, 'size': 'xx-large', 'ha': 'right'}
+    for irow, unit_id in enumerate(unit_ids):
+        ax = fig.axes[(nraster+1)*ntask*irow+1]   # every nth plot is rate
+        unit_name = 'ch {} / {}      '.format(unit_id[1], unit_id[2])
+        plot.set_labels(ylab=unit_name, ax=ax, ylab_kwargs=ylab_kwargs)
+
+    # Add task names to top of each column.
+    title_kwargs = {'size': 'xx-large'}
+    for icol, task in enumerate(tasks):
+        ax = fig.axes[(nraster+1)*icol]  # every nth plot is rate
+        plot.set_labels(title=task, ax=ax, ytitle=1.30,
+                        title_kwargs=title_kwargs)
+
+    # Format and save figure.
+    title = 'Within trial activity of ' + UnitArr.Name
+    fig.suptitle(title, y=0.98, fontsize='xx-large')
+    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.97])
+    plot.save_fig(fig, fname)
+
+
 def check_recording_stability(UnitArr, fname):
     """Check stability of recording session across tasks."""
 
     # Init params.
-    periods = OrdDict([('Fixation', [-1.0*s, 0.0*s]),
-                       ('S1',       [ 0.0*s, 0.5*s]),
-                       ('Delay',    [ 0.5*s, 2.0*s]),
-                       ('S2',       [ 2.0*s, 2.5*s]),
-                       ('Post-S2',  [ 2.5*s, 4.0*s])])
+    periods = OrdDict([('Whole trial', [-1.0*s, 4.0*s]),
+                       ('Fixation',    [-1.0*s, 0.0*s]),
+                       ('S1',          [ 0.0*s, 0.5*s]),
+                       ('Delay',       [ 0.5*s, 2.0*s]),
+                       ('S2',          [ 2.0*s, 2.5*s]),
+                       ('Post-S2',     [ 2.5*s, 4.0*s])])
 
     # Init figure.
-    fig = plot.figure(figsize=(10, 2.5*len(periods.keys())))
-    gs1 = gs.GridSpec(len(periods), 1)
-    ax_list = [plt.subplot(gs) for gs in gs1]
-
-    # Utility function.
-    def get_FR_by_trial(u, t1, t2):
-        if u.is_empty():
-            return None
-        # TODO: inc_tr should not be call explicitely, but taken care of inside Unit!!!
-        inc_tr = u.included_trials()
-        frate = np.array(u.Spikes.n_spikes(inc_tr, t1, t2)[1])
-        tr_time = np.array(u.TrialParams['TrialStart'][inc_tr.trials], dtype=float)
-        frate_tr_time = pd.Series(frate, index=tr_time)
-        return frate_tr_time
+    fig, gsp, ax_list = plot.get_gs_subplots(nrow=len(periods), ncol=1,
+                                             subw=10, subh=2.5, as_array=False)
 
     # Init task info dict.
     tasks = UnitArr.get_tasks()
@@ -516,17 +550,17 @@ def check_recording_stability(UnitArr, fname):
         task_stop = unit_list[0].TrialParams['TrialStop'].iloc[-1]
         task_stats[task] = (len(unit_list), task_start, task_stop)
 
-    ch_units = UnitArr.get_rec_chan_unit_indices()
+    unit_ids = UnitArr.get_rec_chan_unit_indices()
     for (prd_name, (t1, t2)), ax in zip(periods.items(), ax_list):
         # Calculate and plot firing rate during given period within each trial
         # across session for all units.
         all_FR_prd = []
-        for ch_unit_name in ch_units:
+        for unit_id in unit_ids:
 
             # Get all units (including empty ones for color cycle consistency).
-            ch_unit = UnitArr.get_unit_list(chan_unit_idxs=[ch_unit_name],
-                                            return_empty=True)
-            FR_tr_list = [get_FR_by_trial(u, t1, t2) for u in ch_unit]
+            unit_list = UnitArr.get_unit_list(chan_unit_idxs=[unit_id],
+                                              return_empty=True)
+            FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2) for u in unit_list]
 
             # Plot each FRs per task discontinuously.
             colors = plot.get_colors()
@@ -582,10 +616,11 @@ def check_recording_stability(UnitArr, fname):
 
         # Set limits and add labels to plot.
         plot.set_limits(xlim=[None, max(tr_time)], ax=ax)
-        plot.set_labels(title=prd_name, xlab='Session time (s)',
+        plot.set_labels(title=prd_name, xlab='Recording time (s)',
                         ylab='Firing rate (sp/s)', ax=ax)
 
+    # Format and save figure.
     title = 'Recording stability of ' + UnitArr.Name
     fig.suptitle(title, y=0.98, fontsize='xx-large')
-    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
+    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
     plot.save_fig(fig, fname)

@@ -262,6 +262,17 @@ def values_in_window(v, vmin=None, vmax=None):
     return v_idxs
 
 
+def zscore_timeseries(timeseries):
+    """Z-score set of time series at each time point (per column)."""
+
+    zscored_ts = stats.zscore(timeseries)
+    zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
+
+    return zscored_ts
+
+
+# %% Functions to handle Numpy and Pandas objects containing Quantities elements.
+
 def quantity_linspace(q1, q2, dim, n, endpoint=True, retstep=False):
     """Implement numpy.linspace on phyisical quantities."""
 
@@ -290,6 +301,14 @@ def list_to_quantity(lvec, dim=None):
     return np_vec
 
 
+def remove_dimension(qvec):
+    """Remove dimension from Quantity array and return Numpy array."""
+
+    np_vec = np.array([float(qv) for qv in qvec])
+
+    return np_vec
+
+
 def add_dim_to_df_col(col, dim):
     """Add physical dimension to Pandas dataframe column."""
 
@@ -299,13 +318,13 @@ def add_dim_to_df_col(col, dim):
     return dim_col
 
 
-def zscore_timeseries(timeseries):
-    """Z-score set of time series at each time point (per column)."""
+def remove_dim_to_df_col(qcol):
+    """Remove physical dimension to Pandas dataframe column."""
 
-    zscored_ts = stats.zscore(timeseries)
-    zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
+    col = remove_dimension(qcol)
+    series = pd.Series(col, index=qcol.index, name=qcol.name)
 
-    return zscored_ts
+    return series
 
 
 # %% Function for analysing directions.

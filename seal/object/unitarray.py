@@ -106,17 +106,6 @@ class UnitArray:
 
         return unit_list
 
-    def get_n_units_by_task(self, task_list=None, return_empty=False):
-        """Return number of units in each task."""
-
-        if task_list is None:
-            task_list = self.get_tasks()
-
-        n_unit_per_task = [(task, len(self.get_unit_list(tasks=[task],
-                                                         return_empty=return_empty)))
-                           for task in task_list]
-        return n_unit_per_task
-
     # %% Exporting and reporting methods.
     def get_unit_params(self):
         """Return unit parameters as Pandas table."""

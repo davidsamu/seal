@@ -30,6 +30,7 @@ class Spikes:
         # Remove spikes outside of time window [t_start, t_stop].
         tr_sp = [util.values_in_window(sp, t_start, t_stop)
                  for sp in spike_train_list]
+
         # Create list of neo SpikeTrain objects.
         self.spikes = [SpikeTrain(sp, t_start=t_start, t_stop=t_stop)
                        for sp in tr_sp]
@@ -63,8 +64,8 @@ class Spikes:
 
     # %% Methods for summary statistics over spikes.
 
-    def n_spikes(self, trials=None, t1=None, t2=None):
-        """Return number of spikes of given trials within time window."""
+    def spike_stats_in_prd(self, trials=None, t1=None, t2=None):
+        """Return spike count and firing rate of given trials within time window."""
 
         spikes = self.get_spikes(trials, t1, t2)
         n_spikes = np.array([sp.size for sp in spikes])
@@ -74,7 +75,7 @@ class Spikes:
     def spike_count_stats(self, trials=None, t1=None, t2=None):
         """Return spike count statistics across selected trials."""
 
-        f_rate = self.n_spikes(trials, t1, t2)[1]
+        f_rate = self.spike_stats_in_prd(trials, t1, t2)[1]
         mean_rate = np.mean(f_rate)
         std_rate = np.std(f_rate)
         sem_rate = std_rate / np.sqrt(f_rate.size)

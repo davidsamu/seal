@@ -90,34 +90,33 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
 
 # %% Functions to plot basic unit activity (raster, rate, tuning curve, etc).
 
-def raster_rate(spikes_list, rates, times, t1, t2, names,
-                t_unit=ms, segments=None,
-                pvals=None, ylim=None, title=None, xlab='Time (ms)',
-                ylab_rate='Firing rate (sp/s)', markersize=1.5,
-                legend=True, nlegend=True, ffig=None, fig=None, outer_gs=None):
+def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
+                segments=None, pvals=None, ylim=None, title=None,
+                xlab='Time (ms)', ylab_rate='Firing rate (sp/s)',
+                add_ylab_raster=True,  markersize=1.5, legend=True,
+                nlegend=True, fig=None, ffig=None, outer_gsp=None):
     """Plot raster and rate plots."""
 
     # Create subplots (as nested gridspecs).
     fig = figure(fig)
-    if outer_gs is None:
-        outer_gs = gs.GridSpec(2, 1, height_ratios=[1, 1])
-    gs_raster = gs.GridSpecFromSubplotSpec(len(spikes_list), 1,
-                                           subplot_spec=outer_gs[0],
-                                           hspace=.15)
-    gs_rate = gs.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gs[1])
+    if outer_gsp is None:
+        outer_gsp = gs.GridSpec(2, 1, height_ratios=[1, 1])
+    gsp_raster = embed_gsp(outer_gsp[0], len(spikes_list), 1, hspace=.15)
+    gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
     ylab_posx = -0.05
 
     # Raster plot(s).
     for i, sp_tr in enumerate(spikes_list):
-        ax = fig.add_subplot(gs_raster[i, 0])
+        ax = fig.add_subplot(gsp_raster[i, 0])
         ttl = title if i == 0 else None  # add title to top raster
+        ylab = names[i] if add_ylab_raster else None
         raster(sp_tr, t1, t2, t_unit, segments, markersize,
-               title=ttl, xlab=None, ylab=names[i], ax=ax)
+               title=ttl, xlab=None, ylab=ylab, ax=ax)
         ax.set_xticklabels([])
         ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Rate plot.
-    ax = fig.add_subplot(gs_rate[0, 0])
+    ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, t_unit, segments, pvals,  ylim,
          title=None, xlab=xlab, ylab=ylab_rate, legend=legend, ax=ax)
     ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
@@ -209,10 +208,9 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init plots.
-    fig = figure(figsize=(12, 5))
-    gs1 = gs.GridSpec(1, 2)
-    ax_polar = fig.add_subplot(gs1[0], polar=True)
-    ax_tuning = fig.add_subplot(gs1[1])
+    fig, gsp, _ = get_gs_subplots(1, 2, subw=6, subh=5, create_axes=False)
+    ax_polar = fig.add_subplot(gsp[0], polar=True)
+    ax_tuning = fig.add_subplot(gsp[1])
     colors = get_colors()
     polar_patches = []
     tuning_patches = []
@@ -294,7 +292,7 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
     lgd_tuning.get_title().set_ha('left')
 
     # Save figure.
-    gs1.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
+    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     save_fig(fig, ffig)
 
 
@@ -411,17 +409,18 @@ def set_limits(xlim=None, ylim=None, ax=None):
         ax.set_ylim(ylim)
 
 
-def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None):
+def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
+               title_kwargs=dict(), xlab_kwargs=dict(), ylab_kwargs=dict()):
     """Generic function to set title, labels and ticks on axes."""
 
     ax = axes(ax)
     if title is not None:
         ytitle = ytitle if ytitle is not None else 1.04
-        ax.set_title(title, y=ytitle)
+        ax.set_title(title, y=ytitle, **title_kwargs)
     if xlab is not None:
-        ax.set_xlabel(xlab)
+        ax.set_xlabel(xlab, **xlab_kwargs)
     if ylab is not None:
-        ax.set_ylabel(ylab)
+        ax.set_ylabel(ylab, **ylab_kwargs)
     ax.tick_params(axis='both', which='major')
 
 
@@ -448,6 +447,23 @@ def show_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
     ax = axes(ax)
     ax.xaxis.set_ticks_position(xtick_pos)
     ax.yaxis.set_ticks_position(ytick_pos)
+
+
+def hide_axes(show_x=False, show_y=False, ax=None):
+    """Hide all ticks and spines of either or both axes."""
+
+    ax = axes(ax)
+
+    if not show_x:
+        ax.get_xaxis().set_ticks([])
+    if not show_y:
+        ax.get_yaxis().set_ticks([])
+
+    show_spines(show_x, show_y, show_x, show_y, ax)
+
+    xtick_pos = 'default' if show_x else 'none'
+    ytick_pos = 'default' if show_y else 'none'
+    show_ticks(xtick_pos, ytick_pos, ax)
 
 
 def colorbar(cbar, fig, cax, cb_title, cb_outline=False):
@@ -504,6 +520,7 @@ def axes(ax=None, **kwargs):
     return ax
 
 
+# TODO: replace this with get_gs_subplots below!
 def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
     """Returns figures with given number of axes initialised."""
 
@@ -518,6 +535,46 @@ def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
     [ax.axis('off') for ax in axsf[nplots:]]
 
     return fig, axsf
+
+
+def get_gs_subplots(nrow, ncol, subw=2, subh=2,
+                    create_axes=True, as_array=True):
+    """Return list or array of GridSpec subplots."""
+
+    fig = figure(figsize=(ncol*subw, nrow*subh))
+    gsp = gs.GridSpec(nrow, ncol)
+
+    axes = None
+    if create_axes:
+        axes = [fig.add_subplot(gs) for gs in gsp]
+        if as_array:
+            axes = np.array(axes).reshape(gsp.get_geometry())
+
+    return fig, gsp, axes
+
+
+def embed_gsp(outer_gsp, nrow, ncol, **kwargs):
+    """Return GridSpec embedded into outer SubplotSpec."""
+
+    sub_gsp = gs.GridSpecFromSubplotSpec(nrow, ncol, outer_gsp, **kwargs)
+    return sub_gsp
+
+
+def get_colormap(cm_name='jet', **kwargs):
+    """Return colormap instance."""
+
+    cmap = plt.get_cmap(cm_name, **kwargs)
+    return cmap
+
+
+def inline_on():
+    """Turn on inline plotting."""
+    plt.ion()
+
+
+def inline_off():
+    """Turn off inline plotting."""
+    plt.ioff()
 
 
 # %% Miscellanous plot related functions.
