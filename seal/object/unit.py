@@ -488,7 +488,8 @@ class Unit:
 
         return dirs, mean_rate, std_rate, sem_rate
 
-    def test_direction_selectivity(self, stims=['S1', 'S2'], ffig_tmpl=None):
+    def test_direction_selectivity(self, stims=['S1', 'S2'], no_labels=False,
+                                   ffig_tmpl=None, **kwargs):
         """
         Test direction selectivity of unit by
         - calculating direction selectivity index, and
@@ -512,11 +513,20 @@ class Unit:
             self.UnitParams['PrefDirCoarse'][stim] = pref_dir_c
             self.UnitParams['DirSelectivity'][stim] = dsi
 
+        title = self.Name
+
+        # Minimise labels on plot.
+        if no_labels:
+            title = None
+            kwargs['labels'] = False
+            kwargs['legends'] = False
+
         # Plot direction response and selectivity results.
         ffig = None
         if ffig_tmpl is not None:
             ffig = ffig_tmpl.format(self.name_to_fname())
-        plot.direction_selectivity(dir_select_dict, self.Name, ffig)
+        plot.direction_selectivity(dir_select_dict, title=title, ffig=ffig,
+                                   **kwargs)
 
     # %% Plotting methods.
 
@@ -584,7 +594,7 @@ class Unit:
 
         title = self.Name
 
-        # Minimalise label on plot.
+        # Minimise labels on plot.
         if no_labels:
             title = None
             kwargs['xlab'] = None

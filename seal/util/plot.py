@@ -88,7 +88,17 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
     return fig
 
 
-# %% Functions to plot basic unit activity (raster, rate, tuning curve, etc).
+# %% Functions to plot rasters and rates.
+
+def empty_raster_rate(fig, outer_gsp, nraster):
+    """Plot empty raster and rate plots."""
+
+    mock_gsp_rasters = embed_gsp(outer_gsp[0], nraster, 1, hspace=.15)
+    for i in range(nraster):
+        add_mock_axes(fig, mock_gsp_rasters[i, 0])
+    mock_gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
+    add_mock_axes(fig, mock_gsp_rate[0, 0])
+
 
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
                 segments=None, pvals=None, ylim=None, title=None,
@@ -204,13 +214,27 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
     return ax
 
 
-def direction_selectivity(dir_select_dict, title=None, ffig=None):
+# %% Functions to plot tuning curve and direction selectivity.
+
+def empty_direction_selectivity(fig, outer_gsp):
+    """Plot empty direction selectivity plots."""
+
+    mock_gsp_polar = embed_gsp(outer_gsp[0], 1, 1)
+    add_mock_axes(fig, mock_gsp_polar[0, 0], polar=True)
+    mock_gsp_tuning = embed_gsp(outer_gsp[1], 1, 1)
+    add_mock_axes(fig, mock_gsp_tuning[0, 0])
+
+
+def direction_selectivity(dir_select_dict, title=None, labels=True,
+                          legends=True, ffig=None, fig=None, outer_gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init plots.
-    fig, gsp, _ = get_gs_subplots(1, 2, subw=6, subh=5, create_axes=False)
-    ax_polar = fig.add_subplot(gsp[0], polar=True)
-    ax_tuning = fig.add_subplot(gsp[1])
+    if outer_gsp is None:
+        fig, outer_gsp, _ = get_gs_subplots(1, 2, subw=6, subh=5,
+                                            create_axes=False, fig=fig)
+    ax_polar = fig.add_subplot(outer_gsp[0], polar=True)
+    ax_tuning = fig.add_subplot(outer_gsp[1])
     colors = get_colors()
     polar_patches = []
     tuning_patches = []
@@ -240,8 +264,8 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
         sem_resp_shifted = sem_resp[idx]
 
         # Calculate and plot direction tuning curve.
-        xlab = 'Difference from preferred direction (deg)'
-        ylab = 'Firing rate (sp/s)'
+        xlab = 'Difference from preferred direction (deg)' if labels else None
+        ylab = 'Firing rate (sp/s)' if labels else None
         r = tuning.test_tuning(dirs_shifted, mean_resp_shifted, sem_resp_shifted,
                                stim_min=-180*deg, stim_max=180*deg,
                                xlab=xlab, ylab=ylab, color=color, ax=ax_tuning)
@@ -272,27 +296,31 @@ def direction_selectivity(dir_select_dict, title=None, ffig=None):
     set_limits(xlim, ylim, ax_tuning)
 
     # Set labels.
-    set_labels('Polar plot', ytitle=1.08, ax=ax_polar)
-    set_labels('Tuning curve', ytitle=1.08, ax=ax_tuning)
-    fig.suptitle(title, y=0.98, fontsize='xx-large')
+    if labels:
+        set_labels('Polar plot', ytitle=1.08, ax=ax_polar)
+        set_labels('Tuning curve', ytitle=1.08, ax=ax_tuning)
+    if title is not None:
+        fig.suptitle(title, y=0.98, fontsize='xx-large')
 
-    # Set legend of polar plot.
-    lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
-    lgd_polar = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
-                           bbox_to_anchor=(0., -0.30, 1., .0),
-                           loc='lower center', prop={'family': 'monospace'})
-    lgd_polar.get_title().set_ha('left')
+    if legends:
+        # Set legend of polar plot.
+        lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
+        lgd_polar = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
+                               bbox_to_anchor=(0., -0.30, 1., .0),
+                               loc='lower center', prop={'family': 'monospace'})
+        lgd_polar.get_title().set_ha('left')
 
-    # Set legend of tuning plot.
-    lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
-               'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
-    lgd_tuning = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
-                            bbox_to_anchor=(0., -0.30, 1., .0),
-                            loc='lower center', prop={'family': 'monospace'})
-    lgd_tuning.get_title().set_ha('left')
+        # Set legend of tuning plot.
+        lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
+                   'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
+        lgd_tuning = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
+                                bbox_to_anchor=(0., -0.30, 1., .0),
+                                loc='lower center', prop={'family': 'monospace'})
+        lgd_tuning.get_title().set_ha('left')
 
     # Save figure.
-    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
+    if hasattr(outer_gsp, 'tight_layout'):
+        outer_gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     save_fig(fig, ffig)
 
 
@@ -537,14 +565,17 @@ def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
     return fig, axsf
 
 
-def get_gs_subplots(nrow, ncol, subw=2, subh=2,
-                    create_axes=True, as_array=True):
+def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
+                    create_axes=True, as_array=True, fig=None):
     """Return list or array of GridSpec subplots."""
 
-    fig = figure(figsize=(ncol*subw, nrow*subh))
+    # Create figure, gridspec.
+    if fig is None:
+        fig = figure(figsize=(ncol*subw, nrow*subh))
     gsp = gs.GridSpec(nrow, ncol)
-
     axes = None
+
+    # Create list (or array) of axes.
     if create_axes:
         axes = [fig.add_subplot(gs) for gs in gsp]
         if as_array:
@@ -558,6 +589,14 @@ def embed_gsp(outer_gsp, nrow, ncol, **kwargs):
 
     sub_gsp = gs.GridSpecFromSubplotSpec(nrow, ncol, outer_gsp, **kwargs)
     return sub_gsp
+
+
+def add_mock_axes(fig, mock_gsp, **kwargs):
+    """Add mock (empty) axes to figure."""
+
+    ax = fig.add_subplot(mock_gsp, **kwargs)
+    hide_axes(ax=ax)
+    return ax
 
 
 def get_colormap(cm_name='jet', **kwargs):
