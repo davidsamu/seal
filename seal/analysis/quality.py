@@ -519,6 +519,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
         unit_gsp = plot.embed_gsp(unit_sps, n_unit_subplots, 1)
 
         irow = 0  # to keep track of row index
+        ds_tested = 'PrefDir' in u.UnitParams
 
         # Plot unit's info header.
         if plot_info:
@@ -544,7 +545,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
         if plot_ds:
             ds_gsp = plot.embed_gsp(unit_gsp[irow, 0], 1, 2)
             irow += 1
-            if u.is_empty():  # add mock subplot
+            if u.is_empty() or not ds_tested:  # add mock subplot
                 plot.empty_direction_selectivity(fig, ds_gsp)
             else:
                 u.test_direction_selectivity(no_labels=True, fig=fig,
@@ -558,7 +559,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
 
             for i, (index, row) in enumerate(stim_df.iterrows()):
                 dd_rr_gsp = plot.embed_gsp(outer_dd_rr_gsp[0, i], 2, 1)
-                if u.is_empty():  # add mock subplot
+                if u.is_empty() or not ds_tested:  # add mock subplot
                     plot.empty_raster_rate(fig, dd_rr_gsp, 2)
                 else:
                     dd_trials = u.dir_pref_anti_trials(stim=index,
@@ -572,21 +573,22 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     # Match y-axis scales across tasks.
     # List of axes offset lists to match y limit across.
     # Each value indexes a plot within the unit's plot block.
-    yplot_idx = (plot_rr * [[1]] +
+    yplot_idx = (plot_rr * [[n_plots(['info'])+1]] +
                  plot_ds*[[n_plots(['info', 'rr'])],
                           [n_plots(['info', 'rr'])+1]] +
                  plot_dd_rr * [[n_plots(['info', 'rr', 'ds'])+2,
                                 n_plots(['info', 'rr', 'ds'])+5]])
-    for offsets in yplot_idx:
+    move_sign_lines = (False, False, False, True)
+    for offsets, mv_sg_ln in zip(yplot_idx, move_sign_lines):
         for irow in range(nchunit):
             axs = [fig.axes[n_unit_plots_total*ntask*irow +
                             itask*n_unit_plots_total + offset]
                    for offset in offsets
                    for itask in range(ntask)
                    if not Unit_list[irow*ntask + itask].is_empty()]
-            all_ylims = np.array([ax.get_ylim() for ax in axs])
-            ylims = (all_ylims[:, 0].min(), all_ylims[:, 1].max())
-            [ax.set_ylim(ylims) for ax in axs]
+            plot.sync_axes(axs, sync_y=True)
+            if mv_sg_ln:
+                [plot.move_significance_lines(ax) for ax in axs]
 
     # Add unit names to beginning of each row.
     if not plot_info:

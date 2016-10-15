@@ -103,7 +103,7 @@ def unit_info(u, fs='large', ax=None):
                         ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate (sp/s)']))])
 
     # Plot each label.
-    yloc = .1
+    yloc = .0
     xloc = np.linspace(.10, .85, len(lbl_dict))
     for xloci, (lbl, val) in zip(xloc, lbl_dict.items()):
         lbl_str = '{}: {}'.format(lbl, val)
@@ -228,16 +228,22 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
     set_limits(xlim, ylim, ax=ax)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(True, False, False, False, ax=ax)
-    set_legend(ax, legend)
     set_labels(title, xlab, ylab, ax=ax)
+
+    # Add legend
+    legend_kwargs = dict([('frameon', False), ('framealpha', 0.5),
+                          ('loc', 'upper right'), ('borderaxespad', 0),
+                          ('handletextpad', 0)])
+    set_legend(ax, legend, **legend_kwargs)
 
     # Add significance line to top of plot.
     if pvals is not None and len(rates_list) == 2:
         lws = [2.0 * i for i in range(1, len(pvals)+1)]
         cols = len(pvals) * ['c']  # ['m', 'c', 'g', 'y', 'r']
+        ypos = ax.get_ylim()[1]
         for pval, lw, col in zip(pvals, lws, cols):
             plot_significant_intervals(rates_list[0], rates_list[1], time,
-                                       pval, ypos=ax.get_ylim()[1], color=col,
+                                       pval, ypos=ypos, color=col,
                                        linewidth=lw, ax=ax)
 
     # Save and return plot.
@@ -335,29 +341,29 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
     if title is not None:
         fig.suptitle(title, y=0.98, fontsize='xx-large')
 
-    # Set legend of polar plot.
-    bbox_to_anchor = [0., -0.30 if labels else -0.20, 1., .0]
+    # Set legends.
+    ylegend = -0.30 if labels else -0.20
     fr_on = False if labels else True
-    legend_kwargs = dict([('fancybox', True), ('shadow', False), ('framealpha', 0.8),
-                          ('frameon', fr_on), ('loc', 'lower center'),
+    legend_kwargs = dict([('fancybox', True), ('shadow', False),
+                          ('frameon', fr_on), ('framealpha', 1.0),
+                          ('loc', 'lower center'),
+                          ('bbox_to_anchor', [0., ylegend, 1., .0]),
                           ('prop', {'family': 'monospace'})])
-    if polar_legend:
-        lgd_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
-        if not labels:  # customisation for summary plot
-            lgd_ttl = None
-        lgd_polar = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
-                               bbox_to_anchor=bbox_to_anchor, **legend_kwargs)
-        lgd_polar.get_title().set_ha('left')
+    polar_lgn_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
+    tuning_lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
+                      'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
 
-    # Set legend of tuning plot.
-    if tuning_legend:
-        lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
-                   'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
+    lgn_params = [(polar_legend, polar_lgn_ttl, polar_patches, ax_polar),
+                  (tuning_legend, tuning_lgd_ttl, tuning_patches, ax_tuning)]
+    for (plot_legend, lgn_ttl, patches, ax) in lgn_params:
+        if not plot_legend:
+            continue
         if not labels:  # customisation for summary plot
             lgd_ttl = None
-        lgd_tuning = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
-                                bbox_to_anchor=bbox_to_anchor, **legend_kwargs)
-        lgd_tuning.get_title().set_ha('left')
+        lgd = set_legend(ax, handles=patches, title=lgd_ttl, **legend_kwargs)
+        lgd.get_title().set_ha('left')
+        if legend_kwargs['frameon']:
+            lgd.get_frame().set_linewidth(.5)
 
     # Save figure.
     if hasattr(outer_gsp, 'tight_layout'):
@@ -431,6 +437,26 @@ def plot_significant_intervals(rates1, rates2, time, pval, ypos=0,
     ax.add_collection(lc)
 
 
+def move_significance_lines(ax, ypos=None):
+    """
+    Move significance line segments to top of plot
+    (typically after resetting y-limit).
+    """
+
+    # Init.
+    ax = axes(ax)
+    if ypos is None:
+        ypos = ax.get_ylim()[1]
+
+    # Find significance line segments.
+    for c in ax.collections:
+        # This assumes that there is not other LineCollection object plotted!
+        if isinstance(c, mc.LineCollection):
+            segments = [np.array((seg[:, 0], seg.shape[0]*[ypos])).T
+                        for seg in c.get_segments()]
+            c.set_segments(segments)
+
+
 def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
                   ax=None, **kwargs):
     """Plot all segments of unit."""
@@ -476,6 +502,22 @@ def set_limits(xlim=None, ylim=None, ax=None):
         ax.set_xlim(xlim)
     if ylim is not None:
         ax.set_ylim(ylim)
+
+
+def sync_axes(axs, sync_x=False, sync_y=False):
+    """Synchronize x and/or y axis across list of axes."""
+
+    if sync_x:
+        all_xlims = np.array([ax.get_xlim() for ax in axs])
+        xlims = (all_xlims[:, 0].min(), all_xlims[:, 1].max())
+        [ax.set_xlim(xlims) for ax in axs]
+
+    if sync_y:
+        all_ylims = np.array([ax.get_ylim() for ax in axs])
+        ylims = (all_ylims[:, 0].min(), all_ylims[:, 1].max())
+        [ax.set_ylim(ylims) for ax in axs]
+
+    return axs
 
 
 def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
@@ -549,8 +591,10 @@ def set_legend(ax, add_legend=True, loc='upper right',
                frameon=False, **kwargs):
     """Add legend to axes."""
 
-    if add_legend:
-        legend = ax.legend(loc=loc, frameon=frameon, **kwargs)
+    if not add_legend:
+        return None
+
+    legend = ax.legend(loc=loc, frameon=frameon, **kwargs)
 
     return legend
 

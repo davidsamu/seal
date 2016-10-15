@@ -489,7 +489,7 @@ class Unit:
         return dirs, mean_rate, std_rate, sem_rate
 
     def test_direction_selectivity(self, stims=['S1', 'S2'], no_labels=False,
-                                   ffig_tmpl=None, **kwargs):
+                                   do_plot=True, ffig_tmpl=None, **kwargs):
         """
         Test direction selectivity of unit by
         - calculating direction selectivity index, and
@@ -523,11 +523,12 @@ class Unit:
             kwargs['tuning_legend'] = False
 
         # Plot direction response and selectivity results.
-        ffig = None
-        if ffig_tmpl is not None:
-            ffig = ffig_tmpl.format(self.name_to_fname())
-        plot.direction_selectivity(dir_select_dict, title=title, ffig=ffig,
-                                   **kwargs)
+        if do_plot:
+            ffig = None
+            if ffig_tmpl is not None:
+                ffig = ffig_tmpl.format(self.name_to_fname())
+            plot.direction_selectivity(dir_select_dict, title=title, ffig=ffig,
+                                       **kwargs)
 
     # %% Plotting methods.
 
