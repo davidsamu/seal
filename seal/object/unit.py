@@ -519,7 +519,8 @@ class Unit:
         if no_labels:
             title = None
             kwargs['labels'] = False
-            kwargs['legends'] = False
+            kwargs['polar_legend'] = True
+            kwargs['tuning_legend'] = False
 
         # Plot direction response and selectivity results.
         ffig = None

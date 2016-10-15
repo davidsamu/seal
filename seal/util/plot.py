@@ -10,6 +10,7 @@ Collection of plotting function.
 import warnings
 from itertools import cycle
 from collections import Counter
+from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ savefig_dpi = 150
 # matplotlib.rcdefaults()
 
 
-# %% Functions to plot group level properties.
+# %% Functions to plot group and unit level properties.
 
 def group_params(unit_params, params_to_plot=None, ffig=None):
     """Plot histogram of parameter values across units."""
@@ -86,6 +87,35 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
     # Save and return plot.
     save_fig(fig, ffig)
     return fig
+
+
+def unit_info(u, fs='large', ax=None):
+    """Plot unit info as text labels."""
+
+    # Init axes.
+    ax = axes(ax)
+    hide_axes(ax=ax)
+
+    # Init dictionary of info labels to plot.
+    uparams = u.get_unit_params()
+    lbl_dict = OrdDict([('SNR', '{:.2f}'.format(uparams['SNR'])),
+                        ('WfDur', '{:.2f} ms'.format(uparams['MeanWfAmplitude']/1000)),
+                        ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate (sp/s)']))])
+
+    # Plot each label.
+    yloc = .1
+    xloc = np.linspace(.10, .85, len(lbl_dict))
+    for xloci, (lbl, val) in zip(xloc, lbl_dict.items()):
+        lbl_str = '{}: {}'.format(lbl, val)
+        ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
+
+    # Set title.
+    title = 'ch {} / {}  --  {}'.format(uparams['channel #'],
+                                        uparams['unit #'],
+                                        uparams['experiment'])
+    set_labels(title=title, ytitle=.30, ax=ax)
+
+    return ax
 
 
 # %% Functions to plot rasters and rates.
@@ -151,17 +181,18 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
 
     # Format plot.
     xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
-    ylim = [0.5, len(spikes)+0.5]
+    ylim = [0.5, len(spikes)+0.5] if len(spikes) else [0, 1]
     set_limits(xlim, ylim, ax=ax)
     ax.locator_params(axis='y', nbins=6)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
-    # Add '1' to tick labels
+    # Add '1' to tick labels.
     # ax.yaxis.set_ticks([1] + ax.yaxis.get_majorticklocs())
 
-    # Order trials from top to bottom (has to happen after setting axis limits)
+    # Order trials from top to bottom.
+    # (Has to happen after setting axis limits!)
     ax.invert_yaxis()
 
     # Save and return plot.
@@ -184,7 +215,7 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
         time = time.rescale(t_unit)
 
         # Set line label.
-        lbl = '{} (n={} trials)'.format(name, rts.shape[0])
+        lbl = '{} ({} trs)'.format(name, rts.shape[0])
 
         # Plot mean line and SEM area.
         line_col = ax.plot(time, meanr, label=lbl)[0].get_color()
@@ -225,8 +256,10 @@ def empty_direction_selectivity(fig, outer_gsp):
     add_mock_axes(fig, mock_gsp_tuning[0, 0])
 
 
+# TODO: this function should be refactored!
 def direction_selectivity(dir_select_dict, title=None, labels=True,
-                          legends=True, ffig=None, fig=None, outer_gsp=None):
+                          polar_legend=True, tuning_legend=True,
+                          ffig=None, fig=None, outer_gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init plots.
@@ -275,7 +308,7 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
         s_pd = str(float(round(pref_dir, 1)))
         s_pd_c = str(int(pref_dir_c)) if not np.isnan(pref_dir_c.magnitude) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(name, dsi)
-        lgd_lbl += '      {:>5}     {:>3}'.format(s_pd, s_pd_c)
+        lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_patch(lgd_lbl, color))
 
         # Collect parameters of tuning curve fit.
@@ -302,20 +335,28 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
     if title is not None:
         fig.suptitle(title, y=0.98, fontsize='xx-large')
 
-    if legends:
-        # Set legend of polar plot.
-        lgd_ttl = 'DSI'.rjust(30) + 'PD (deg)'.rjust(16) + 'PD8 (deg)'.rjust(12)
+    # Set legend of polar plot.
+    bbox_to_anchor = [0., -0.30 if labels else -0.20, 1., .0]
+    fr_on = False if labels else True
+    legend_kwargs = dict([('fancybox', True), ('shadow', False), ('framealpha', 0.8),
+                          ('frameon', fr_on), ('loc', 'lower center'),
+                          ('prop', {'family': 'monospace'})])
+    if polar_legend:
+        lgd_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
+        if not labels:  # customisation for summary plot
+            lgd_ttl = None
         lgd_polar = set_legend(ax_polar, handles=polar_patches, title=lgd_ttl,
-                               bbox_to_anchor=(0., -0.30, 1., .0),
-                               loc='lower center', prop={'family': 'monospace'})
+                               bbox_to_anchor=bbox_to_anchor, **legend_kwargs)
         lgd_polar.get_title().set_ha('left')
 
-        # Set legend of tuning plot.
+    # Set legend of tuning plot.
+    if tuning_legend:
         lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
                    'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
+        if not labels:  # customisation for summary plot
+            lgd_ttl = None
         lgd_tuning = set_legend(ax_tuning, handles=tuning_patches, title=lgd_ttl,
-                                bbox_to_anchor=(0., -0.30, 1., .0),
-                                loc='lower center', prop={'family': 'monospace'})
+                                bbox_to_anchor=bbox_to_anchor, **legend_kwargs)
         lgd_tuning.get_title().set_ha('left')
 
     # Save figure.
@@ -566,13 +607,13 @@ def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
 
 
 def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
-                    create_axes=True, as_array=True, fig=None):
+                    create_axes=True, as_array=True, fig=None, **kwargs):
     """Return list or array of GridSpec subplots."""
 
     # Create figure, gridspec.
     if fig is None:
         fig = figure(figsize=(ncol*subw, nrow*subh))
-    gsp = gs.GridSpec(nrow, ncol)
+    gsp = gs.GridSpec(nrow, ncol, **kwargs)
     axes = None
 
     # Create list (or array) of axes.

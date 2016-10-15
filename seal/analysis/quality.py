@@ -476,34 +476,40 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
 # %% Quality tests across tasks.
 
-def within_trial_unit_test(UnitArr, nrate, fname, plot_raster_rate=True,
-                           plot_dir_sel=True, plot_dd_raster_rate=True,
-                           plot_gap=True):
+def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
+                           plot_rr=True, plot_ds=True, plot_dd_rr=True):
     """Test unit responses within trails."""
 
     def n_plots(plot_names):
         return sum([nplots.nrow[pn] * nplots.ncol[pn] for pn in plot_names])
 
     # Global plotting params.
-    pp = OrdDict([('rr', (2 if plot_raster_rate else 0, 1)),
-                  ('ds', (1, 2 if plot_dir_sel else 0)),
-                  ('dd_rr', (3 if plot_dd_raster_rate else 0, 1)),
-                  ('gap', (1 if plot_gap else 0, 1))])
-    nplots = pd.DataFrame(pp, index=('nrow', 'ncol')).T
-    n_unit_subplots = plot_raster_rate + plot_dir_sel + plot_dd_raster_rate + plot_gap
+    row_data = [('info', (1 if plot_info else 0, 1)),
+                ('rr', (2 if plot_rr else 0, 1)),
+                ('ds', (1, 2 if plot_ds else 0)),
+                ('dd_rr', (3 if plot_dd_rr else 0, 2))]
+    nplots = util.make_df(row_data, ('nrow', 'ncol'))
     n_unit_plots_total = n_plots(nplots.index)
+    n_unit_subplots = (plot_info + plot_rr + plot_ds + plot_dd_rr)
+
+    # Init S1 and S2 queries.
+    stim_od = OrdDict([('S1', (-0.5*s, 1.0*s, 'S1Dir')),
+                       ('S2', ( 1.5*s, 3.0*s, 'S2Dir'))])
+    stim_df = util.make_df(stim_od, ('t1', 't2', 'dir'))
+    rr_t1 = stim_df.t1.min()
+    rr_t2 = stim_df.t2.max()
 
     # Width and height of unit-level subfigures.
-    subw = 5
-    subh = 8
+    subw = 4.5
+    subh = 7
 
     # Init plotting.
     tasks = UnitArr.get_tasks()
     unit_ids = UnitArr.get_rec_chan_unit_indices()
     ntask = len(tasks)
-    nunit = len(unit_ids)
+    nchunit = len(unit_ids)
     Unit_list = UnitArr.get_unit_list(tasks, unit_ids, return_empty=True)
-    fig, gsp, _ = plot.get_gs_subplots(nrow=nunit, ncol=ntask,
+    fig, gsp, _ = plot.get_gs_subplots(nrow=nchunit, ncol=ntask,
                                        subw=subw, subh=subh, create_axes=False)
 
     # Plot within-trial activity of each unit during each task.
@@ -514,51 +520,68 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_raster_rate=True,
 
         irow = 0  # to keep track of row index
 
-        # Plot raster - rate plots.
-        if plot_raster_rate:
-            raster_rate_gsp = plot.embed_gsp(unit_gsp[irow, 0], 2, 1)
+        # Plot unit's info header.
+        if plot_info:
+            mock_gsp_info = plot.embed_gsp(unit_gsp[irow, 0], 1, 1)
             irow += 1
-            if u.is_empty():  # add mock subplots
-                plot.empty_raster_rate(fig, raster_rate_gsp, 1)
+            if u.is_empty():  # add mock subplot
+                plot.add_mock_axes(fig, mock_gsp_info[0, 0])
             else:
-                u.plot_raster_rate(nrate, no_labels=True,
-                                   fig=fig, outer_gsp=raster_rate_gsp)
+                ax = fig.add_subplot(mock_gsp_info[0, 0])
+                plot.unit_info(u, ax=ax)
 
-        # Plot direction selectivity plots.
-        if plot_dir_sel:
-            dir_sel_gsp = plot.embed_gsp(unit_gsp[irow, 0], 1, 2)
+        # Plot raster - rate plot.
+        if plot_rr:
+            rr_gsp = plot.embed_gsp(unit_gsp[irow, 0], 2, 1)
             irow += 1
-            if u.is_empty():  # add mock subplots
-                plot.empty_direction_selectivity(fig, dir_sel_gsp)
+            if u.is_empty():  # add mock subplot
+                plot.empty_raster_rate(fig, rr_gsp, 1)
+            else:
+                u.plot_raster_rate(nrate, no_labels=True, t1=rr_t1, t2=rr_t2,
+                                   fig=fig, outer_gsp=rr_gsp)
+
+        # Plot direction selectivity plot.
+        if plot_ds:
+            ds_gsp = plot.embed_gsp(unit_gsp[irow, 0], 1, 2)
+            irow += 1
+            if u.is_empty():  # add mock subplot
+                plot.empty_direction_selectivity(fig, ds_gsp)
             else:
                 u.test_direction_selectivity(no_labels=True, fig=fig,
-                                             outer_gsp=dir_sel_gsp)
+                                             outer_gsp=ds_gsp)
 
-        # Plot direction selectivity raster - rate plots.
-        if plot_dd_raster_rate:
-            dd_raster_rate_gsp = plot.embed_gsp(unit_gsp[irow, 0], 2, 1)
+        # Plot direction selectivity raster - rate plot.
+        if plot_dd_rr:
+            outer_dd_rr_gsp = plot.embed_gsp(unit_gsp[irow, 0],
+                                             1, len(stim_df.index))
             irow += 1
-            if u.is_empty():  # add mock subplots
-                plot.empty_raster_rate(fig, dd_raster_rate_gsp, 2)
-            else:
-                dd_trials = u.dir_pref_anti_trials(stim='S1',
-                                                   pname=['S1Dir', 'S2Dir'],
-                                                   comb_values=True)
-                u.plot_raster_rate(nrate, trials=dd_trials, no_labels=True,
-                                   fig=fig, outer_gsp=dd_raster_rate_gsp,
-                                   pvals=[0.05])
 
-        # Plot gap between units.
-        if plot_gap:
-            mock_gsp_gap = plot.embed_gsp(unit_gsp[irow, 0], 1, 1)
-            irow += 1
-            plot.add_mock_axes(fig, mock_gsp_gap[0, 0])
+            for i, (index, row) in enumerate(stim_df.iterrows()):
+                dd_rr_gsp = plot.embed_gsp(outer_dd_rr_gsp[0, i], 2, 1)
+                if u.is_empty():  # add mock subplot
+                    plot.empty_raster_rate(fig, dd_rr_gsp, 2)
+                else:
+                    dd_trials = u.dir_pref_anti_trials(stim=index,
+                                                       pname=[row.dir],
+                                                       comb_values=True)
+                    u.plot_raster_rate(nrate, trials=dd_trials,
+                                       t1=row.t1, t2=row.t2, pvals=[0.05],
+                                       no_labels=True, fig=fig,
+                                       outer_gsp=dd_rr_gsp)
 
     # Match y-axis scales across tasks.
-    for offset in range(n_unit_plots_total):
-        for irow in range(nunit):
+    # List of axes offset lists to match y limit across.
+    # Each value indexes a plot within the unit's plot block.
+    yplot_idx = (plot_rr * [[1]] +
+                 plot_ds*[[n_plots(['info', 'rr'])],
+                          [n_plots(['info', 'rr'])+1]] +
+                 plot_dd_rr * [[n_plots(['info', 'rr', 'ds'])+2,
+                                n_plots(['info', 'rr', 'ds'])+5]])
+    for offsets in yplot_idx:
+        for irow in range(nchunit):
             axs = [fig.axes[n_unit_plots_total*ntask*irow +
                             itask*n_unit_plots_total + offset]
+                   for offset in offsets
                    for itask in range(ntask)
                    if not Unit_list[irow*ntask + itask].is_empty()]
             all_ylims = np.array([ax.get_ylim() for ax in axs])
@@ -566,24 +589,26 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_raster_rate=True,
             [ax.set_ylim(ylims) for ax in axs]
 
     # Add unit names to beginning of each row.
-    ylab_kwargs = {'rotation': 0, 'size': 'xx-large', 'ha': 'right'}
-    offset = n_plots(['rr'])
-    for irow, unit_id in enumerate(unit_ids):
-        ax = fig.axes[n_unit_plots_total*ntask*irow+offset]
-        unit_name = 'ch {} / {}'.format(unit_id[1], unit_id[2]) + 20*' '
-        plot.set_labels(ylab=unit_name, ax=ax, ylab_kwargs=ylab_kwargs)
+    if not plot_info:
+        ylab_kwargs = {'rotation': 0, 'size': 'xx-large', 'ha': 'right'}
+        offset = 0  # n_plots(['info', 'rr'])
+        for irow, unit_id in enumerate(unit_ids):
+            ax = fig.axes[n_unit_plots_total*ntask*irow+offset]
+            unit_name = 'ch {} / {}'.format(unit_id[1], unit_id[2]) + 15*' '
+            plot.set_labels(ylab=unit_name, ax=ax, ylab_kwargs=ylab_kwargs)
 
     # Add task names to top of each column.
-    title_kwargs = {'size': 'xx-large'}
-    for icol, task in enumerate(tasks):
-        ax = fig.axes[n_unit_plots_total*icol]
-        plot.set_labels(title=task, ax=ax, ytitle=1.30,
-                        title_kwargs=title_kwargs)
+    if not plot_info:
+        title_kwargs = {'size': 'xx-large'}
+        for icol, task in enumerate(tasks):
+            ax = fig.axes[n_unit_plots_total*icol]
+            plot.set_labels(title=task, ax=ax, ytitle=1.30,
+                            title_kwargs=title_kwargs)
 
     # Format and save figure.
     title = 'Within trial activity of ' + UnitArr.Name
     fig.suptitle(title, y=0.98, fontsize='xx-large')
-    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.97])
+    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.98])
     plot.save_fig(fig, fname)
 
 

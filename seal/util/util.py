@@ -18,6 +18,7 @@ import scipy as sp
 import pandas as pd
 import multiprocessing as mp
 from collections import Iterable
+from collections import OrderedDict as OrdDict
 
 from scipy import stats
 
@@ -269,6 +270,14 @@ def zscore_timeseries(timeseries):
     zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
 
     return zscored_ts
+
+
+def make_df(row_list, col_names=None):
+    """Return Pandas dataframes made of data passed."""
+
+    od_rows = OrdDict(row_list)
+    df = pd.DataFrame(od_rows, index=col_names).T
+    return df
 
 
 # %% Functions to handle Numpy and Pandas objects containing Quantities elements.
