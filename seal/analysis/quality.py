@@ -137,53 +137,65 @@ def classify_unit(snr, true_spikes):
     return unit_type
 
 
-def test_drift(t, v, tbins, tr_starts, spike_times):
+def test_drift(t, v, tbins, tr_starts, spike_times, reject_trials):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
-    # Number of trials from session start until start and end of each period.
-    tr_starts = util.list_to_quantity(tr_starts)
-    n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
-                      for t1, t2 in tbins]
-    n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
-                    for t1, t2 in tbins]
-
-    # Find period within acceptible drift range for each bin.
-    cols = ['prd_start_i', 'prd_end_i', 'n_prd',
-            't_start', 't_end', 't_len',
-            'tr_start_i', 'tr_end_i', 'n_tr']
-    period_res = pd.DataFrame(index=range(len(v)), columns=cols)
-    for i, v1 in enumerate(v):
-        vmin, vmax = v1, v1
-        for j, v2 in enumerate(v[i:]):
-            # Update extreme values.
-            vmin = min(vmin, v2)
-            vmax = max(vmax, v2)
-            # If difference becomes unacceptable, terminate period.
-            if vmax > MAX_DRIFT_RATIO*v2 or v2 > MAX_DRIFT_RATIO*vmin:
-                j -= 1
-                break
-        end_i = i + j
-        period_res.prd_start_i[i] = i
-        period_res.prd_end_i[i] = end_i
-        period_res.n_prd[i] = j + 1
-        period_res.t_start[i] = tbins[i][0]
-        period_res.t_end[i] = tbins[end_i][1]
-        period_res.t_len[i] = tbins[end_i][1] - tbins[i][0]
-        period_res.tr_start_i[i] = n_tr_prd_start[i]
-        period_res.tr_end_i[i] = n_tr_prd_end[end_i]
-        period_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
-
-    # Find bin with longest period.
-    idx = period_res.n_tr.argmax()
-    # Indices of longest period.
-    prd1 = period_res.prd_start_i[idx]
-    prd2 = period_res.prd_end_i[idx]
-    # Times of longest period.
-    t1 = period_res.t_start[idx]
-    t2 = period_res.t_end[idx]
-    # Trial indices within longest period.
-    first_tr_inc = period_res.tr_start_i[idx]
-    last_tr_inc = period_res.tr_end_i[idx] - 1
+    # Return full task length if not rejecting trials.
+    if not reject_trials:
+        t1 = spike_times[0]
+        t2 = spike_times[-1]
+        first_tr_inc = 0
+        last_tr_inc = len(tr_starts)
+        prd1 = 0
+        prd2 = len(tbins)
+        
+    else:
+            
+        # Number of trials from beginning of session 
+        # until start and end of each period.
+        tr_starts = util.list_to_quantity(tr_starts)
+        n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
+                          for t1, t2 in tbins]
+        n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
+                        for t1, t2 in tbins]
+    
+        # Find period within acceptible drift range for each bin.
+        cols = ['prd_start_i', 'prd_end_i', 'n_prd',
+                't_start', 't_end', 't_len',
+                'tr_start_i', 'tr_end_i', 'n_tr']
+        period_res = pd.DataFrame(index=range(len(v)), columns=cols)
+        for i, v1 in enumerate(v):
+            vmin, vmax = v1, v1
+            for j, v2 in enumerate(v[i:]):
+                # Update extreme values.
+                vmin = min(vmin, v2)
+                vmax = max(vmax, v2)
+                # If difference becomes unacceptable, terminate period.
+                if vmax > MAX_DRIFT_RATIO*v2 or v2 > MAX_DRIFT_RATIO*vmin:
+                    j -= 1
+                    break
+            end_i = i + j
+            period_res.prd_start_i[i] = i
+            period_res.prd_end_i[i] = end_i
+            period_res.n_prd[i] = j + 1
+            period_res.t_start[i] = tbins[i][0]
+            period_res.t_end[i] = tbins[end_i][1]
+            period_res.t_len[i] = tbins[end_i][1] - tbins[i][0]
+            period_res.tr_start_i[i] = n_tr_prd_start[i]
+            period_res.tr_end_i[i] = n_tr_prd_end[end_i]
+            period_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
+    
+        # Find bin with longest period.
+        idx = period_res.n_tr.argmax()
+        # Indices of longest period.
+        prd1 = period_res.prd_start_i[idx]
+        prd2 = period_res.prd_end_i[idx]
+        # Times of longest period.
+        t1 = period_res.t_start[idx]
+        t2 = period_res.t_end[idx]
+        # Trial indices within longest period.
+        first_tr_inc = period_res.tr_start_i[idx]
+        last_tr_inc = period_res.tr_end_i[idx] - 1
 
     # Return included trials and spikes.
     prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
@@ -196,7 +208,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times):
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
-def test_qm(u, ffig_template=None):
+def test_qm(u, reject_trials=True, ffig_template=None):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
     Exclude trials with unacceptable drift.
@@ -219,7 +231,8 @@ def test_qm(u, ffig_template=None):
 
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
-    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spike_times)
+    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, 
+                          spike_times, reject_trials)
     t1_inc, t2_inc, prd_inc, tr_inc, sp_inc = test_res
 
     # Waveform statistics of included spikes only.

@@ -167,6 +167,13 @@ class Unit:
 
         fname = util.format_to_fname(self.Name)
         return fname
+        
+    def get_recording_name(self):
+        """Return name of recording ([monkey_date])."""
+        
+        date_str = util.date_to_str(self.SessParams['date'])
+        rec_str = self.SessParams['monkey'] + '_' + date_str
+        return rec_str
 
     def get_unit_params(self, remove_dimensions=True):
         """Return main unit parameters."""

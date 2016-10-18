@@ -61,13 +61,26 @@ class UnitArray:
 
         chan_unit_idxs = self.Units.index.to_series()
         return chan_unit_idxs
-
+        
     def get_n_units(self):
         """Return number of units (number of rows of UnitArray)."""
 
         nunits = len(self.get_rec_chan_unit_indices())
         return nunits
 
+    def get_recordings(self):
+        """Return list of recordings in Pandas Index object."""
+        
+        chan_units = self.get_rec_chan_unit_indices()
+        recordings = chan_units.index.get_level_values('rec').unique()
+        return recordings
+        
+    def get_n_recordings(self):
+        """Return number of recordings."""
+        
+        n_recordings = len(self.get_recordings())
+        return n_recordings
+        
     def add_task(self, task_name, task_units):
         """Add new task data as extra column to Units table of UnitArray."""
 
