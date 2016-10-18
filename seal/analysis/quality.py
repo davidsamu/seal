@@ -631,6 +631,7 @@ def check_recording_stability(UnitArr, fname):
     """Check stability of recording session across tasks."""
 
     # Init params.
+    # TODO: this should be a constant defined elsewhere!
     periods = OrdDict([('Whole trial', [-1.0*s, 4.0*s]),
                        ('Fixation',    [-1.0*s, 0.0*s]),
                        ('S1',          [ 0.0*s, 0.5*s]),

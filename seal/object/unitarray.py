@@ -72,6 +72,7 @@ class UnitArray:
         """Return list of recordings in Pandas Index object."""
         
         chan_units = self.get_rec_chan_unit_indices()
+        # TODO: change unique to method that preserves original order.
         recordings = chan_units.index.get_level_values('rec').unique()
         return recordings
         

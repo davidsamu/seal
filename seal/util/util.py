@@ -123,7 +123,24 @@ def format_pvalue(pval, max_digit=4):
 
     return pstr
 
+ 
+def star_pvalue(pval, n_max_stars=4):
+    """Format a p-value into a number of *** stars."""
 
+    if pval < 10**-4 and n_max_stars >= 4:
+        pstr = '****'
+    elif pval < 10**-3 and n_max_stars >= 3:
+        pstr = '***'
+    elif pval < 0.01 and n_max_stars >= 2:
+        pstr = '**'
+    elif pval < 0.05:
+        pstr = '*'
+    else:
+        pstr = '='
+
+    return pstr
+    
+    
 # %% System-related functions.
 
 def run_in_pool(f, params, nCPU=None):
@@ -427,7 +444,13 @@ def mean_rate(rates):
 
     return rate_mean, rate_sem
 
+    
+def t_test(x, y, equal_var=False):
+    """Run t-test between two variables."""
+    res = stats.ttest_ind(x, y, equal_var=equal_var)
+    return res
 
+    
 def sign_diff(ts1, ts2, p):
     """
     Return times of significant difference
@@ -441,7 +464,7 @@ def sign_diff(ts1, ts2, p):
         warnings.warn('Unequal lengths ({} and {}).'.format(lr1, lr2))
 
     # Calculate p-values and times of significant difference.
-    pvals = np.array([stats.ttest_ind(ts1[:, i], ts2[:, i], equal_var=False)[1]
+    pvals = np.array([t_test(ts1[:, i], ts2[:, i])[1]
                       for i in range(min(lr1, lr2))])
     tsign = pvals < p
 

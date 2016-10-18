@@ -599,6 +599,17 @@ def set_legend(ax, add_legend=True, loc='upper right',
     return legend
 
 
+def set_tick_labels(ax, axis, pos=None, lbls=None, **kwargs):
+    """Set tick labels on axes."""
+    
+    if axis == 'x':
+        ax.set_xticks(pos)
+        ax.set_xticklabels(lbls, **kwargs)
+    else:
+        ax.set_yticks(pos)
+        ax.set_yticklabels(lbls, **kwargs)
+        
+    
 def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
              dpi=savefig_dpi):
     """Save figure to file."""
@@ -733,6 +744,14 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     """Generic plotting function."""
 
     ax = axes(ax, polar=polar)
+    
+    # Categorical data.
+    # TODO: finish! check agains 'hist'!
+    is_x_cat = False
+    x = np.array(x)
+#    if not util.is_numeric_array(x):
+#        is_x_cat = True
+#        x_cat, x = x, np.array(range(len()))
 
     if figtype == 'lines':
         ax.plot(x, y, **kwargs)
@@ -745,8 +764,6 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     elif figtype == 'hist':
 
-        x = np.array(x)
-
         # Categorical data.
         if not util.is_numeric_array(x):
 
@@ -757,15 +774,19 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
             null_order = np.where(np.logical_not(idx))[0]
             counts = counts[np.hstack((non_null_order, null_order)), :]
 
+            # Plot data.
             cats, cnts = counts[:, 0], np.array(counts[:, 1], dtype=int)
             xx = range(len(cats))
             width = 0.7
             ax.bar(xx, cnts, width, **kwargs)
-            ax.set_xticks([i+width/2 for i in xx])
+            
+            # Format labels on categorical axis.
+            pos = [i+width/2 for i in xx]
             rot_x_labs = np.sum([len(str(cat)) for cat in cats]) > 60
             rot = 45 if rot_x_labs else 0
             ha = 'right' if rot_x_labs else 'center'
-            ax.set_xticklabels(cats, rotation=rot, ha=ha)
+            set_tick_labels(ax, 'x', pos, cats, rotation=rot, ha=ha)
+            
         else:  # Plot Numeric data.
             x = x[~np.isnan(x)]  # remove NANs
             ax.hist(x, **kwargs)
