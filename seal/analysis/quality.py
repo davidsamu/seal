@@ -17,6 +17,7 @@ from collections import OrderedDict as OrdDict
 from elephant import statistics
 
 from seal.util import plot, util
+from seal.object import constants
 from seal.object.trials import Trials
 
 
@@ -137,11 +138,11 @@ def classify_unit(snr, true_spikes):
     return unit_type
 
 
-def test_drift(t, v, tbins, tr_starts, spike_times, reject_trials):
+def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
     # Return full task length if not rejecting trials.
-    if not reject_trials:
+    if not do_trial_rejection:
         t1 = spike_times[0]
         t2 = spike_times[-1]
         first_tr_inc = 0
@@ -208,10 +209,11 @@ def test_drift(t, v, tbins, tr_starts, spike_times, reject_trials):
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
-def test_qm(u, reject_trials=True, ffig_template=None):
+def test_qm(u, do_trial_rejection=True, ffig_template=None):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
-    Exclude trials with unacceptable drift.
+    Optionally find and reject trials with unacceptable 
+    drift (if do_trial_rejection is True).
 
     Non-stationarities can happen due to e.g.:
     - electrode drift, or
@@ -232,7 +234,7 @@ def test_qm(u, reject_trials=True, ffig_template=None):
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
     test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, 
-                          spike_times, reject_trials)
+                          spike_times, do_trial_rejection)
     t1_inc, t2_inc, prd_inc, tr_inc, sp_inc = test_res
 
     # Waveform statistics of included spikes only.
@@ -476,15 +478,12 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # %% Save figure and metrics
 
     # Create title
-    fig_title = ('{}: "{}"'.format(u.Name, unit_type) +
-                 # '\n\nSNR: {:.2f}%'.format(snr_inc) +
-                 ',   ISI vr: {:.2f}%'.format(ISI_vr) +
-                 ',   Tr Sp: {:.1f}%'.format(true_spikes))
-
-    fig.suptitle(fig_title, y=0.98, fontsize='xx-large')
-    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
-    ffig = ffig_template.format(u.name_to_fname())
-    plot.save_fig(fig, ffig)
+    title = ('{}: "{}"'.format(u.Name, unit_type) +
+             # '\n\nSNR: {:.2f}%'.format(snr_inc) +
+             ',   ISI vr: {:.2f}%'.format(ISI_vr) +
+             ',   Tr Sp: {:.1f}%'.format(true_spikes))
+    fname = ffig_template.format(u.name_to_fname())
+    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
 
 
 # %% Quality tests across tasks.
@@ -506,22 +505,21 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     n_unit_subplots = (plot_info + plot_rr + plot_ds + plot_dd_rr)
 
     # Init S1 and S2 queries.
-    stim_od = OrdDict([('S1', (-0.5*s, 1.0*s, 'S1Dir')),
-                       ('S2', ( 1.5*s, 3.0*s, 'S2Dir'))])
-    stim_df = util.make_df(stim_od, ('t1', 't2', 'dir'))
-    rr_t1 = stim_df.t1.min()
-    rr_t2 = stim_df.t2.max()
+    stim_df = constants.stim_prds.copy()
+    stim_df['dir'] = ['S1Dir', 'S2Dir']
+    rr_t1 = stim_df.start.min()
+    rr_t2 = stim_df.stop.max()
 
     # Width and height of unit-level subfigures.
     subw = 4.5
     subh = 7
 
     # Init plotting.
-    tasks = UnitArr.get_tasks()
-    unit_ids = UnitArr.get_rec_chan_unit_indices()
+    tasks = UnitArr.tasks()
+    unit_ids = UnitArr.rec_chan_unit_indices()
     ntask = len(tasks)
     nchunit = len(unit_ids)
-    Unit_list = UnitArr.get_unit_list(tasks, unit_ids, return_empty=True)
+    Unit_list = UnitArr.unit_list(tasks, unit_ids, return_empty=True)
     fig, gsp, _ = plot.get_gs_subplots(nrow=nchunit, ncol=ntask,
                                        subw=subw, subh=subh, create_axes=False)
 
@@ -570,12 +568,12 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                                              1, len(stim_df.index))
             irow += 1
 
-            for i, (index, row) in enumerate(stim_df.iterrows()):
+            for i, (stim, row) in enumerate(stim_df.iterrows()):
                 dd_rr_gsp = plot.embed_gsp(outer_dd_rr_gsp[0, i], 2, 1)
                 if u.is_empty() or not ds_tested:  # add mock subplot
                     plot.empty_raster_rate(fig, dd_rr_gsp, 2)
                 else:
-                    dd_trials = u.dir_pref_anti_trials(stim=index,
+                    dd_trials = u.dir_pref_anti_trials(stim=stim,
                                                        pname=[row.dir],
                                                        comb_values=True)
                     u.plot_raster_rate(nrate, trials=dd_trials,
@@ -622,46 +620,39 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
 
     # Format and save figure.
     title = 'Within trial activity of ' + UnitArr.Name
-    fig.suptitle(title, y=0.98, fontsize='xx-large')
-    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.98])
-    plot.save_fig(fig, fname)
+    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
+
 
 
 def check_recording_stability(UnitArr, fname):
     """Check stability of recording session across tasks."""
 
     # Init params.
-    # TODO: this should be a constant defined elsewhere!
-    periods = OrdDict([('Whole trial', [-1.0*s, 4.0*s]),
-                       ('Fixation',    [-1.0*s, 0.0*s]),
-                       ('S1',          [ 0.0*s, 0.5*s]),
-                       ('Delay',       [ 0.5*s, 2.0*s]),
-                       ('S2',          [ 2.0*s, 2.5*s]),
-                       ('Post-S2',     [ 2.5*s, 4.0*s])])
+    periods = constants.tr_prds
 
     # Init figure.
-    fig, gsp, ax_list = plot.get_gs_subplots(nrow=len(periods), ncol=1,
+    fig, gsp, ax_list = plot.get_gs_subplots(nrow=periods.index.size, ncol=1,
                                              subw=10, subh=2.5, as_array=False)
 
     # Init task info dict.
-    tasks = UnitArr.get_tasks()
+    tasks = UnitArr.tasks()
     task_stats = OrdDict()
     for task in tasks:
-        unit_list = UnitArr.get_unit_list(tasks=[task])
+        unit_list = UnitArr.unit_list(tasks=[task])
         task_start = unit_list[0].TrialParams['TrialStart'].iloc[0]
         task_stop = unit_list[0].TrialParams['TrialStop'].iloc[-1]
         task_stats[task] = (len(unit_list), task_start, task_stop)
 
-    unit_ids = UnitArr.get_rec_chan_unit_indices()
-    for (prd_name, (t1, t2)), ax in zip(periods.items(), ax_list):
+    unit_ids = UnitArr.rec_chan_unit_indices()
+    for (prd_name, (t1, t2)), ax in zip(periods.iterrows(), ax_list):
         # Calculate and plot firing rate during given period within each trial
         # across session for all units.
         all_FR_prd = []
         for unit_id in unit_ids:
 
             # Get all units (including empty ones for color cycle consistency).
-            unit_list = UnitArr.get_unit_list(chan_unit_idxs=[unit_id],
-                                              return_empty=True)
+            unit_list = UnitArr.unit_list(chan_unit_idxs=[unit_id],
+                                          return_empty=True)
             FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2) for u in unit_list]
 
             # Plot each FRs per task discontinuously.
@@ -723,6 +714,4 @@ def check_recording_stability(UnitArr, fname):
 
     # Format and save figure.
     title = 'Recording stability of ' + UnitArr.Name
-    fig.suptitle(title, y=0.98, fontsize='xx-large')
-    gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.92])
-    plot.save_fig(fig, fname)
+    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)

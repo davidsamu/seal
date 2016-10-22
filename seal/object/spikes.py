@@ -8,8 +8,11 @@ Class for array of spike trains.
 @author: David Samu
 """
 
-import numpy as np
+
 from itertools import compress
+
+import numpy as np
+from quantities import s
 from neo import SpikeTrain
 from elephant import statistics
 
@@ -67,6 +70,7 @@ class Spikes:
     def spike_stats_in_prd(self, trials=None, t1=None, t2=None):
         """Return spike count and firing rate of given trials within time window."""
 
+        t1, t2 = t1.rescale(s), t2.rescale(s)
         spikes = self.get_spikes(trials, t1, t2)
         n_spikes = np.array([sp.size for sp in spikes])
         f_rate = n_spikes / (t2 - t1)

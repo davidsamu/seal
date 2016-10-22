@@ -17,12 +17,12 @@ from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import plot, util
-from seal.object.trials import Trials
-from seal.object.spikes import Spikes
+from seal.object import constants
 from seal.object.rate import Rate
+from seal.object.spikes import Spikes
+from seal.object.trials import Trials
 
 # TODO: add receptive field coverage information!
-
 
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
@@ -38,7 +38,6 @@ class Unit:
         self.UnitParams = OrdDict()
         self.QualityMetrics = OrdDict()
         self.TrialParams = DataFrame()
-        self.ExpSegments = OrdDict()
         self.Events = DataFrame()
         self.Spikes = []
         self.Rates = OrdDict()
@@ -50,10 +49,8 @@ class Unit:
             return
 
         # Extract session parameters.
-        file_parts = TPLCell.File[:-4].split('_')
-        [monkey, dateprobe, exp, sortno] = file_parts
-
-        [date, probe] = [dateprobe[0:6], dateprobe[6:].upper()]
+        monkey, date, probe, exp, sortno = util.params_from_fname(TPLCell.File)
+        
         [chan, un] = TPLCell.ChanUnit
         self.Name = ' '.join([exp, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
@@ -120,22 +117,15 @@ class Unit:
         self.TrialParams['TrialLength'] = [tr_t[1] - tr_t[0]
                                            for tr_t in trial_times]
 
-        # Define experiment parameters and segments.
-        S1 = np.array([0.0, 0.5]) * s
-        S2 = np.array([2.0, 2.5]) * s
-        S1_dur = S1[1]-S1[0]
-        S2_dur = S2[1]-S2[0]
-        self.ExpSegments['S1'] = S1
-        self.ExpSegments['S2'] = S2
-
         # Timestamps of events. Only S1 offset and S2 onset are reliable!
         # Take care of indexing starting with 0! (not with 1 as in Matlab)
+        S1_len, S2_len = constants.stim_prds.dur()
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
-        self.Events = DataFrame([TPLCell.Timestamps[iS1off]*s-S1_dur,
+        self.Events = DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
                                  TPLCell.Timestamps[iS1off]*s,
                                  TPLCell.Timestamps[iS2on]*s,
-                                 TPLCell.Timestamps[iS2on]*s+S2_dur]).T
+                                 TPLCell.Timestamps[iS2on]*s+S2_len]).T
         self.Events.columns = ['S1 onset', 'S1 offset',
                                'S2 onset', 'S2 offset']
         # Align trial events to S1 onset.
@@ -263,7 +253,7 @@ class Unit:
         return adir
 
     # %% Generic methods to get various set of trials.
-
+    
     def included_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
@@ -489,7 +479,7 @@ class Unit:
 
         # Calculate binned spike count per direction.
         pname = stim + 'Dir'
-        t1, t2 = self.ExpSegments[stim]
+        t1, t2 = constants.stim_prds.periods(stim)
         response_stats = self.calc_response_stats(pname, t1, t2)
         dirs, mean_rate, std_rate, sem_rate = response_stats
 
@@ -499,8 +489,8 @@ class Unit:
                                    do_plot=True, ffig_tmpl=None, **kwargs):
         """
         Test direction selectivity of unit by
-        - calculating direction selectivity index, and
-        - plotting response to each direction on polar plot.
+          - calculating direction selectivity index, and
+          - plotting response to each direction on polar plot.
         """
 
         # Init for multi-stimulus plotting.
@@ -571,8 +561,9 @@ class Unit:
         names = names[0]
 
         # Plot raster.
-        ax = plot.raster(spikes, t1, t2,
-                         segments=self.ExpSegments, title=self.Name, **kwargs)
+        ax = plot.raster(spikes, t1, t2, 
+                         segments=constants.stim_prds, 
+                         title=self.Name, **kwargs)
         return ax
 
     def plot_rate(self, nrate, trials=None, t1=None, t2=None, **kwargs):
@@ -586,8 +577,9 @@ class Unit:
         trials, t1, t2, spikes, rates, times, names = plot_params
 
         # Plot rate.
-        ax = plot.rate(rates, times, t1, t2, names,
-                       segments=self.ExpSegments, title=self.Name, **kwargs)
+        ax = plot.rate(rates, times, t1, t2, names, 
+                       segments=constants.stim_prds, 
+                       title=self.Name, **kwargs)
         return ax
 
     def plot_raster_rate(self, nrate, trials=None, t1=None, t2=None,
@@ -612,6 +604,6 @@ class Unit:
 
         # Plot raster and rate.
         fig = plot.raster_rate(spikes, rates, times, t1, t2, names,
-                               segments=self.ExpSegments,
+                               segments=constants.stim_prds, 
                                title=title, **kwargs)
         return fig

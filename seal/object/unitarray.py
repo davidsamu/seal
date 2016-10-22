@@ -10,6 +10,7 @@ Class representing an array of units.
 
 
 import pandas as pd
+from collections import OrderedDict as OrdDict
 
 from seal.object import unit
 from seal.util import plot, util
@@ -44,44 +45,67 @@ class UnitArray:
 
     # %% Utility methods.
 
-    def get_tasks(self):
+    def tasks(self):
         """Return task names."""
 
         task_names = self.Units.columns
         return task_names
 
-    def get_n_tasks(self):
+    def n_tasks(self):
         """Return number of tasks."""
 
-        nsess = len(self.get_tasks())
+        nsess = len(self.tasks())
         return nsess
 
-    def get_rec_chan_unit_indices(self):
-        """Return (recording, channel, unit) index triples."""
+    def rec_chan_unit_indices(self, req_tasks=None):
+        """
+        Return (recording, channel, unit) index triples of units 
+        with data available across required tasks (optional)).
+        """
 
         chan_unit_idxs = self.Units.index.to_series()
+        
+        # Select only channel unit indices with all required tasks available.
+        if req_tasks is not None:
+            idx = [len(self.unit_list(req_tasks, [cui])) == len(req_tasks)
+                   for cui in chan_unit_idxs]
+            chan_unit_idxs = chan_unit_idxs[idx]
+        
         return chan_unit_idxs
         
-    def get_n_units(self):
+    def n_units(self):
         """Return number of units (number of rows of UnitArray)."""
 
-        nunits = len(self.get_rec_chan_unit_indices())
+        nunits = len(self.rec_chan_unit_indices())
         return nunits
 
-    def get_recordings(self):
+    def recordings(self):
         """Return list of recordings in Pandas Index object."""
         
-        chan_units = self.get_rec_chan_unit_indices()
-        # TODO: change unique to method that preserves original order.
-        recordings = chan_units.index.get_level_values('rec').unique()
-        return recordings
+        chan_units = self.rec_chan_unit_indices()
+        recordings = chan_units.index.get_level_values('rec')
+        unique_recordings = list(OrdDict.fromkeys(recordings))
+        return unique_recordings
         
-    def get_n_recordings(self):
+    def n_recordings(self):
         """Return number of recordings."""
         
-        n_recordings = len(self.get_recordings())
+        n_recordings = len(self.recordings())
         return n_recordings
+
+    def init_task_chan_unit(self, tasks, chan_unit_idxs):
+        """Init tasks and channels/units to query."""
+    
+        # Default tasks and units: all tasks/units.
+        if tasks is None:
+            tasks = self.tasks()
+        if chan_unit_idxs is None:
+            chan_unit_idxs = self.rec_chan_unit_indices()
         
+        return tasks, chan_unit_idxs
+        
+    # %% Methods to add units.
+    
     def add_task(self, task_name, task_units):
         """Add new task data as extra column to Units table of UnitArray."""
 
@@ -99,32 +123,31 @@ class UnitArray:
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
 
-    def get_unit_list(self, tasks=None, chan_unit_idxs=None,
-                      return_empty=False):
+    # %% Methods to query units.    
+        
+    def unit_list(self, tasks=None, chan_unit_idxs=None, return_empty=False):
         """Return units in a list."""
 
-        # Default tasks and units: all tasks/units.
-        if tasks is None:
-            tasks = self.get_tasks()
-        if chan_unit_idxs is None:
-            chan_unit_idxs = self.get_rec_chan_unit_indices()
-
+        tasks, chan_unit_idxs = self.init_task_chan_unit(tasks, chan_unit_idxs)
+        chan_unit_set = set(chan_unit_idxs)
+        
         # Put selected units from selected tasks into a list.
         unit_list = [r for row in self.Units[tasks].itertuples()
                      for r in row[1:]
-                     if row[0] in chan_unit_idxs]
+                     if row[0] in chan_unit_set]
 
         # Exclude empty units.
         if not return_empty:
             unit_list = [u for u in unit_list if not u.is_empty()]
 
         return unit_list
-
+        
     # %% Exporting and reporting methods.
-    def get_unit_params(self):
+    
+    def unit_params(self):
         """Return unit parameters as Pandas table."""
 
-        unit_params = [u.get_unit_params() for u in self.get_unit_list()]
+        unit_params = [u.get_unit_params() for u in self.unit_list()]
         unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
         return unit_params
 
@@ -132,11 +155,11 @@ class UnitArray:
         """Save unit parameters as Excel table."""
 
         writer = pd.ExcelWriter(fname)
-        unit_params = self.get_unit_params()
+        unit_params = self.unit_params()
         util.write_table(unit_params, writer)
 
     def plot_params(self, ffig):
         """Plot group level histogram of unit parameters."""
 
-        unit_params = self.get_unit_params()
+        unit_params = self.unit_params()
         plot.group_params(unit_params, ffig=ffig)

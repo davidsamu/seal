@@ -68,7 +68,8 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
                    'PD8 S1 (deg)', 'PD8 S2 (deg)']
 
     # Init figure.
-    fig, axs = get_subplots(len(params_to_plot))
+    fig, _, axs = get_gs_subplots(nrow=len(params_to_plot), subw=4, subh=3,
+                                  as_array=False)
 
     # Plot distribution of each parameter.
     colors = get_colors()
@@ -131,7 +132,8 @@ def empty_raster_rate(fig, outer_gsp, nraster):
 
 
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
-                segments=None, pvals=None, ylim=None, title=None,
+                segments=None, pvals=None, test=None, test_kwargs={},
+                ylim=None, title=None,
                 xlab='Time (ms)', ylab_rate='Firing rate (sp/s)',
                 add_ylab_raster=True,  markersize=1.5, legend=True,
                 nlegend=True, fig=None, ffig=None, outer_gsp=None):
@@ -200,9 +202,10 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     return ax
 
 
-def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
-         segments=None, pvals=None, ylim=None, title=None, xlab='Time (ms)',
-         ylab='Firing rate (sp/s)', legend=True, ffig=None, ax=None):
+def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None, 
+         pvals=None, test=None, test_kwargs={}, ylim=None, title=None, 
+         xlab='Time (ms)', ylab='Firing rate (sp/s)', lgn_lbl='trs', 
+         legend=True, ffig=None, ax=None):
     """Plot firing rate."""
 
     # Plot rate(s).
@@ -215,7 +218,7 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
         time = time.rescale(t_unit)
 
         # Set line label.
-        lbl = '{} ({} trs)'.format(name, rts.shape[0])
+        lbl = '{} ({} {})'.format(name, lgn_lbl, rts.shape[0])
 
         # Plot mean line and SEM area.
         line_col = ax.plot(time, meanr, label=lbl)[0].get_color()
@@ -239,12 +242,13 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms,
     # Add significance line to top of plot.
     if pvals is not None and len(rates_list) == 2:
         lws = [2.0 * i for i in range(1, len(pvals)+1)]
-        cols = len(pvals) * ['c']  # ['m', 'c', 'g', 'y', 'r']
+        cols = get_colors()
+        # cols = len(pvals) * ['c']
         ypos = ax.get_ylim()[1]
         for pval, lw, col in zip(pvals, lws, cols):
             plot_significant_intervals(rates_list[0], rates_list[1], time,
-                                       pval, ypos=ypos, color=col,
-                                       linewidth=lw, ax=ax)
+                                       pval, test, test_kwargs, ypos=ypos, 
+                                       color=col, linewidth=lw, ax=ax)
 
     # Save and return plot.
     save_fig(plt.gcf(), ffig)
@@ -289,19 +293,10 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
                                  color=color, ax=ax_polar)
 
         # Shift direction - response values to center preferred direction.
-        ndirs = len(dirs)
-        idx = np.array(range(ndirs))
-        dirs_offset = dirs - pref_dir
-        to_right = dirs_offset < -180*deg   # indices to move to the right
-        to_left = dirs_offset > 180*deg     # indices to move to the left
-        center = np.invert(np.logical_or(to_right, to_left))  # indices to keep
-        idx = np.hstack((idx[to_left], idx[center], idx[to_right]))
-        dirs_shifted = util.deg_mod(dirs_offset[idx])
-        idx_to_flip = dirs_shifted > 180*deg
-        dirs_shifted[idx_to_flip] = dirs_shifted[idx_to_flip] - 360*deg
-        mean_resp_shifted = mean_resp[idx]
-        sem_resp_shifted = sem_resp[idx]
-
+        shifted_res = tuning.init_tuning_curve_fit(dirs, pref_dir, 
+                                                   mean_resp, sem_resp)
+        dirs_shifted, mean_resp_shifted, sem_resp_shifted = shifted_res
+        
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
         ylab = 'Firing rate (sp/s)' if labels else None
@@ -419,14 +414,15 @@ def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b', title=None,
 
 # %% Generic plot decorator functions.
 
-def plot_significant_intervals(rates1, rates2, time, pval, ypos=0,
-                               color='c', linewidth=4, ax=None):
+def plot_significant_intervals(rates1, rates2, time, pval, test, test_kwargs,
+                               ypos=0, color='c', linewidth=4, ax=None):
     """Add significant intervals to axes."""
 
     ax = axes(ax)
 
     # Get intervals of significant differences between rates.
-    sign_periods = util.sign_periods(rates1, rates2, time, pval)
+    sign_periods = util.sign_periods(rates1, rates2, time, pval, 
+                                     test, test_kwargs)
 
     # Assamble line segments and add them to axes.
     line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_periods]
@@ -459,13 +455,14 @@ def move_significance_lines(ax, ypos=None):
 
 def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
                   ax=None, **kwargs):
-    """Plot all segments of unit."""
+    """Highlight segments (periods)."""
 
     if segments is None:
         return
 
     ax = axes(ax)
-    for key, (t_start, t_stop) in segments.items():
+    prds = segments.periods()
+    for name, (t_start, t_stop) in prds.iterrows():
         t1 = t_start.rescale(t_unit)
         t2 = t_stop.rescale(t_unit)
         ax.axvspan(t1, t2, alpha=alpha, color=color, **kwargs)
@@ -504,19 +501,35 @@ def set_limits(xlim=None, ylim=None, ax=None):
         ax.set_ylim(ylim)
 
 
-def sync_axes(axs, sync_x=False, sync_y=False):
+def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False, 
+              match_xy_aspect=False):
     """Synchronize x and/or y axis across list of axes."""
 
+    # Synchronise x-axis limits across plots.
     if sync_x:
         all_xlims = np.array([ax.get_xlim() for ax in axs])
-        xlims = (all_xlims[:, 0].min(), all_xlims[:, 1].max())
-        [ax.set_xlim(xlims) for ax in axs]
+        xlim = (all_xlims[:, 0].min(), all_xlims[:, 1].max())
+        [ax.set_xlim(xlim) for ax in axs]
 
+    # Synchronise y-axis limits across plots.
     if sync_y:
         all_ylims = np.array([ax.get_ylim() for ax in axs])
-        ylims = (all_ylims[:, 0].min(), all_ylims[:, 1].max())
-        [ax.set_ylim(ylims) for ax in axs]
+        ylim = (all_ylims[:, 0].min(), all_ylims[:, 1].max())
+        [ax.set_ylim(ylim) for ax in axs]
 
+    # Synchronise x- and y-axis limits within each axes.
+    if equal_xy:
+        for ax in axs:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            lim = [min(xlim[0], ylim[0]), max(xlim[1], ylim[1])]
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+        
+    # Equalise x and y aspect ratio in within axes.
+    if match_xy_aspect:
+        [ax.set_aspect('equal', adjustable='box') for ax in axs]
+        
     return axs
 
 
@@ -535,7 +548,7 @@ def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
     ax.tick_params(axis='both', which='major')
 
 
-def show_spines(bottom=True, left=True, top=False, right=False, ax=None):
+def show_spines(bottom=True, left=False, top=False, right=False, ax=None):
     """Remove selected spines (axis lines) from current axes."""
 
     ax = axes(ax)
@@ -577,13 +590,10 @@ def hide_axes(show_x=False, show_y=False, ax=None):
     show_ticks(xtick_pos, ytick_pos, ax)
 
 
-def colorbar(cbar, fig, cax, cb_title, cb_outline=False):
+def colorbar(fig, cb_map, cax=None, axs=None, cb_title=None, **kwargs):
     """Add colorbar to figure."""
 
-    cb = None
-    if cbar:
-        cb = fig.colorbar(cax, label=cb_title)
-        cb.outline.set_visible(cb_outline)
+    cb = fig.colorbar(cb_map, cax=cax, ax=axs, label=cb_title, **kwargs)
     return cb
 
 
@@ -608,8 +618,8 @@ def set_tick_labels(ax, axis, pos=None, lbls=None, **kwargs):
     else:
         ax.set_yticks(pos)
         ax.set_yticklabels(lbls, **kwargs)
+
         
-    
 def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
              dpi=savefig_dpi):
     """Save figure to file."""
@@ -627,7 +637,22 @@ def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
     if close:
         plt.close(fig)
 
-
+        
+def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
+                    fs_title='xx-large', rect_height=None, **kwargs):
+    """Save composite (GridSpec) figure."""
+    
+    if title is not None:    
+        fig.suptitle(title, y=ytitle, fontsize=fs_title, **kwargs)
+        
+    if gsp is not None:
+        if rect_height is None:  # relative height of plotted area
+            rect_height = ytitle - 0.03    
+        gsp.tight_layout(fig, rect=[0, 0.0, 1, rect_height])
+    
+    save_fig(fig, fname)
+    
+    
 def figure(fig=None, **kwargs):
     """Return new figure instance."""
 
@@ -644,27 +669,17 @@ def axes(ax=None, **kwargs):
     return ax
 
 
-# TODO: replace this with get_gs_subplots below!
-def get_subplots(nplots, sp_width=4, sp_height=3, **kwargs):
-    """Returns figures with given number of axes initialised."""
-
-    # Create figure with axes arranged in grid pattern.
-    nrow = int(np.floor(np.sqrt(nplots)))
-    ncol = int(np.ceil(nplots / nrow))
-    figsize = (sp_width*ncol, sp_height*nrow)
-    fig, axs = plt.subplots(nrow, ncol, figsize=figsize, **kwargs)
-
-    # Turn off last axes on grid.
-    axsf = axs.flatten()
-    [ax.axis('off') for ax in axsf[nplots:]]
-
-    return fig, axsf
-
-
 def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
                     create_axes=True, as_array=True, fig=None, **kwargs):
     """Return list or array of GridSpec subplots."""
 
+    # If ncol not specified: get approx'ly equal number of rows and columns.
+    nplots = None
+    if ncol == None:
+        nplots = nrow
+        nrow = int(np.floor(np.sqrt(nplots)))
+        ncol = int(np.ceil(nplots / nrow))
+        
     # Create figure, gridspec.
     if fig is None:
         fig = figure(figsize=(ncol*subw, nrow*subh))
@@ -674,6 +689,12 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
     # Create list (or array) of axes.
     if create_axes:
         axes = [fig.add_subplot(gs) for gs in gsp]
+
+        # Turn off last (unrequested) axes on grid.
+        if nplots is not None:
+            [ax.axis('off') for ax in axes[nplots:]]
+        
+        # Convert from list to array.
         if as_array:
             axes = np.array(axes).reshape(gsp.get_geometry())
 
@@ -746,7 +767,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     ax = axes(ax, polar=polar)
     
     # Categorical data.
-    # TODO: finish! check agains 'hist'!
+    # TODO: finish! check against 'hist'!
     is_x_cat = False
     x = np.array(x)
 #    if not util.is_numeric_array(x):
@@ -800,7 +821,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     # Format plot.
     set_limits(xlim, ylim, ax)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, False, False, False, ax=ax)
+    show_spines(ax=ax)
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 
     # Save and return plot.
@@ -869,10 +890,12 @@ def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
 
 def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
                 xlim=None, ylim=None, xlab=None, ylab=None, title=None,
-                ax=None, fig=None, ffig=None, **kwargs):
+                cbar=True, cb_title=None, ax=None, fig=None, ffig=None, 
+                **kwargs):
     """Plot 2D histogram."""
 
-    # TODO: refactor figure and axis INIT and FIG SAVE throughout!
+    fig = figure(fig)
+    ax = axes(ax)
 
     # Plot either as hist2d or hexbin
     if xlim is None:
@@ -882,12 +905,12 @@ def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
 
     if hist_type == 'hist2d':
         limits = np.array([xlim, ylim])
-        ax.hist2d(x, y, bins=nbins, cmap=cmap, range=limits, **kwargs)
+        cb_map = ax.hist2d(x, y, bins=nbins, cmap=cmap, range=limits, **kwargs)
     else:
-        ax.hexbin(x, y, gridsize=nbins, cmap=cmap, **kwargs)
+        cb_map = ax.hexbin(x, y, gridsize=nbins, cmap=cmap, **kwargs)
 
     # Add colorbar.
-    # TODO: should/could be moved to some wrapper function?
+    cb = colorbar(fig, cb_map, axs=ax, cb_title=cb_title) if cbar else None
 
     # Format plot.
     set_limits(xlim, ylim, ax)
@@ -897,7 +920,7 @@ def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
 
     # Save and return plot.
     save_fig(fig, ffig)
-    return fig, ax
+    return fig, ax, cb
 
 
 def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
@@ -912,18 +935,18 @@ def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
         t2 = tvec[-1]
 
     fig = figure(fig)
-    ax = fig.add_subplot(1, 1, 1)
-
+    ax = axes(ax)
+    
     # Plot raster.
     t_idx = util.indices_in_window(tvec, t1, t2)
     X = tvec[t_idx].rescale(t_unit)
     Y = range(mat.shape[0]+1)
     C = mat[:, t_idx]
-    cax = ax.pcolormesh(X, Y, C, cmap=cmap, vmin=vmin, vmax=vmax)
+    cb_map = ax.pcolormesh(X, Y, C, cmap=cmap, vmin=vmin, vmax=vmax)
 
     # Add colorbar.
-    cb = colorbar(cbar, fig, cax, cb_title)
-
+    cb = colorbar(fig, cb_map, axs=ax, cb_title=cb_title) if cbar else None
+    
     # Format plot.
     set_limits([min(X), max(X)], [min(Y), max(Y)], ax)
     show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
