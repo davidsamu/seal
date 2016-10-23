@@ -95,38 +95,6 @@ def fit_gaus_curve(x, y, y_err=None):
     return fit_res
 
 
-# %% Wrapper functions.
-
-#def test_tuning(stim, mean_resp, sem_resp, center=True):
-#    """Test tuning of stimulus - response data."""
-#
-#    # Init.
-#    if center:
-#        stim, mean_resp, sem_resp = center_pre_dir(stim, mean_resp, sem_resp)
-#
-#    # Fit tuning curve to stimulus - response.
-#    # Currently only fitting gaussian tunining curve.
-#    fit_res = fit_gaus_curve(stim, mean_resp, sem_resp)
-#
-#    return fit_res, stim, mean_resp, sem_resp
-
-
-#def compare_tuning_curves(stim_resp_dict, do_plot=True,
-#                          stim_min=None, stim_max=None, **kwargs):
-#    """Compare tuning curves across list of stimulus - responses pairs."""
-#
-#    colors = plot.get_colors()
-#    tuning_res = pd.DataFrame(columns=['a', 'b', 'x0', 'sigma'])
-#    for name, values in stim_resp_dict.items():
-#        stim, mean_resp, sem_resp = values[:3]
-#        fit_res, ax = test_tuning(stim, mean_resp, sem_resp,
-#                                  stim_min=stim_min, stim_max=stim_max,
-#                                  do_plot=do_plot, color=next(colors), **kwargs)
-#        tuning_res.loc[name] = fit_res.loc['fit']
-#
-#    return tuning_res
-
-
 # %% Miscullaneous functions.
 
 def center_pre_dir(dirs, pref_dir, mean_resp, sem_resp):

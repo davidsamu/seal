@@ -82,7 +82,7 @@ def write_table(dataframe, excel_writer, **kwargs):
 def get_latest_file(dir_name, ext='.data'):
     """Return name of latest file from folder."""
 
-    fname = ''
+    fname = None
     if os.path.isdir(dir_name):  # if folder exists
         fnames = [f for f in os.listdir(dir_name) if f.endswith(ext)]
         if len(fnames) > 0:

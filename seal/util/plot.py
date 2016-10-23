@@ -15,7 +15,7 @@ from collections import OrderedDict as OrdDict
 import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
-from quantities import ms, rad, deg
+from quantities import ms, rad
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt

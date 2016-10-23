@@ -19,6 +19,7 @@ from elephant import statistics
 from seal.util import plot, util
 from seal.object import constants
 from seal.object.trials import Trials
+from seal.object.periods import Periods
 
 
 # %% Constants.
@@ -471,7 +472,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials
-            incl_segment = dict(selected=[t1_inc, t2_inc])
+            incl_segment = Periods([('selected', [t1_inc, t2_inc])])
             plot.plot_segments(incl_segment, t_unit=s, alpha=0.2,
                                color='grey', ymax=0.96, ax=ax)
 
