@@ -149,17 +149,17 @@ def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
         last_tr_inc = len(tr_starts)
         prd1 = 0
         prd2 = len(tbins)
-        
+
     else:
-            
-        # Number of trials from beginning of session 
+
+        # Number of trials from beginning of session
         # until start and end of each period.
         tr_starts = util.list_to_quantity(tr_starts)
         n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
                           for t1, t2 in tbins]
         n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
                         for t1, t2 in tbins]
-    
+
         # Find period within acceptible drift range for each bin.
         cols = ['prd_start_i', 'prd_end_i', 'n_prd',
                 't_start', 't_end', 't_len',
@@ -185,7 +185,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
             period_res.tr_start_i[i] = n_tr_prd_start[i]
             period_res.tr_end_i[i] = n_tr_prd_end[end_i]
             period_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
-    
+
         # Find bin with longest period.
         idx = period_res.n_tr.argmax()
         # Indices of longest period.
@@ -212,7 +212,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
 def test_qm(u, do_trial_rejection=True, ffig_template=None):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
-    Optionally find and reject trials with unacceptable 
+    Optionally find and reject trials with unacceptable
     drift (if do_trial_rejection is True).
 
     Non-stationarities can happen due to e.g.:
@@ -233,7 +233,7 @@ def test_qm(u, do_trial_rejection=True, ffig_template=None):
 
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
-    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, 
+    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts,
                           spike_times, do_trial_rejection)
     t1_inc, t2_inc, prd_inc, tr_inc, sp_inc = test_res
 
@@ -396,7 +396,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                                (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
         title = '{} waveforms, {} spikes, {} trials'.format(st, n_sp, n_tr)
         plot.set_limits(xlim=wf_t_lim, ylim=glim, ax=ax)
-        plot.show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+        plot.set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
         plot.show_spines(True, False, False, False, ax=ax)
         plot.set_labels(title=title, xlab=wf_t_lab, ylab=volt_lab, ax=ax)
 
@@ -501,14 +501,15 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                 ('ds', (1, 2 if plot_ds else 0)),
                 ('dd_rr', (3 if plot_dd_rr else 0, 2))]
     nplots = util.make_df(row_data, ('nrow', 'ncol'))
-    n_unit_plots_total = n_plots(nplots.index)
     n_unit_subplots = (plot_info + plot_rr + plot_ds + plot_dd_rr)
+    n_unit_plots_total = n_plots(nplots.index)
 
     # Init S1 and S2 queries.
-    stim_df = constants.stim_prds.copy()
+    stim_df = constants.ext_stim_prds.periods()
     stim_df['dir'] = ['S1Dir', 'S2Dir']
+    nstim = len(stim_df.index)
     rr_t1 = stim_df.start.min()
-    rr_t2 = stim_df.stop.max()
+    rr_t2 = stim_df.end.max()
 
     # Width and height of unit-level subfigures.
     subw = 4.5
@@ -516,7 +517,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
 
     # Init plotting.
     tasks = UnitArr.tasks()
-    unit_ids = UnitArr.rec_chan_unit_indices()
+    unit_ids = UnitArr.rec_chan_unit_indices()[:1]
     ntask = len(tasks)
     nchunit = len(unit_ids)
     Unit_list = UnitArr.unit_list(tasks, unit_ids, return_empty=True)
@@ -549,8 +550,10 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
             if u.is_empty():  # add mock subplot
                 plot.empty_raster_rate(fig, rr_gsp, 1)
             else:
-                u.plot_raster_rate(nrate, no_labels=True, t1=rr_t1, t2=rr_t2,
-                                   fig=fig, outer_gsp=rr_gsp)
+                res = u.plot_raster_rate(nrate, no_labels=True, t1=rr_t1,
+                                         t2=rr_t2, fig=fig, outer_gsp=rr_gsp)
+                fig, raster_axs, rate_ax = res
+                plot.replace_tr_num_with_tr_name(raster_axs[0], 'all trials')
 
         # Plot direction selectivity plot.
         if plot_ds:
@@ -564,8 +567,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
 
         # Plot direction selectivity raster - rate plot.
         if plot_dd_rr:
-            outer_dd_rr_gsp = plot.embed_gsp(unit_gsp[irow, 0],
-                                             1, len(stim_df.index))
+            outer_dd_rr_gsp = plot.embed_gsp(unit_gsp[irow, 0], 1, nstim)
             irow += 1
 
             for i, (stim, row) in enumerate(stim_df.iterrows()):
@@ -576,10 +578,20 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                     dd_trials = u.dir_pref_anti_trials(stim=stim,
                                                        pname=[row.dir],
                                                        comb_values=True)
-                    u.plot_raster_rate(nrate, trials=dd_trials,
-                                       t1=row.t1, t2=row.t2, pvals=[0.05],
-                                       no_labels=True, fig=fig,
-                                       outer_gsp=dd_rr_gsp)
+                    res = u.plot_raster_rate(nrate, trials=dd_trials,
+                                             t1=row.start, t2=row.end,
+                                             pvals=[0.05], test='t-test',
+                                             no_labels=True, fig=fig,
+                                             outer_gsp=dd_rr_gsp)
+                    fig, raster_axs, rate_ax = res
+
+                    # Replace y-axis tickmarks with trial set names.
+                    for ax, trs in zip(raster_axs, dd_trials):
+                        plot.replace_tr_num_with_tr_name(ax, trs.name)
+
+                    # Hide y-axis tickmarks on second and subsequent rate axes.
+                    if i > 0:
+                        plot.hide_axes(show_x=True, show_y=False, ax=rate_ax)
 
     # Match y-axis scales across tasks.
     # List of axes offset lists to match y limit across.
@@ -623,7 +635,6 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
 
 
-
 def check_recording_stability(UnitArr, fname):
     """Check stability of recording session across tasks."""
 
@@ -653,7 +664,8 @@ def check_recording_stability(UnitArr, fname):
             # Get all units (including empty ones for color cycle consistency).
             unit_list = UnitArr.unit_list(chan_unit_idxs=[unit_id],
                                           return_empty=True)
-            FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2) for u in unit_list]
+            FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2)
+                          for u in unit_list]
 
             # Plot each FRs per task discontinuously.
             colors = plot.get_colors()
@@ -699,7 +711,8 @@ def check_recording_stability(UnitArr, fname):
             slope, _, r_value, p_value, _ = sp.stats.linregress(t, fr)
             slope = 3600*slope  # convert to change in spike per hour
             pval = util.format_pvalue(p_value, max_digit=3)
-            task_lbl += '\n$\delta$FR = {:.1f} sp/hour ({})'.format(slope, pval)
+            task_lbl += '\n$\delta$FR = {:.1f} sp/hour ({})'.format(slope,
+                                                                    pval)
 
             prd_task_stats[task_lbl] = task_start
 

@@ -50,7 +50,7 @@ class Unit:
 
         # Extract session parameters.
         monkey, date, probe, exp, sortno = util.params_from_fname(TPLCell.File)
-        
+
         [chan, un] = TPLCell.ChanUnit
         self.Name = ' '.join([exp, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
@@ -157,10 +157,10 @@ class Unit:
 
         fname = util.format_to_fname(self.Name)
         return fname
-        
+
     def get_recording_name(self):
         """Return name of recording ([monkey_date])."""
-        
+
         date_str = util.date_to_str(self.SessParams['date'])
         rec_str = self.SessParams['monkey'] + '_' + date_str
         return rec_str
@@ -253,7 +253,7 @@ class Unit:
         return adir
 
     # %% Generic methods to get various set of trials.
-    
+
     def included_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
@@ -561,8 +561,8 @@ class Unit:
         names = names[0]
 
         # Plot raster.
-        ax = plot.raster(spikes, t1, t2, 
-                         segments=constants.stim_prds, 
+        ax = plot.raster(spikes, t1, t2,
+                         segments=constants.stim_prds,
                          title=self.Name, **kwargs)
         return ax
 
@@ -577,8 +577,8 @@ class Unit:
         trials, t1, t2, spikes, rates, times, names = plot_params
 
         # Plot rate.
-        ax = plot.rate(rates, times, t1, t2, names, 
-                       segments=constants.stim_prds, 
+        ax = plot.rate(rates, times, t1, t2, names,
+                       segments=constants.stim_prds,
                        title=self.Name, **kwargs)
         return ax
 
@@ -603,7 +603,9 @@ class Unit:
             kwargs['add_ylab_raster'] = False
 
         # Plot raster and rate.
-        fig = plot.raster_rate(spikes, rates, times, t1, t2, names,
-                               segments=constants.stim_prds, 
+        res = plot.raster_rate(spikes, rates, times, t1, t2, names,
+                               segments=constants.stim_prds,
                                title=title, **kwargs)
-        return fig
+        fig, raster_axs, rate_ax = res
+
+        return fig, raster_axs, rate_ax

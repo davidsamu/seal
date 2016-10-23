@@ -100,7 +100,7 @@ def unit_info(u, fs='large', ax=None):
     # Init dictionary of info labels to plot.
     uparams = u.get_unit_params()
     lbl_dict = OrdDict([('SNR', '{:.2f}'.format(uparams['SNR'])),
-                        ('WfDur', '{:.2f} ms'.format(uparams['MeanWfAmplitude']/1000)),
+                        ('WfDur', '{:.2f} $\mu$s'.format(uparams['MeanWfAmplitude'])),
                         ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate (sp/s)']))])
 
     # Plot each label.
@@ -148,24 +148,26 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     ylab_posx = -0.05
 
     # Raster plot(s).
+    raster_axs = []
     for i, sp_tr in enumerate(spikes_list):
         ax = fig.add_subplot(gsp_raster[i, 0])
         ttl = title if i == 0 else None  # add title to top raster
         ylab = names[i] if add_ylab_raster else None
         raster(sp_tr, t1, t2, t_unit, segments, markersize,
-               title=ttl, xlab=None, ylab=ylab, ax=ax)
+               ttl, None, ylab, ax=ax)
         ax.set_xticklabels([])
         ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
+        raster_axs.append(ax)
 
     # Rate plot.
-    ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rates, times, t1, t2, names, t_unit, segments, pvals,  ylim,
-         title=None, xlab=xlab, ylab=ylab_rate, legend=legend, ax=ax)
-    ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
+    rate_ax = fig.add_subplot(gsp_rate[0, 0])
+    rate(rates, times, t1, t2, names, t_unit, segments, pvals, test,
+         test_kwargs, ylim, None, xlab, ylab_rate,  legend, ax=rate_ax)
+    rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Save and return plot.
     save_fig(fig, ffig)
-    return fig
+    return fig, raster_axs, rate_ax
 
 
 def raster(spikes, t1, t2, t_unit=ms, segments=None,
@@ -186,7 +188,7 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     ylim = [0.5, len(spikes)+0.5] if len(spikes) else [0, 1]
     set_limits(xlim, ylim, ax=ax)
     ax.locator_params(axis='y', nbins=6)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -202,10 +204,20 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     return ax
 
 
-def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None, 
-         pvals=None, test=None, test_kwargs={}, ylim=None, title=None, 
-         xlab='Time (ms)', ylab='Firing rate (sp/s)', lgn_lbl='trs', 
-         legend=True, ffig=None, ax=None):
+# TODO: raster and rate plots should be refactored (simplified), with this
+# function integrated into raster plot.
+def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small', 'va': 'top'}):
+    """Replace trial numbers with trail set name on raster plot."""
+
+    hide_ticks(ax=ax)
+    set_labels(ylab=trs_name, ylab_kwargs=ylab_kwargs, ax=ax)
+    return ax
+
+
+def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
+         pvals=None, test=None, test_kwargs={}, ylim=None, title=None,
+         xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
+         lgn_lbl='trs', ffig=None, ax=None):
     """Plot firing rate."""
 
     # Plot rate(s).
@@ -218,7 +230,7 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
         time = time.rescale(t_unit)
 
         # Set line label.
-        lbl = '{} ({} {})'.format(name, lgn_lbl, rts.shape[0])
+        lbl = '{} ({} {})'.format(name, rts.shape[0], lgn_lbl)
 
         # Plot mean line and SEM area.
         line_col = ax.plot(time, meanr, label=lbl)[0].get_color()
@@ -229,7 +241,7 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
     ax.locator_params(axis='y', nbins=6)
     xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
     set_limits(xlim, ylim, ax=ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(True, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -247,7 +259,7 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
         ypos = ax.get_ylim()[1]
         for pval, lw, col in zip(pvals, lws, cols):
             plot_significant_intervals(rates_list[0], rates_list[1], time,
-                                       pval, test, test_kwargs, ypos=ypos, 
+                                       pval, test, test_kwargs, ypos=ypos,
                                        color=col, linewidth=lw, ax=ax)
 
     # Save and return plot.
@@ -293,10 +305,10 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
                                  color=color, ax=ax_polar)
 
         # Shift direction - response values to center preferred direction.
-        shifted_res = tuning.init_tuning_curve_fit(dirs, pref_dir, 
+        shifted_res = tuning.init_tuning_curve_fit(dirs, pref_dir,
                                                    mean_resp, sem_resp)
         dirs_shifted, mean_resp_shifted, sem_resp_shifted = shifted_res
-        
+
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
         ylab = 'Firing rate (sp/s)' if labels else None
@@ -421,7 +433,7 @@ def plot_significant_intervals(rates1, rates2, time, pval, test, test_kwargs,
     ax = axes(ax)
 
     # Get intervals of significant differences between rates.
-    sign_periods = util.sign_periods(rates1, rates2, time, pval, 
+    sign_periods = util.sign_periods(rates1, rates2, time, pval,
                                      test, test_kwargs)
 
     # Assamble line segments and add them to axes.
@@ -501,7 +513,7 @@ def set_limits(xlim=None, ylim=None, ax=None):
         ax.set_ylim(ylim)
 
 
-def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False, 
+def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
               match_xy_aspect=False):
     """Synchronize x and/or y axis across list of axes."""
 
@@ -525,11 +537,11 @@ def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
             lim = [min(xlim[0], ylim[0]), max(xlim[1], ylim[1])]
             ax.set_xlim(lim)
             ax.set_ylim(lim)
-        
+
     # Equalise x and y aspect ratio in within axes.
     if match_xy_aspect:
         [ax.set_aspect('equal', adjustable='box') for ax in axs]
-        
+
     return axs
 
 
@@ -562,7 +574,7 @@ def show_spines(bottom=True, left=False, top=False, right=False, ax=None):
         ax.spines['right'].set_visible(right)
 
 
-def show_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
+def set_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
     """Remove selected ticks from current axes.
        xtick_pos: [ 'bottom' | 'top' | 'both' | 'default' | 'none' ]
        ytick_pos: [ 'left' | 'right' | 'both' | 'default' | 'none' ]
@@ -573,26 +585,34 @@ def show_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
     ax.yaxis.set_ticks_position(ytick_pos)
 
 
-def hide_axes(show_x=False, show_y=False, ax=None):
-    """Hide all ticks and spines of either or both axes."""
+def hide_ticks(show_x_ticks=False, show_y_ticks=False, ax=None):
+    """Hide ticks on either or both axes."""
 
     ax = axes(ax)
-
-    if not show_x:
+    if not show_x_ticks:
         ax.get_xaxis().set_ticks([])
-    if not show_y:
+    if not show_y_ticks:
         ax.get_yaxis().set_ticks([])
 
-    show_spines(show_x, show_y, show_x, show_y, ax)
 
-    xtick_pos = 'default' if show_x else 'none'
-    ytick_pos = 'default' if show_y else 'none'
-    show_ticks(xtick_pos, ytick_pos, ax)
+def hide_axes(show_x=False, show_y=False, ax=None):
+    """Hide all ticks, labels and spines of either or both axes."""
+
+    # Hide axis ticks and labels.
+    ax = axes(ax)
+    ax.xaxis.set_visible(show_x)
+    ax.yaxis.set_visible(show_y)
+
+    # Hide spines.
+    upper = None if show_x else False
+    right = None if show_y else False
+    show_spines(show_x, show_y, upper, right, ax)
 
 
 def colorbar(fig, cb_map, cax=None, axs=None, cb_title=None, **kwargs):
     """Add colorbar to figure."""
 
+    # This makes space of the colorbar by reducing the size of list of axes!
     cb = fig.colorbar(cb_map, cax=cax, ax=axs, label=cb_title, **kwargs)
     return cb
 
@@ -611,7 +631,7 @@ def set_legend(ax, add_legend=True, loc='upper right',
 
 def set_tick_labels(ax, axis, pos=None, lbls=None, **kwargs):
     """Set tick labels on axes."""
-    
+
     if axis == 'x':
         ax.set_xticks(pos)
         ax.set_xticklabels(lbls, **kwargs)
@@ -619,7 +639,7 @@ def set_tick_labels(ax, axis, pos=None, lbls=None, **kwargs):
         ax.set_yticks(pos)
         ax.set_yticklabels(lbls, **kwargs)
 
-        
+
 def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
              dpi=savefig_dpi):
     """Save figure to file."""
@@ -637,22 +657,22 @@ def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
     if close:
         plt.close(fig)
 
-        
+
 def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
                     fs_title='xx-large', rect_height=None, **kwargs):
     """Save composite (GridSpec) figure."""
-    
-    if title is not None:    
+
+    if title is not None:
         fig.suptitle(title, y=ytitle, fontsize=fs_title, **kwargs)
-        
+
     if gsp is not None:
         if rect_height is None:  # relative height of plotted area
-            rect_height = ytitle - 0.03    
+            rect_height = ytitle - 0.03
         gsp.tight_layout(fig, rect=[0, 0.0, 1, rect_height])
-    
+
     save_fig(fig, fname)
-    
-    
+
+
 def figure(fig=None, **kwargs):
     """Return new figure instance."""
 
@@ -679,7 +699,7 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
         nplots = nrow
         nrow = int(np.floor(np.sqrt(nplots)))
         ncol = int(np.ceil(nplots / nrow))
-        
+
     # Create figure, gridspec.
     if fig is None:
         fig = figure(figsize=(ncol*subw, nrow*subh))
@@ -693,7 +713,7 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
         # Turn off last (unrequested) axes on grid.
         if nplots is not None:
             [ax.axis('off') for ax in axes[nplots:]]
-        
+
         # Convert from list to array.
         if as_array:
             axes = np.array(axes).reshape(gsp.get_geometry())
@@ -765,7 +785,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     """Generic plotting function."""
 
     ax = axes(ax, polar=polar)
-    
+
     # Categorical data.
     # TODO: finish! check against 'hist'!
     is_x_cat = False
@@ -800,14 +820,14 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
             xx = range(len(cats))
             width = 0.7
             ax.bar(xx, cnts, width, **kwargs)
-            
+
             # Format labels on categorical axis.
             pos = [i+width/2 for i in xx]
             rot_x_labs = np.sum([len(str(cat)) for cat in cats]) > 60
             rot = 45 if rot_x_labs else 0
             ha = 'right' if rot_x_labs else 'center'
             set_tick_labels(ax, 'x', pos, cats, rotation=rot, ha=ha)
-            
+
         else:  # Plot Numeric data.
             x = x[~np.isnan(x)]  # remove NANs
             ax.hist(x, **kwargs)
@@ -820,7 +840,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Format plot.
     set_limits(xlim, ylim, ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(ax=ax)
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 
@@ -890,7 +910,7 @@ def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
 
 def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
                 xlim=None, ylim=None, xlab=None, ylab=None, title=None,
-                cbar=True, cb_title=None, ax=None, fig=None, ffig=None, 
+                cbar=True, cb_title=None, ax=None, fig=None, ffig=None,
                 **kwargs):
     """Plot 2D histogram."""
 
@@ -914,7 +934,7 @@ def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
 
     # Format plot.
     set_limits(xlim, ylim, ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -936,7 +956,7 @@ def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
 
     fig = figure(fig)
     ax = axes(ax)
-    
+
     # Plot raster.
     t_idx = util.indices_in_window(tvec, t1, t2)
     X = tvec[t_idx].rescale(t_unit)
@@ -946,10 +966,10 @@ def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
 
     # Add colorbar.
     cb = colorbar(fig, cb_map, axs=ax, cb_title=cb_title) if cbar else None
-    
+
     # Format plot.
     set_limits([min(X), max(X)], [min(Y), max(Y)], ax)
-    show_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 

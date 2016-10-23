@@ -95,12 +95,12 @@ def get_latest_file(dir_name, ext='.data'):
 
 def params_from_fname(fname, nchar_date=6, n_ext=4):
     """Extract experiment parameters from file name."""
-    
+
     # Remove extension and split into parts by '_' underscore character.
     [monkey, dateprobe, exp, sortno] = fname[:-n_ext].split('_')
     [date, probe] = [dateprobe[:nchar_date], dateprobe[nchar_date:].upper()]
-    return monkey, date, probe, exp, sortno    
-    
+    return monkey, date, probe, exp, sortno
+
 
 def format_to_fname(s):
     """Format string to file name compatible string."""
@@ -132,7 +132,7 @@ def format_pvalue(pval, max_digit=4):
 
     return pstr
 
- 
+
 def star_pvalue(pval, n_max_stars=4):
     """Format a p-value into a number of *** stars."""
 
@@ -148,8 +148,8 @@ def star_pvalue(pval, n_max_stars=4):
         pstr = '='
 
     return pstr
-    
-    
+
+
 # %% System-related functions.
 
 def run_in_pool(f, params, nCPU=None):
@@ -453,44 +453,44 @@ def mean_rate(rates):
 
     return rate_mean, rate_sem
 
-    
+
 def modulation_index(v1, v2):
     """Calculate modulation index between pair(s) of values."""
 
-    mi = (v1 - v2) / (v1 + v2)    
+    mi = (v1 - v2) / (v1 + v2)
     return mi
-    
-    
+
+
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.
     """
-    
+
     if paired:
         stat, pval = stats.ttest_rel(x, y, nan_policy=nan_policy)
     else:
         stat, pval = stats.ttest_ind(x, y, equal_var=equal_var)
-    
+
     return stat, pval
 
-    
+
 def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
     """
-    Run Wilcoxon test, testing the null-hypothesis that 
+    Run Wilcoxon test, testing the null-hypothesis that
     two related paired samples come from the same distribution. In particular,
     it tests whether the distribution of the differences x-y is symmetric
     about zero. It is a non-parametric version of the paired T-test.
-    
+
     Note: Because the normal approximation is used for the calculation,
           the samples used should be large. A typical rule is to require
           that n > 20.
     """
-    
-    stat, pval = stats.wilcoxon(x, y, zero_method=zero_method, 
+
+    stat, pval = stats.wilcoxon(x, y, zero_method=zero_method,
                                 correction=correction)
     return stat, pval
-    
-    
+
+
 def sign_diff(ts1, ts2, p, test, test_kwargs):
     """
     Return times of significant difference
@@ -502,16 +502,17 @@ def sign_diff(ts1, ts2, p, test, test_kwargs):
 
     if lr1 != lr2:
         warnings.warn('Unequal lengths ({} and {}).'.format(lr1, lr2))
-        
+
     # Select test.
     if test == 't-test':
         test_func = t_test
     elif test == 'wilcoxon':
         test_func = wilcoxon_test
     else:
-        print('Unrecognised test name: ' + test + ', running t-test.')
+        print('Unrecognised test name: ' + str(test) + ', running t-test.')
         test_func = t_test
-        
+        return None, None
+
     # Calculate p-values and times of significant difference.
     pvals = np.array([test_func(ts1[:, i], ts2[:, i], **test_kwargs)[1]
                       for i in range(min(lr1, lr2))])
@@ -553,7 +554,7 @@ def sign_periods(ts1, ts2, time, p, test, test_kwargs):
     Return list of periods of significantly difference
     between sets of time series.
     """
-    
+
     # Indices of significant difference.
     tsign = sign_diff(ts1, ts2, p, test, test_kwargs)[1]
     # Periods of significant difference.
