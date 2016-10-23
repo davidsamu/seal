@@ -21,6 +21,7 @@ from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
 from seal.object.trials import Trials
+from seal.analysis import tuning
 
 # TODO: add receptive field coverage information!
 
@@ -87,6 +88,7 @@ class Unit:
         self.UnitParams['PrefDir'] = OrdDict()
         self.UnitParams['PrefDirCoarse'] = OrdDict()
         self.UnitParams['DirSelectivity'] = OrdDict()
+        self.UnitParams['DirTuningParams'] = OrdDict()
 
         # Trial parameters.
         self.TrialParams = DataFrame(TPLCell.TrialParams,
@@ -488,13 +490,15 @@ class Unit:
     def test_direction_selectivity(self, stims=['S1', 'S2'], no_labels=False,
                                    do_plot=True, ffig_tmpl=None, **kwargs):
         """
-        Test direction selectivity of unit by
-          - calculating direction selectivity index, and
-          - plotting response to each direction on polar plot.
+        Test direction selectivity of unit by calculating
+          - direction selectivity index and preferred direction, and
+          - parameters of Gaussian tuning curve.
         """
 
-        # Init for multi-stimulus plotting.
-        dir_select_dict = OrdDict()
+        ds_cols = ['dirs', 'mean_resp', 'sem_resp', 'dsi', 'pref_dir',
+                   'pref_dir_c', 'fit_res', 'dirs_cntr',
+                   'mean_resp_cntr', 'sem_resp_cntr', 'xfit', 'yfit']
+        ds_data = DataFrame(columns=ds_cols, index=stims)
         for stim in stims:
 
             # Get mean response to each direction.
@@ -502,29 +506,46 @@ class Unit:
 
             # Calculate preferred direction and direction selectivity index.
             dsi, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_resp)
-            dir_select_dict[stim] = (dirs, mean_resp, sem_resp,
-                                     dsi, pref_dir, pref_dir_c)
+
+            # Calculate parameters of Gaussian tuning curve.
+            # Center stimulus - response firts.
+            res = tuning.center_pre_dir(dirs, pref_dir, mean_resp, sem_resp)
+            dirs_cntr, mean_resp_cntr, sem_resp_cntr = res
+
+            # Fit Gaussian tuning curve to stimulus - response.
+            fit_res = tuning.fit_gaus_curve(dirs_cntr, mean_resp_cntr,
+                                            sem_resp_cntr)
+
+            # Generate data points for plotting fitted tuning curve.
+            xfit, yfit = tuning.generate_data_points_for_fit(fit_res, dirs_cntr,
+                                                             stim_min=-180*deg,
+                                                             stim_max=180*deg)
+
+            ds_data.loc[stim] = [dirs, mean_resp, sem_resp, dsi, pref_dir,
+                                 pref_dir_c, fit_res, dirs_cntr,
+                                 mean_resp_cntr, sem_resp_cntr, xfit, yfit]
 
             # Add calculated values to unit.
             self.UnitParams['PrefDir'][stim] = pref_dir
             self.UnitParams['PrefDirCoarse'][stim] = pref_dir_c
             self.UnitParams['DirSelectivity'][stim] = dsi
+            self.UnitParams['DirTuningParams'][stim] = fit_res
 
-        title = self.Name
-
-        # Minimise labels on plot.
-        if no_labels:
-            title = None
-            kwargs['labels'] = False
-            kwargs['polar_legend'] = True
-            kwargs['tuning_legend'] = False
-
-        # Plot direction response and selectivity results.
+        # Plot direction selectivity results.
         if do_plot:
+
+            # Minimise labels on plot.
+            if no_labels:
+                title = None
+                kwargs['labels'] = False
+                kwargs['polar_legend'] = True
+                kwargs['tuning_legend'] = False
+
             ffig = None
             if ffig_tmpl is not None:
                 ffig = ffig_tmpl.format(self.name_to_fname())
-            plot.direction_selectivity(dir_select_dict, title=title, ffig=ffig,
+            title = self.Name
+            plot.direction_selectivity(ds_data, title=title, ffig=ffig,
                                        **kwargs)
 
     # %% Plotting methods.

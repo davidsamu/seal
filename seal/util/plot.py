@@ -22,7 +22,6 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
 
-from seal.analysis import tuning
 from seal.util import util
 
 
@@ -100,7 +99,7 @@ def unit_info(u, fs='large', ax=None):
     # Init dictionary of info labels to plot.
     uparams = u.get_unit_params()
     lbl_dict = OrdDict([('SNR', '{:.2f}'.format(uparams['SNR'])),
-                        ('WfDur', '{:.2f} $\mu$s'.format(uparams['MeanWfAmplitude'])),
+                        ('WfDur', '{:.0f} $\mu$s'.format(uparams['MeanWfAmplitude'])),
                         ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate (sp/s)']))])
 
     # Plot each label.
@@ -278,8 +277,7 @@ def empty_direction_selectivity(fig, outer_gsp):
     add_mock_axes(fig, mock_gsp_tuning[0, 0])
 
 
-# TODO: this function should be refactored!
-def direction_selectivity(dir_select_dict, title=None, labels=True,
+def direction_selectivity(ds_data, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
                           ffig=None, fig=None, outer_gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
@@ -294,37 +292,32 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
     polar_patches = []
     tuning_patches = []
 
-    for name, values in dir_select_dict.items():
+    for name, dsdt in ds_data.iterrows():
 
         # Init stimulus plotting.
-        dirs, mean_resp, sem_resp, dsi, pref_dir, pref_dir_c = values
         color = next(colors)
 
         # Plot direction selectivity on polar plot.
-        polar_direction_response(dirs, mean_resp, dsi, pref_dir,
-                                 color=color, ax=ax_polar)
-
-        # Shift direction - response values to center preferred direction.
-        shifted_res = tuning.init_tuning_curve_fit(dirs, pref_dir,
-                                                   mean_resp, sem_resp)
-        dirs_shifted, mean_resp_shifted, sem_resp_shifted = shifted_res
+        polar_direction_response(dsdt.dirs, dsdt.mean_resp, dsdt.dsi,
+                                 dsdt.pref_dir, color=color, ax=ax_polar)
 
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
         ylab = 'Firing rate (sp/s)' if labels else None
-        r = tuning.test_tuning(dirs_shifted, mean_resp_shifted, sem_resp_shifted,
-                               stim_min=-180*deg, stim_max=180*deg,
-                               xlab=xlab, ylab=ylab, color=color, ax=ax_tuning)
-        a, b, x0, sigma = r[0].loc['fit']
+        xticks = [-180, -90, 0, 90, 180]
+        tuning_curve(dsdt.dirs_cntr, dsdt.mean_resp_cntr, dsdt.sem_resp_cntr,
+                     dsdt.xfit, dsdt.yfit, xticks, color, None, xlab, ylab,
+                     ax=ax_tuning)
 
         # Collect parameters of polar plot (stimulus - response).
-        s_pd = str(float(round(pref_dir, 1)))
-        s_pd_c = str(int(pref_dir_c)) if not np.isnan(pref_dir_c.magnitude) else 'nan'
-        lgd_lbl = '{}:   {:.3f}'.format(name, dsi)
+        s_pd = str(float(round(dsdt.pref_dir, 1)))
+        s_pd_c = str(int(dsdt.pref_dir_c)) if not np.isnan(dsdt.pref_dir_c.magnitude) else 'nan'
+        lgd_lbl = '{}:   {:.3f}'.format(name, dsdt.dsi)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_patch(lgd_lbl, color))
 
         # Collect parameters of tuning curve fit.
+        a, b, x0, sigma = dsdt.fit_res.loc['fit']
         s_a = str(float(round(a, 1)))
         s_b = str(float(round(b, 1)))
         s_x0 = str(float(round(x0, 1)))
@@ -362,7 +355,7 @@ def direction_selectivity(dir_select_dict, title=None, labels=True,
 
     lgn_params = [(polar_legend, polar_lgn_ttl, polar_patches, ax_polar),
                   (tuning_legend, tuning_lgd_ttl, tuning_patches, ax_tuning)]
-    for (plot_legend, lgn_ttl, patches, ax) in lgn_params:
+    for (plot_legend, lgd_ttl, patches, ax) in lgn_params:
         if not plot_legend:
             continue
         if not labels:  # customisation for summary plot
@@ -408,8 +401,9 @@ def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
     return ax
 
 
-def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b', title=None,
-                 xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
+def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, xticks=None, color='b',
+                 title=None, xlab=None, ylab=None, ffig=None, ax=None,
+                 **kwargs):
     """Plot tuning curve."""
 
     # Add fitted curve.
@@ -418,6 +412,9 @@ def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, color='b', title=None,
     # Plot data samples of tuning curve.
     errorbar(val, mean_resp, yerr=sem_resp, fmt='o', color=color,
              title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
+
+    if xticks is not None:
+        ax.get_xaxis().set_ticks(xticks)
 
     # Save and return plot.
     save_fig(plt.gcf(), ffig)
@@ -695,7 +692,7 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
 
     # If ncol not specified: get approx'ly equal number of rows and columns.
     nplots = None
-    if ncol == None:
+    if ncol is None:
         nplots = nrow
         nrow = int(np.floor(np.sqrt(nplots)))
         ncol = int(np.ceil(nplots / nrow))

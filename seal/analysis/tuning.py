@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from scipy import exp
 from scipy.optimize import curve_fit
-from quantity import deg
+from quantities import deg
 
 from seal.util import util
 
@@ -85,7 +85,7 @@ def fit_gaus_curve(x, y, y_err=None):
 
         # Convert results into Pandas dataframe.
         fit_res.loc['fit'] = p_opt
-        fit_res.loc['std_err'] = p_err
+        fit_res.loc['std err'] = p_err
 
     fit_res.a = util.add_dim_to_df_col(fit_res.a, y_dim)
     fit_res.b = util.add_dim_to_df_col(fit_res.b, y_dim)
@@ -94,75 +94,72 @@ def fit_gaus_curve(x, y, y_err=None):
 
     return fit_res
 
-    
+
 # %% Wrapper functions.
 
-def test_tuning(stim, mean_resp, sem_resp, stim_min=None, stim_max=None):
-    """Test tuning of stimulus - response data."""
-
-    # Fit tuning curve to stimulus - response.
-    # Currently only fitting gaussian tunining curve.
-    fit_res = fit_gaus_curve(stim, mean_resp, sem_resp)
-
-    # Plot stimulus - response pairs and fitted tuning curve.
-    ax = None
-    if do_plot:
-        # Generate data points for plotting fitted tuning curve.
-        xfit, yfit = generate_data_points_for_fit(fit_res, stim, 
-                                                  stim_min, stim_max, n=500)
-        ax = plot.tuning_curve(stim, mean_resp, sem_resp, xfit, yfit, **kwargs)
-    return fit_res
+#def test_tuning(stim, mean_resp, sem_resp, center=True):
+#    """Test tuning of stimulus - response data."""
+#
+#    # Init.
+#    if center:
+#        stim, mean_resp, sem_resp = center_pre_dir(stim, mean_resp, sem_resp)
+#
+#    # Fit tuning curve to stimulus - response.
+#    # Currently only fitting gaussian tunining curve.
+#    fit_res = fit_gaus_curve(stim, mean_resp, sem_resp)
+#
+#    return fit_res, stim, mean_resp, sem_resp
 
 
-def compare_tuning_curves(stim_resp_dict, do_plot=True,
-                          stim_min=None, stim_max=None, **kwargs):
-    """Compare tuning curves across list of stimulus - responses pairs."""
+#def compare_tuning_curves(stim_resp_dict, do_plot=True,
+#                          stim_min=None, stim_max=None, **kwargs):
+#    """Compare tuning curves across list of stimulus - responses pairs."""
+#
+#    colors = plot.get_colors()
+#    tuning_res = pd.DataFrame(columns=['a', 'b', 'x0', 'sigma'])
+#    for name, values in stim_resp_dict.items():
+#        stim, mean_resp, sem_resp = values[:3]
+#        fit_res, ax = test_tuning(stim, mean_resp, sem_resp,
+#                                  stim_min=stim_min, stim_max=stim_max,
+#                                  do_plot=do_plot, color=next(colors), **kwargs)
+#        tuning_res.loc[name] = fit_res.loc['fit']
+#
+#    return tuning_res
 
-    colors = plot.get_colors()
-    tuning_res = pd.DataFrame(columns=['a', 'b', 'x0', 'sigma'])
-    for name, values in stim_resp_dict.items():
-        stim, mean_resp, sem_resp = values[:3]
-        fit_res, ax = test_tuning(stim, mean_resp, sem_resp,
-                                  stim_min=stim_min, stim_max=stim_max,
-                                  do_plot=do_plot, color=next(colors), **kwargs)
-        tuning_res.loc[name] = fit_res.loc['fit']
 
-    return tuning_res
-
-    
 # %% Miscullaneous functions.
 
-def init_tuning_curve_fit(dirs, pref_dir, mean_resp, sem_resp):
-    """Shift direction - response values to center preferred direction."""
-    
+def center_pre_dir(dirs, pref_dir, mean_resp, sem_resp):
+    """Center preferred direction by shift direction - response values."""
+
     # Init.
     ndirs = len(dirs)
     idx = np.array(range(ndirs))
-    
+
     # Center preferred direction.
     dirs_offset = dirs - pref_dir
-    
-    # Reorganise direction and response arrays to even number of values 
+
+    # Reorganise direction and response arrays to even number of values
     # to left and right (e.g. 4 - 4 for 8 directions).
     to_right = dirs_offset < -180*deg   # indices to move to the right
     to_left = dirs_offset > 180*deg     # indices to move to the left
     center = np.invert(np.logical_or(to_right, to_left))  # indices to keep
     idx = np.hstack((idx[to_left], idx[center], idx[to_right]))
-    
+
     # Shift directions.
-    dirs_shifted = util.deg_mod(dirs_offset[idx])
-    idx_to_flip = dirs_shifted > 180*deg
-    dirs_shifted[idx_to_flip] = dirs_shifted[idx_to_flip] - 360*deg
+    dirs_ctrd = util.deg_mod(dirs_offset[idx])
+    idx_to_flip = dirs_ctrd > 180*deg
+    dirs_ctrd[idx_to_flip] = dirs_ctrd[idx_to_flip] - 360*deg
 
     # Shift responses.
-    mean_resp_shifted = mean_resp[idx]
-    sem_resp_shifted = sem_resp[idx]
+    mean_resp_ctrd = mean_resp[idx]
+    sem_resp_ctrd = sem_resp[idx]
 
-    return dirs_shifted, mean_resp_shifted, sem_resp_shifted
-    
+    return dirs_ctrd, mean_resp_ctrd, sem_resp_ctrd
 
-def generate_data_points_for_fit(fit_res, stim, stim_min=None, stim_max=None, 
-                                 n=500):
+
+def generate_data_points_for_fit(fit_res, stim, stim_min=None, stim_max=None,
+                                 n=100):
     """Generate data points for plotting fitted tuning curve."""
 
     # Init stimulus (x) limits.
@@ -170,13 +167,12 @@ def generate_data_points_for_fit(fit_res, stim, stim_min=None, stim_max=None,
         stim_min = np.min(stim)
     if stim_max is None:
         stim_max = np.max(stim)
-    
+
     # Extract parameters from results DataFrame
     a, b, x0, sigma = [v.magnitude for v in fit_res.loc['fit']]
 
     # Generate synthetic stimulus-response data points.
     xfit = util.quantity_linspace(stim_min, stim_max, stim.units, n)
     yfit = np.array([gaus(xi, a, b, x0, sigma) for xi in np.array(xfit)])
-    
+
     return xfit, yfit
-    
