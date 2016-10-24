@@ -32,7 +32,7 @@ t_stop = 4000*ms
 
 
 # %% Constants related to different trial periods.
-    
+
 tr_prds = Periods([('Whole trial', [-1000*ms, 4000*ms]),
                    ('Fixation',    [-1000*ms,    0*ms]),
                    ('S1',          [    0*ms,  500*ms]),
@@ -50,7 +50,12 @@ ext_stim_prds = Periods([('S1', [ -1000*ms, 1250*ms]),
 # Delay sub-periods.
 delay_prds = Periods([('early',  [  500*ms, 1000*ms]),
                       ('middle', [ 1000*ms, 1500*ms]),
-                      ('late',   [ 1500*ms, 2000*ms]),])
+                      ('late',   [ 1500*ms, 2000*ms])])
+
+# Delay sub-periods.
+narrow_delay_prds = Periods([('early',  [  500*ms, 700*ms]),
+                             ('middle', [ 1150*ms, 1350*ms]),
+                             ('late',   [ 1800*ms, 2000*ms])])
 
 # Stimulus response delay in MT.
 MT_stim_resp_delay = 50*ms
@@ -58,7 +63,7 @@ MT_stim_resp_delay = 50*ms
 # Delayed trial and stimulus periods.
 what_delayed = ['S1', 'S2']
 where_delayed = ['start']
-del_tr_prds = Periods(tr_prds.delay_periods(MT_stim_resp_delay, 
+del_tr_prds = Periods(tr_prds.delay_periods(MT_stim_resp_delay,
                                             what_delayed, where_delayed))
 del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
                                                 what_delayed, where_delayed))

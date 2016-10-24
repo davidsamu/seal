@@ -167,6 +167,16 @@ class Unit:
         rec_str = self.SessParams['monkey'] + '_' + date_str
         return rec_str
 
+    def get_rec_ch_un_task_index(self):
+        """Return (recording, channel #, unit #, task) index quadruple."""
+
+        rec = self.get_recording_name()
+        ich = self.SessParams['channel #']
+        iunit = self.SessParams['unit #']
+        task = self.SessParams['experiment']
+        uidx = (rec, ich, iunit, task)
+        return uidx
+
     def get_unit_params(self, remove_dimensions=True):
         """Return main unit parameters."""
 
