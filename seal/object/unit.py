@@ -527,9 +527,8 @@ class Unit:
                                             sem_resp_cntr)
 
             # Generate data points for plotting fitted tuning curve.
-            xfit, yfit = tuning.generate_data_points_for_fit(fit_res, dirs_cntr,
-                                                             stim_min=-180*deg,
-                                                             stim_max=180*deg)
+            xfit, yfit = tuning.gen_fit_curve(fit_res['fit'], dirs_cntr,
+                                              -180*deg, 180*deg)
 
             ds_data.loc[stim] = [dirs, mean_resp, sem_resp, dsi, pref_dir,
                                  pref_dir_c, fit_res, dirs_cntr,

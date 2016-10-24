@@ -444,14 +444,21 @@ def SNR(v):
     return snr
 
 
-def mean_rate(rates):
-    """Return mean and SEM of firing rates."""
+def sem(v, axis=0):
+    """Return standard error of the mean."""
+
+    sem = sp.stats.sem(v, axis=axis)
+    return sem
+
+
+def mean_sem(v, axis=0):
+    """Return mean and SEM of array."""
 
     # Calculate mean and SEM.
-    rate_mean = np.mean(rates, 0)
-    rate_sem = np.std(rates, 0) / np.sqrt(rates.shape[0])
+    v_mean = np.mean(v, axis=axis)
+    v_sem = sem(v, axis=axis)
 
-    return rate_mean, rate_sem
+    return v_mean, v_sem
 
 
 def modulation_index(v1, v2):

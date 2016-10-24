@@ -97,7 +97,7 @@ def fit_gaus_curve(x, y, y_err=None):
 
 # %% Miscullaneous functions.
 
-def center_pre_dir(dirs, pref_dir, mean_resp, sem_resp):
+def center_pre_dir(dirs, pref_dir, mean_resp=None, sem_resp=None):
     """Center preferred direction by shift direction - response values."""
 
     # Init.
@@ -120,14 +120,17 @@ def center_pre_dir(dirs, pref_dir, mean_resp, sem_resp):
     dirs_ctrd[idx_to_flip] = dirs_ctrd[idx_to_flip] - 360*deg
 
     # Shift responses.
-    mean_resp_ctrd = mean_resp[idx]
-    sem_resp_ctrd = sem_resp[idx]
+    mean_resp_ctrd = None
+    if mean_resp is not None:
+        mean_resp_ctrd = mean_resp[idx]
+    sem_resp_ctrd = None
+    if sem_resp is not None:
+        sem_resp_ctrd = sem_resp[idx]
 
     return dirs_ctrd, mean_resp_ctrd, sem_resp_ctrd
 
 
-def generate_data_points_for_fit(fit_res, stim, stim_min=None, stim_max=None,
-                                 n=100):
+def gen_fit_curve(fit_params, stim, stim_min=None, stim_max=None, n=100):
     """Generate data points for plotting fitted tuning curve."""
 
     # Init stimulus (x) limits.
@@ -137,7 +140,7 @@ def generate_data_points_for_fit(fit_res, stim, stim_min=None, stim_max=None,
         stim_max = np.max(stim)
 
     # Extract parameters from results DataFrame
-    a, b, x0, sigma = [v.magnitude for v in fit_res.loc['fit']]
+    a, b, x0, sigma = [v.magnitude for v in fit_params]
 
     # Generate synthetic stimulus-response data points.
     xfit = util.quantity_linspace(stim_min, stim_max, stim.units, n)

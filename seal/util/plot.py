@@ -213,9 +213,9 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
     return ax
 
 
-def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
-         pvals=None, test=None, test_kwargs={}, ylim=None, title=None,
-         xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
+def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
+         segments=None, pvals=None, test=None, test_kwargs={}, ylim=None,
+         title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
          lgn_lbl='trs', ffig=None, ax=None):
     """Plot firing rate."""
 
@@ -225,8 +225,9 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
     for name, rts in zip(names, rates_list):
 
         # Calculate mean, SEM and scale time vector.
-        meanr, semr = util.mean_rate(rts)
-        time = time.rescale(t_unit)
+        meanr, semr = util.mean_sem(rts)
+        if t_unit is not None:
+            time = time.rescale(t_unit)
 
         # Set line label.
         lbl = '{} ({} {})'.format(name, rts.shape[0], lgn_lbl)
@@ -238,7 +239,9 @@ def rate(rates_list, time, t1, t2, names=None, t_unit=ms, segments=None,
 
     # Format plot.
     ax.locator_params(axis='y', nbins=6)
-    xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
+    xlim = None
+    if t1 is not None and t2 is not None and t_unit is not None:
+        xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
     set_limits(xlim, ylim, ax=ax)
     set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(True, False, False, False, ax=ax)
