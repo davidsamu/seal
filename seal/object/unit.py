@@ -491,7 +491,7 @@ class Unit:
 
         # Calculate binned spike count per direction.
         pname = stim + 'Dir'
-        t1, t2 = constants.stim_prds.periods(stim)
+        t1, t2 = constants.del_stim_prds.periods(stim)
         response_stats = self.calc_response_stats(pname, t1, t2)
         dirs, mean_rate, std_rate, sem_rate = response_stats
 
@@ -527,7 +527,7 @@ class Unit:
                                             sem_resp_cntr)
 
             # Generate data points for plotting fitted tuning curve.
-            xfit, yfit = tuning.gen_fit_curve(fit_res['fit'], dirs_cntr,
+            xfit, yfit = tuning.gen_fit_curve(fit_res.loc['fit'], dirs_cntr,
                                               -180*deg, 180*deg)
 
             ds_data.loc[stim] = [dirs, mean_resp, sem_resp, dsi, pref_dir,

@@ -468,6 +468,13 @@ def modulation_index(v1, v2):
     return mi
 
 
+def pearson_r(v1, v2):
+    """Calculate Pearson's r and p value."""
+
+    r, p = stats.pearsonr(v1, v2)
+    return r, p
+
+
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.

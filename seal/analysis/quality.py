@@ -524,6 +524,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     Unit_list = UnitArr.unit_list(tasks, unit_ids, return_empty=True)
     fig, gsp, _ = plot.get_gs_subplots(nrow=nchunit, ncol=ntask,
                                        subw=subw, subh=subh, create_axes=False)
+    legend_kwargs = {'borderaxespad': 0}
 
     # Plot within-trial activity of each unit during each task.
     for unit_sps, u in zip(gsp, Unit_list):
@@ -552,7 +553,8 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                 plot.empty_raster_rate(fig, rr_gsp, 1)
             else:
                 res = u.plot_raster_rate(nrate, no_labels=True, t1=rr_t1,
-                                         t2=rr_t2, fig=fig, outer_gsp=rr_gsp)
+                                         t2=rr_t2, legend_kwargs=legend_kwargs,
+                                         fig=fig, outer_gsp=rr_gsp)
                 fig, raster_axs, rate_ax = res
                 plot.replace_tr_num_with_tr_name(raster_axs[0], 'all trials')
 
@@ -582,6 +584,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                     res = u.plot_raster_rate(nrate, trials=dd_trials,
                                              t1=row.start, t2=row.end,
                                              pvals=[0.05], test='t-test',
+                                             legend_kwargs=legend_kwargs,
                                              no_labels=True, fig=fig,
                                              outer_gsp=dd_rr_gsp)
                     fig, raster_axs, rate_ax = res

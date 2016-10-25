@@ -14,7 +14,6 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from scipy.stats.stats import pearsonr
 from quantities import ms, rad
 
 import matplotlib as mpl
@@ -216,7 +215,7 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
 def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
          segments=None, pvals=None, test=None, test_kwargs={}, ylim=None,
          title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
-         lgn_lbl='trs', ffig=None, ax=None):
+         lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
 
     # Plot rate(s).
@@ -248,9 +247,11 @@ def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
     set_labels(title, xlab, ylab, ax=ax)
 
     # Add legend
-    legend_kwargs = dict([('frameon', False), ('framealpha', 0.5),
-                          ('loc', 'upper right'), ('borderaxespad', 0),
-                          ('handletextpad', 0)])
+    def_legend_kwargs = dict([('frameon', False), ('framealpha', 0.5),
+                              ('loc', 'upper right'), ('borderaxespad', 0.5),
+                              ('handletextpad', 0)])
+    # Merge default and user defined legend kwargs (user's overwrites default).
+    legend_kwargs = {**def_legend_kwargs, **legend_kwargs}
     set_legend(ax, legend, **legend_kwargs)
 
     # Add significance line to top of plot.
@@ -498,7 +499,7 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
             ylim = ax.get_ylim()
             yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
             ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
-                    verticalalignment='bottom', horizontalalignment=lbl_ha)
+                    va='bottom', ha=lbl_ha)
 
 
 # %% Plot setup functions.
@@ -849,8 +850,9 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
-def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
-            title=None, ytitle=None, polar=False, add_r=False,
+def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
+            ytitle=None, polar=False, add_r=False, sign_test=None,
+            add_id_line=True, equal_xy=True, match_xy_apsect=True,
             ffig=None, ax=None, **kwargs):
     """Plot two vectors on scatter plot."""
 
@@ -860,10 +862,33 @@ def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Add correlation test results.
     if add_r:
-        r, p = pearsonr(x, y)
+        r, p = util.pearson_r(x, y)
         r_text = 'r = {:.2f} ({})'.format(r, util.format_pvalue(p))
         ax.text(0.95, 0.05, r_text, transform=ax.transAxes,
-                horizontalalignment='right', verticalalignment='bottom')
+                ha='right', va='bottom')
+
+    # Add custom significance test results.
+    if sign_test is not None:
+        pval = sign_test(x, y)[1]
+        p_str = util.format_pvalue(pval)
+        ax.text(1, 0.02, p_str, transform=ax.transAxes,
+                ha='right', va='bottom')
+
+    # Optionally: Equalise scale and match aspect ratio between x and y axes.
+    sync_axes([ax], equal_xy=equal_xy, match_xy_aspect=match_xy_apsect)
+
+    # Add identity line.
+    if add_id_line:
+        if equal_xy:
+            lines([0, 1], [0, 1], ax=ax, color='grey', ls='--',
+                  transform=ax.transAxes)
+        else:  # This breaks if axes limits are changed afterwards.
+            [xmin, xmax] = ax.get_xlim()
+            [ymin, ymax] = ax.get_ylim()
+            xymin = max(xmin, ymin)
+            xymax = min(xmax, ymax)
+            lines([xymin, xymax], [xymin, xymax], ax=ax, color='grey', ls='--')
+
     return ax
 
 
