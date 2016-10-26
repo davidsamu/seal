@@ -12,7 +12,7 @@ from itertools import product
 from collections import OrderedDict as OrdDict
 
 import numpy as np
-from pandas import DataFrame, Series
+import pandas as pd
 from quantities import Quantity, s, ms, us, deg, Hz
 from neo import SpikeTrain
 
@@ -38,8 +38,8 @@ class Unit:
         self.SessParams = OrdDict()
         self.UnitParams = OrdDict()
         self.QualityMetrics = OrdDict()
-        self.TrialParams = DataFrame()
-        self.Events = DataFrame()
+        self.TrialParams = pd.DataFrame()
+        self.Events = pd.DataFrame()
         self.Spikes = []
         self.Rates = OrdDict()
         self.t_start = t_start
@@ -91,8 +91,8 @@ class Unit:
         self.UnitParams['DirTuningParams'] = OrdDict()
 
         # Trial parameters.
-        self.TrialParams = DataFrame(TPLCell.TrialParams,
-                                     columns=TPLCell.Header)
+        self.TrialParams = pd.DataFrame(TPLCell.TrialParams,
+                                        columns=TPLCell.Header)
         if params_info is not None:  # This takes a lot of time, speed it up?
             for name, (new_name, dim) in params_info.items():
                 if name not in self.TrialParams.columns:
@@ -124,10 +124,10 @@ class Unit:
         S1_len, S2_len = constants.stim_prds.dur()
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
-        self.Events = DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
-                                 TPLCell.Timestamps[iS1off]*s,
-                                 TPLCell.Timestamps[iS2on]*s,
-                                 TPLCell.Timestamps[iS2on]*s+S2_len]).T
+        self.Events = pd.DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
+                                    TPLCell.Timestamps[iS1off]*s,
+                                     TPLCell.Timestamps[iS2on]*s,
+                                     TPLCell.Timestamps[iS2on]*s+S2_len]).T
         self.Events.columns = ['S1 onset', 'S1 offset',
                                'S2 onset', 'S2 offset']
         # Align trial events to S1 onset.
@@ -226,16 +226,16 @@ class Unit:
 
         # Stimulus response properties.
         up = self.UnitParams
-        dsi = get_val(up, 'DirSelectivity')
-        pd = get_val(up, 'PrefDir')
-        pdc = get_val(up, 'PrefDirCoarse')
+        DSI = get_val(up, 'DirSelectivity')
+        PD = get_val(up, 'PrefDir')
+        PDc = get_val(up, 'PrefDirCoarse')
         unit_params['Direction selectivity'] = ''
-        unit_params['DSI S1'] = get_val(dsi, 'S1')
-        unit_params['DSI S2'] = get_val(dsi, 'S2')
-        unit_params['PD S1 (deg)'] = get_val(pd, 'S1')
-        unit_params['PD S2 (deg)'] = get_val(pd, 'S2')
-        unit_params['PD8 S1 (deg)'] = get_val(pdc, 'S1')
-        unit_params['PD8 S2 (deg)'] = get_val(pdc, 'S2')
+        unit_params['DSI S1'] = get_val(DSI, 'S1')
+        unit_params['DSI S2'] = get_val(DSI, 'S2')
+        unit_params['PD S1 (deg)'] = get_val(PD, 'S1')
+        unit_params['PD S2 (deg)'] = get_val(PD, 'S2')
+        unit_params['PD8 S1 (deg)'] = get_val(PDc, 'S1')
+        unit_params['PD8 S2 (deg)'] = get_val(PDc, 'S2')
 
         return unit_params
 
@@ -377,7 +377,7 @@ class Unit:
         frate = self.Spikes.spike_stats_in_prd(trials, t1, t2)[1]
         tr_time = self.TrialParams['TrialStart'][trials.trials]
         tr_time = util.remove_dim_to_df_col(tr_time)
-        frate_tr_time = Series(frate, index=tr_time, name='FR (1/s)')
+        frate_tr_time = pd.Series(frate, index=tr_time, name='FR (1/s)')
 
         return frate_tr_time
 
@@ -486,16 +486,42 @@ class Unit:
 
         return p_values, mean_rate, std_rate, sem_rate
 
-    def calc_dir_response(self, stim):
+    def calc_dir_response(self, stim, t1=None, t2=None):
         """Calculate mean response to each direction during given stimulus."""
 
         # Calculate binned spike count per direction.
         pname = stim + 'Dir'
-        t1, t2 = constants.del_stim_prds.periods(stim)
+        if t1 is None or t2 is None:
+            t1, t2 = constants.del_stim_prds.periods(stim)
         response_stats = self.calc_response_stats(pname, t1, t2)
         dirs, mean_rate, std_rate, sem_rate = response_stats
 
         return dirs, mean_rate, std_rate, sem_rate
+
+    def calc_DS(self, stim, t1=None, t2=None):
+        """Calculate direction selectivity."""
+
+        # Get mean response to each direction.
+        dirs, meanFR, stdFR, semFR = self.calc_dir_response(stim, t1, t2)
+
+        # Calculate preferred direction and direction selectivity index.
+        DSI, PD, PDc = util.deg_w_mean(dirs, meanFR)
+
+        # Calculate parameters of Gaussian tuning curve.
+        # Center stimulus - response firts.
+        tun_res = tuning.center_pref_dir(dirs, PD, meanFR, semFR)
+        dirs_cntr, meanFR_cntr, semFR_cntr = tun_res
+
+        # Fit Gaussian tuning curve to stimulus - response.
+        fit_res = tuning.fit_gaus_curve(dirs_cntr, meanFR_cntr, semFR_cntr)
+
+        # Prepare results.
+        res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
+               'DSI': DSI, 'PD': PD, 'PDc': PDc, 'dirs_cntr': dirs_cntr,
+               'meanFR_cntr': meanFR_cntr, 'semFR_cntr': semFR_cntr,
+               'fit_res': fit_res}
+
+        return res
 
     def test_direction_selectivity(self, stims=['S1', 'S2'], no_labels=False,
                                    do_plot=True, ffig_tmpl=None, **kwargs):
@@ -505,40 +531,27 @@ class Unit:
           - parameters of Gaussian tuning curve.
         """
 
-        ds_cols = ['dirs', 'mean_resp', 'sem_resp', 'dsi', 'pref_dir',
-                   'pref_dir_c', 'fit_res', 'dirs_cntr',
-                   'mean_resp_cntr', 'sem_resp_cntr', 'xfit', 'yfit']
-        ds_data = DataFrame(columns=ds_cols, index=stims)
+        DSres = {}
         for stim in stims:
 
-            # Get mean response to each direction.
-            dirs, mean_resp, std_resp, sem_resp = self.calc_dir_response(stim)
-
-            # Calculate preferred direction and direction selectivity index.
-            dsi, pref_dir, pref_dir_c = util.deg_w_mean(dirs, mean_resp)
-
-            # Calculate parameters of Gaussian tuning curve.
-            # Center stimulus - response firts.
-            res = tuning.center_pre_dir(dirs, pref_dir, mean_resp, sem_resp)
-            dirs_cntr, mean_resp_cntr, sem_resp_cntr = res
-
-            # Fit Gaussian tuning curve to stimulus - response.
-            fit_res = tuning.fit_gaus_curve(dirs_cntr, mean_resp_cntr,
-                                            sem_resp_cntr)
+            res = self.calc_DS(stim, t1=None, t2=None)
 
             # Generate data points for plotting fitted tuning curve.
-            xfit, yfit = tuning.gen_fit_curve(fit_res.loc['fit'], dirs_cntr,
-                                              -180*deg, 180*deg)
-
-            ds_data.loc[stim] = [dirs, mean_resp, sem_resp, dsi, pref_dir,
-                                 pref_dir_c, fit_res, dirs_cntr,
-                                 mean_resp_cntr, sem_resp_cntr, xfit, yfit]
+            x, y = tuning.gen_fit_curve(res['fit_res'].loc['fit'],
+                                        res['dirs_cntr'], -180*deg, 180*deg)
 
             # Add calculated values to unit.
-            self.UnitParams['PrefDir'][stim] = pref_dir
-            self.UnitParams['PrefDirCoarse'][stim] = pref_dir_c
-            self.UnitParams['DirSelectivity'][stim] = dsi
-            self.UnitParams['DirTuningParams'][stim] = fit_res
+            self.UnitParams['PrefDir'][stim] = res['PD']
+            self.UnitParams['PrefDirCoarse'][stim] = res['PDc']
+            self.UnitParams['DirSelectivity'][stim] = res['DSI']
+            self.UnitParams['DirTuningParams'][stim] = res['fit_res']
+
+            # Collect data for plotting.
+            DSres[stim] = res
+            DSres[stim]['xfit'] = x
+            DSres[stim]['yfit'] = y
+
+        DSres = pd.DataFrame(DSres).T
 
         # Plot direction selectivity results.
         if do_plot:
@@ -554,8 +567,7 @@ class Unit:
             if ffig_tmpl is not None:
                 ffig = ffig_tmpl.format(self.name_to_fname())
             title = self.Name
-            plot.direction_selectivity(ds_data, title=title, ffig=ffig,
-                                       **kwargs)
+            plot.direction_selectivity(DSres, title=title, ffig=ffig, **kwargs)
 
     # %% Plotting methods.
 

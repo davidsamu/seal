@@ -97,7 +97,7 @@ def fit_gaus_curve(x, y, y_err=None):
 
 # %% Miscullaneous functions.
 
-def center_pre_dir(dirs, pref_dir, mean_resp=None, sem_resp=None):
+def center_pref_dir(dirs, PD, mean_resp=None, sem_resp=None):
     """Center preferred direction by shift direction - response values."""
 
     # Init.
@@ -105,7 +105,7 @@ def center_pre_dir(dirs, pref_dir, mean_resp=None, sem_resp=None):
     idx = np.array(range(ndirs))
 
     # Center preferred direction.
-    dirs_offset = dirs - pref_dir
+    dirs_offset = dirs - PD
 
     # Reorganise direction and response arrays to even number of values
     # to left and right (e.g. 4 - 4 for 8 directions).

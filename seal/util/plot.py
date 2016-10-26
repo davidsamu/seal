@@ -281,7 +281,7 @@ def empty_direction_selectivity(fig, outer_gsp):
     add_mock_axes(fig, mock_gsp_tuning[0, 0])
 
 
-def direction_selectivity(ds_data, title=None, labels=True,
+def direction_selectivity(DSres, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
                           ffig=None, fig=None, outer_gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
@@ -296,32 +296,32 @@ def direction_selectivity(ds_data, title=None, labels=True,
     polar_patches = []
     tuning_patches = []
 
-    for name, dsdt in ds_data.iterrows():
+    for name, DSr in DSres.iterrows():
 
         # Init stimulus plotting.
         color = next(colors)
 
         # Plot direction selectivity on polar plot.
-        polar_direction_response(dsdt.dirs, dsdt.mean_resp, dsdt.dsi,
-                                 dsdt.pref_dir, color=color, ax=ax_polar)
+        polar_direction_response(DSr.dirs, DSr.meanFR, DSr.DSI, DSr.PD,
+                                 color=color, ax=ax_polar)
 
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
         ylab = 'Firing rate (sp/s)' if labels else None
         xticks = [-180, -90, 0, 90, 180]
-        tuning_curve(dsdt.dirs_cntr, dsdt.mean_resp_cntr, dsdt.sem_resp_cntr,
-                     dsdt.xfit, dsdt.yfit, xticks, color, None, xlab, ylab,
+        tuning_curve(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
+                     DSr.xfit, DSr.yfit, xticks, color, None, xlab, ylab,
                      ax=ax_tuning)
 
         # Collect parameters of polar plot (stimulus - response).
-        s_pd = str(float(round(dsdt.pref_dir, 1)))
-        s_pd_c = str(int(dsdt.pref_dir_c)) if not np.isnan(dsdt.pref_dir_c.magnitude) else 'nan'
-        lgd_lbl = '{}:   {:.3f}'.format(name, dsdt.dsi)
+        s_pd = str(float(round(DSr.PD, 1)))
+        s_pd_c = str(int(DSr.PDc)) if not np.isnan(DSr.PDc.magnitude) else 'nan'
+        lgd_lbl = '{}:   {:.3f}'.format(name, DSr.DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_patch(lgd_lbl, color))
 
         # Collect parameters of tuning curve fit.
-        a, b, x0, sigma = dsdt.fit_res.loc['fit']
+        a, b, x0, sigma = DSr.fit_res.loc['fit']
         s_a = str(float(round(a, 1)))
         s_b = str(float(round(b, 1)))
         s_x0 = str(float(round(x0, 1)))
@@ -586,6 +586,13 @@ def set_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
     ax.yaxis.set_ticks_position(ytick_pos)
 
 
+def set_max_n_ticks(max_n_ticks=5, axis='both', ax=None):
+    """Set maximum number of ticks on axes."""
+
+    ax = axes(ax)
+    ax.locator_params(axis=axis, nbins=max_n_ticks-1)
+
+
 def hide_ticks(show_x_ticks=False, show_y_ticks=False, ax=None):
     """Hide ticks on either or both axes."""
 
@@ -610,6 +617,8 @@ def hide_axes(show_x=False, show_y=False, ax=None):
     show_spines(show_x, show_y, upper, right, ax)
 
 
+# See bottom of this for better colorbar handling!
+# http://matplotlib.org/users/tight_layout_guide.html
 def colorbar(fig, cb_map, cax=None, axs=None, cb_title=None, **kwargs):
     """Add colorbar to figure."""
 
@@ -660,7 +669,8 @@ def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
 
 
 def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
-                    fs_title='xx-large', rect_height=None, **kwargs):
+                    fs_title='xx-large', rect_height=None, pad=1.08,
+                    h_pad=None, w_pad=None, **kwargs):
     """Save composite (GridSpec) figure."""
 
     if title is not None:
@@ -669,7 +679,8 @@ def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
     if gsp is not None:
         if rect_height is None:  # relative height of plotted area
             rect_height = ytitle - 0.03
-        gsp.tight_layout(fig, rect=[0, 0.0, 1, rect_height])
+        rect = [0, 0.0, 1, rect_height]
+        gsp.tight_layout(fig, rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
 
     save_fig(fig, fname)
 
@@ -850,6 +861,9 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
+# TODO: add side histograms to scatter plot!
+# http://matplotlib.org/examples/pylab_examples/scatter_hist.html
+
 def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
             ytitle=None, polar=False, add_r=False, sign_test=None,
             add_id_line=True, equal_xy=True, match_xy_apsect=True,
@@ -888,6 +902,9 @@ def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
             xymin = max(xmin, ymin)
             xymax = min(xmax, ymax)
             lines([xymin, xymax], [xymin, xymax], ax=ax, color='grey', ls='--')
+
+    # Custom post-formatting.
+    show_spines(bottom=True, left=True, ax=ax)
 
     return ax
 
