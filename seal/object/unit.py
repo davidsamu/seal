@@ -374,6 +374,7 @@ class Unit:
         if trials is None:
             trials = self.included_trials()
 
+        # TODO: the below breaks with t1 or t2 equals None!
         frate = self.Spikes.spike_stats_in_prd(trials, t1, t2)[1]
         tr_time = self.TrialParams['TrialStart'][trials.trials]
         tr_time = util.remove_dim_to_df_col(tr_time)

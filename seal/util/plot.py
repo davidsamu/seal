@@ -160,7 +160,8 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, True, t_unit, segments, pvals, test,
-         test_kwargs, None, ylim, None, xlab, ylab_rate,  legend, ax=rate_ax)
+         test_kwargs, None, ylim, None, None, xlab, ylab_rate,  legend,
+         ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Save and return plot.
@@ -185,7 +186,7 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
     ylim = [0.5, len(spikes)+0.5] if len(spikes) else [0, 1]
     set_limits(xlim, ylim, ax=ax)
-    ax.locator_params(axis='y', nbins=6)
+    set_max_n_ticks(max_n_ticks=7, axis='y', ax=ax)
     set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
@@ -214,8 +215,8 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
 
 def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
          segments=None, pvals=None, test=None, test_kwargs={}, xlim=None, ylim=None,
-         title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
-         lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
+         colors=None, title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)',
+         legend=True, lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
 
     # Init.
@@ -226,7 +227,9 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
     lgn_patches = None
     if not mean:
         lgn_patches = []
-        colors = get_colors(from_mpl_cycle=True, as_cycle=True)
+
+    if colors is None:
+        colors = get_colors(from_mpl_cycle=True)
 
     for name, rts in zip(names, rates_list):
 
@@ -234,7 +237,8 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
         if t_unit is not None:
             time = time.rescale(t_unit)
 
-        # Set line label.
+        # Set line color and label.
+        col = next(colors)
         lbl = '{} ({} {})'.format(name, rts.shape[0], lgn_lbl)
 
         # Plot mean +- SEM of rate vectors.
@@ -244,19 +248,17 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
             meanr, semr = util.mean_sem(rts)
 
             # Plot mean line and SEM area.
-            lines = ax.plot(time, meanr, label=lbl)
-            line_col = lines[0].get_color()
+            ax.plot(time, meanr, label=lbl, color=col)
             ax.fill_between(time, meanr-semr, meanr+semr, alpha=0.2,
-                            facecolor=line_col, edgecolor=line_col)
+                            facecolor=col, edgecolor=col)
 
         # Plot each individual rate vector.
         else:
-            col = next(colors)
             ax.plot(time, rts.T, c=col)
             lgn_patches.append(get_proxy_artist(lbl, col, artist_type='line'))
 
     # Format plot.
-    ax.locator_params(axis='y', nbins=6)
+    set_max_n_ticks(max_n_ticks=7, axis='y', ax=ax)
     xlim = None
     if t1 is not None and t2 is not None and t_unit is not None:
         xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
@@ -445,9 +447,9 @@ def tuning_curve_sample(val, meanFR, semFR, xfit, yfit, xticks=None, color='b',
 
 
 def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
-                       step=45, pvals=[0.01], test='t-test', xlab='Degree',
-                       ylab='Firing rate (sp/s)', title='auto', legend=True,
-                       lgn_lbl='units', ax=None, ffig=None):
+                       step=45, colors=None, pvals=[0.01], test='t-test',
+                       xlab='Degree', ylab='Firing rate (sp/s)', title='auto',
+                       legend=True, lgn_lbl='units', ax=None, ffig=None):
     """Plot tuning curves (without data samples)."""
 
     names, tcs = zip(*[(name, np.array(tc)) for name, tc in yfits.items()])
@@ -457,8 +459,8 @@ def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
     # Plot tuning curves as "rates".
     # TODO: rates to be refactored!
     ax = rate(tcs, x, names=names, mean=mean, t_unit=None, pvals=pvals,
-              test=test, ylim=ylim, title=title, xlab=xlab, ylab=ylab,
-              legend=legend, lgn_lbl=lgn_lbl, ax=ax)
+              test=test, ylim=ylim, colors=colors, title=title,
+              xlab=xlab, ylab=ylab, legend=legend, lgn_lbl=lgn_lbl, ax=ax)
 
     # Add zero reference line to tuning curve.
     ax.axvline(0, color='k', ls='--', alpha=0.2)
@@ -924,15 +926,22 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 # TODO: add side histograms to scatter plot!
 # http://matplotlib.org/examples/pylab_examples/scatter_hist.html
 
-def scatter(x, y, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
-            ytitle=None, polar=False, add_r=False, sign_test=None,
-            add_id_line=True, equal_xy=True, match_xy_apsect=True,
+def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
+            title=None, ytitle=None, polar=False, add_r=False, sign_test=None,
+            add_id_line=True, equal_xy=True, match_xy_apsect=True, c='cyan',
             ffig=None, ax=None, **kwargs):
     """Plot two vectors on scatter plot."""
 
+    # Fill significant points.
+    colors = len(x) * [c]
+    edgecolors = c
+    if is_sign is not None:
+        colors = [c if sign else 'w' for sign in is_sign]
+
     # Plot scatter plot.
     ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'scatter', ffig, ax=ax, **kwargs)
+                   'scatter', c=colors, edgecolor=edgecolors, ffig=ffig,
+                   ax=ax, **kwargs)
 
     # Add correlation test results.
     if add_r:

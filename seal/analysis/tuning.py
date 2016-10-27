@@ -87,6 +87,7 @@ def fit_gaus_curve(x, y, y_err=None):
         fit_res.loc['fit'] = p_opt
         fit_res.loc['std err'] = p_err
 
+    # TODO: add FWHM! (here or later?)
     fit_res.a = util.add_dim_to_df_col(fit_res.a, y_dim)
     fit_res.b = util.add_dim_to_df_col(fit_res.b, y_dim)
     fit_res.x0 = util.add_dim_to_df_col(fit_res.x0, x_dim)

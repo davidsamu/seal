@@ -447,7 +447,8 @@ def SNR(v):
 def sem(v, axis=0):
     """Return standard error of the mean."""
 
-    sem = sp.stats.sem(v, axis=axis)
+    # Keeping dimension of Quantity arrays (as opposed to scipy.stats.sem).
+    sem = np.std(v, axis) / np.sqrt(v.shape[axis])
     return sem
 
 
