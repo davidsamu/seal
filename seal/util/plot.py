@@ -14,7 +14,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from quantities import ms, rad
+from quantities import ms, rad, deg
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -159,8 +159,8 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rates, times, t1, t2, names, t_unit, segments, pvals, test,
-         test_kwargs, ylim, None, xlab, ylab_rate,  legend, ax=rate_ax)
+    rate(rates, times, t1, t2, names, True, t_unit, segments, pvals, test,
+         test_kwargs, None, ylim, None, xlab, ylab_rate,  legend, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Save and return plot.
@@ -198,7 +198,7 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     ax.invert_yaxis()
 
     # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    save_fig(ffig=ffig)
     return ax
 
 
@@ -212,29 +212,48 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
     return ax
 
 
-def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
-         segments=None, pvals=None, test=None, test_kwargs={}, ylim=None,
+def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
+         segments=None, pvals=None, test=None, test_kwargs={}, xlim=None, ylim=None,
          title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)', legend=True,
          lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
 
-    # Plot rate(s).
+    # Init.
     ax = axes(ax)
     plot_segments(segments, t_unit, ax=ax)
+
+    # Set up for individual cuver plotting.
+    lgn_patches = None
+    if not mean:
+        lgn_patches = []
+        colors = get_colors(from_mpl_cycle=True, as_cycle=True)
+
     for name, rts in zip(names, rates_list):
 
-        # Calculate mean, SEM and scale time vector.
-        meanr, semr = util.mean_sem(rts)
+        # Scale time vector.
         if t_unit is not None:
             time = time.rescale(t_unit)
 
         # Set line label.
         lbl = '{} ({} {})'.format(name, rts.shape[0], lgn_lbl)
 
-        # Plot mean line and SEM area.
-        line_col = ax.plot(time, meanr, label=lbl)[0].get_color()
-        ax.fill_between(time, meanr-semr, meanr+semr, alpha=0.2,
-                        facecolor=line_col, edgecolor=line_col)
+        # Plot mean +- SEM of rate vectors.
+        if mean:
+
+            # Calculate mean, SEM.
+            meanr, semr = util.mean_sem(rts)
+
+            # Plot mean line and SEM area.
+            lines = ax.plot(time, meanr, label=lbl)
+            line_col = lines[0].get_color()
+            ax.fill_between(time, meanr-semr, meanr+semr, alpha=0.2,
+                            facecolor=line_col, edgecolor=line_col)
+
+        # Plot each individual rate vector.
+        else:
+            col = next(colors)
+            ax.plot(time, rts.T, c=col)
+            lgn_patches.append(get_proxy_artist(lbl, col, artist_type='line'))
 
     # Format plot.
     ax.locator_params(axis='y', nbins=6)
@@ -252,7 +271,7 @@ def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
                               ('handletextpad', 0)])
     # Merge default and user defined legend kwargs (user's overwrites default).
     legend_kwargs = {**def_legend_kwargs, **legend_kwargs}
-    set_legend(ax, legend, **legend_kwargs)
+    set_legend(ax, legend, handles=lgn_patches, **legend_kwargs)
 
     # Add significance line to top of plot.
     if pvals is not None and len(rates_list) == 2:
@@ -266,7 +285,7 @@ def rate(rates_list, time, t1=None, t2=None, names=None, t_unit=ms,
                                        color=col, linewidth=lw, ax=ax)
 
     # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    save_fig(ffig=ffig)
     return ax
 
 
@@ -309,16 +328,16 @@ def direction_selectivity(DSres, title=None, labels=True,
         xlab = 'Difference from preferred direction (deg)' if labels else None
         ylab = 'Firing rate (sp/s)' if labels else None
         xticks = [-180, -90, 0, 90, 180]
-        tuning_curve(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
-                     DSr.xfit, DSr.yfit, xticks, color, None, xlab, ylab,
-                     ax=ax_tuning)
+        tuning_curve_sample(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
+                            DSr.xfit, DSr.yfit, xticks, color, None, xlab, ylab,
+                            ax=ax_tuning)
 
         # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(DSr.PD, 1)))
         s_pd_c = str(int(DSr.PDc)) if not np.isnan(DSr.PDc.magnitude) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(name, DSr.DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
-        polar_patches.append(get_proxy_patch(lgd_lbl, color))
+        polar_patches.append(get_proxy_artist(lgd_lbl, color))
 
         # Collect parameters of tuning curve fit.
         a, b, x0, sigma = DSr.fit_res.loc['fit']
@@ -328,7 +347,7 @@ def direction_selectivity(DSres, title=None, labels=True,
         s_sigma = str(float(round(sigma, 1)))
         lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(name, 5 * ' ', s_a, 5 * ' ', s_b)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
-        tuning_patches.append(get_proxy_patch(lgd_lbl, color))
+        tuning_patches.append(get_proxy_artist(lgd_lbl, color))
 
     # Add zero reference line to tuning curve.
     ax_tuning.axvline(0, color='k', ls='--', alpha=0.2)
@@ -375,7 +394,7 @@ def direction_selectivity(DSres, title=None, labels=True,
     save_fig(fig, ffig)
 
 
-def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
+def polar_direction_response(dirs, FR, DSI=None, PD=None,
                              color='g', title=None, ffig=None, ax=None):
     """
     Plot response to each directions on polar plot, with direction selectivity
@@ -387,41 +406,70 @@ def polar_direction_response(dirs, resp, DSI=None, pref_dir=None,
     ndirs = rad_dirs.size
     left_rad_dirs = rad_dirs - np.pi/ndirs
     w = 2*np.pi / ndirs
-    ax = bars(left_rad_dirs, resp, polar=True, width=w, alpha=0.50,
+    ax = bars(left_rad_dirs, FR, polar=True, width=w, alpha=0.50,
               color=color, edgecolor='w', linewidth=1, title=title,
               ytitle=1.08, ax=ax)
 
     # Add arrow representing preferred direction and
     # direction selectivity index (DSI).
-    if DSI is not None and pref_dir is not None:
-        rho = np.max(resp) * DSI
-        xy = (float(pref_dir.rescale(rad)), rho)
+    if DSI is not None and PD is not None:
+        rho = np.max(FR) * DSI
+        xy = (float(PD.rescale(rad)), rho)
         ax.annotate('', xy, xytext=(0, 0),
                     arrowprops=dict(facecolor=color, edgecolor='k',
                                     shrink=0.0, alpha=0.5))
 
     # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    save_fig(ffig=ffig)
     return ax
 
 
-def tuning_curve(val, mean_resp, sem_resp, xfit, yfit, xticks=None, color='b',
-                 title=None, xlab=None, ylab=None, ffig=None, ax=None,
-                 **kwargs):
-    """Plot tuning curve."""
+def tuning_curve_sample(val, meanFR, semFR, xfit, yfit, xticks=None, color='b',
+                        title=None, xlab=None, ylab=None, ffig=None, ax=None,
+                        **kwargs):
+    """Plot tuning curve (with data samples)."""
 
     # Add fitted curve.
     ax = lines(xfit, yfit, color=color, ax=ax)
 
     # Plot data samples of tuning curve.
-    errorbar(val, mean_resp, yerr=sem_resp, fmt='o', color=color,
+    errorbar(val, meanFR, yerr=semFR, fmt='o', color=color,
              title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
 
     if xticks is not None:
         ax.get_xaxis().set_ticks(xticks)
 
     # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    save_fig(ffig=ffig)
+    return ax
+
+
+def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
+                       step=45, pvals=[0.01], test='t-test', xlab='Degree',
+                       ylab='Firing rate (sp/s)', title='auto', legend=True,
+                       lgn_lbl='units', ax=None, ffig=None):
+    """Plot tuning curves (without data samples)."""
+
+    names, tcs = zip(*[(name, np.array(tc)) for name, tc in yfits.items()])
+    if title is 'auto':
+        title = 'Mean tuning curve (paired, Wilcoxon p < {})'.format(pvals[0])
+
+    # Plot tuning curves as "rates".
+    # TODO: rates to be refactored!
+    ax = rate(tcs, x, names=names, mean=mean, t_unit=None, pvals=pvals,
+              test=test, ylim=ylim, title=title, xlab=xlab, ylab=ylab,
+              legend=legend, lgn_lbl=lgn_lbl, ax=ax)
+
+    # Add zero reference line to tuning curve.
+    ax.axvline(0, color='k', ls='--', alpha=0.2)
+
+    # Format x axis.
+    ctrd_dirs = np.arange(xlim[0], xlim[1]+step/2, step)
+    ax.get_xaxis().set_ticks(ctrd_dirs)
+    set_limits(xlim=xlim, ax=ax)
+
+    # Save and return plot.
+    save_fig(ffig=ffig)
     return ax
 
 
@@ -701,7 +749,7 @@ def axes(ax=None, **kwargs):
     return ax
 
 
-def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
+def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2, ax_kwargs_list=None,
                     create_axes=True, as_array=True, fig=None, **kwargs):
     """Return list or array of GridSpec subplots."""
 
@@ -720,7 +768,14 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2,
 
     # Create list (or array) of axes.
     if create_axes:
-        axes = [fig.add_subplot(gs) for gs in gsp]
+
+        # Don't pass anything by default.
+        if ax_kwargs_list is None:
+            ax_kwargs_list = (nrow*ncol)*[{}]
+
+        # Initialise axes.
+        axes = [fig.add_subplot(gs, **ax_kwargs)
+                for gs, ax_kwargs in zip(gsp, ax_kwargs_list)]
 
         # Turn off last (unrequested) axes on grid.
         if nplots is not None:
@@ -782,11 +837,16 @@ def get_colors(from_mpl_cycle=False, as_cycle=True):
     return cols
 
 
-def get_proxy_patch(label, color):
-    """Return patch proxy artist. Useful for creating custom legends."""
+def get_proxy_artist(label, color, artist_type='patch'):
+    """Return proxy artist. Useful for creating custom legends."""
 
-    patch = mpl.patches.Patch(color=color, label=label)
-    return patch
+    if artist_type == 'patch':
+        artist = mpl.patches.Patch(color=color, label=label)
+
+    else:   # line
+        artist = mpl.lines.Line2D([], [], color=color, label=label)
+
+    return artist
 
 
 # %% General purpose plotting functions.
@@ -857,7 +917,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 
     # Save and return plot.
-    save_fig(plt.gcf(), ffig)
+    save_fig(ffig=ffig)
     return ax
 
 

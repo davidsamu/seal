@@ -64,6 +64,20 @@ class Periods:
 
         return self.end(names) - self.start(names)
 
+    def prd_info_str(self, names=None, sep=' '):
+        """Return formatted period information string in dictionary."""
+
+        if names is None:
+            names = self.names()
+
+        prd_info_list = [(name, '{}{}({} - {})'.format(name, sep,
+                                                       self.start(name),
+                                                       self.end(name)))
+                         for name in names]
+        prd_info_dict = OrdDict(prd_info_list)
+
+        return prd_info_dict
+
     # %% Mutating methods.
     def delay_periods(self, delay, which_list, where_list):
         """Return periods dataframe with delay stimulus periods."""

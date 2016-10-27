@@ -537,8 +537,8 @@ class Unit:
             res = self.calc_DS(stim, t1=None, t2=None)
 
             # Generate data points for plotting fitted tuning curve.
-            x, y = tuning.gen_fit_curve(res['fit_res'].loc['fit'],
-                                        res['dirs_cntr'], -180*deg, 180*deg)
+            x, y = tuning.gen_fit_curve(res['fit_res'].loc['fit'], deg,
+                                        -180*deg, 180*deg)
 
             # Add calculated values to unit.
             self.UnitParams['PrefDir'][stim] = res['PD']
