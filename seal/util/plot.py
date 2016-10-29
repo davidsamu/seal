@@ -14,7 +14,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from quantities import ms, rad, deg
+from quantities import ms, rad
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -29,6 +29,7 @@ plt.style.use('classic')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
+mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 mpl.rc('legend', fontsize='small')
 mpl.rc(('xtick', 'ytick'), labelsize='small')
 mpl.rc('axes', labelsize='medium', titlesize='x-large')
@@ -41,6 +42,17 @@ savefig_dpi = 150
 
 # To restore matplotlib default settings
 # matplotlib.rcdefaults()
+
+
+# TODO: change everything to Seaborn API? :-)
+
+
+# %% Some plotting constants.
+
+t_lbl = 'time (ms)'
+FR_lbl = 'Firing rate (sp/s)'
+
+my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 
 
 # %% Functions to plot group and unit level properties.
@@ -75,7 +87,7 @@ def group_params(unit_params, params_to_plot=None, ffig=None):
         v = unit_params[pp]
         if pp in categorical:
             v = np.array(v, dtype='object')
-        histogram(v, xlab=pp, ylab='n', title=pp, color=next(colors), ax=ax)
+        histogram(v, xlab=pp, title=pp, color=next(colors), ax=ax)
 
     # Add main title
     fig_title = ('Distributions of session parameters, quality metrics ' +
@@ -131,8 +143,7 @@ def empty_raster_rate(fig, outer_gsp, nraster):
 
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
                 segments=None, pvals=None, test=None, test_kwargs={},
-                ylim=None, title=None,
-                xlab='Time (ms)', ylab_rate='Firing rate (sp/s)',
+                ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
                 add_ylab_raster=True,  markersize=1.5, legend=True,
                 nlegend=True, fig=None, ffig=None, outer_gsp=None):
     """Plot raster and rate plots."""
@@ -170,7 +181,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
 
 
 def raster(spikes, t1, t2, t_unit=ms, segments=None,
-           markersize=1.5, title=None, xlab='Time (ms)', ylab=None,
+           markersize=1.5, title=None, xlab=t_lbl, ylab=None,
            ffig=None, ax=None):
     """Plot rasterplot."""
 
@@ -187,7 +198,7 @@ def raster(spikes, t1, t2, t_unit=ms, segments=None,
     ylim = [0.5, len(spikes)+0.5] if len(spikes) else [0, 1]
     set_limits(xlim, ylim, ax=ax)
     set_max_n_ticks(max_n_ticks=7, axis='y', ax=ax)
-    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -214,8 +225,8 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
 
 
 def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
-         segments=None, pvals=None, test=None, test_kwargs={}, xlim=None, ylim=None,
-         colors=None, title=None, xlab='Time (ms)', ylab='Firing rate (sp/s)',
+         segments=None, pvals=None, test=None, test_kwargs={}, xlim=None,
+         ylim=None, colors=None, title=None, xlab=t_lbl, ylab=FR_lbl,
          legend=True, lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
 
@@ -263,7 +274,7 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
     if t1 is not None and t2 is not None and t_unit is not None:
         xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
     set_limits(xlim, ylim, ax=ax)
-    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(True, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -328,7 +339,7 @@ def direction_selectivity(DSres, title=None, labels=True,
 
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
-        ylab = 'Firing rate (sp/s)' if labels else None
+        ylab = FR_lbl if labels else None
         xticks = [-180, -90, 0, 90, 180]
         tuning_curve_sample(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
                             DSr.xfit, DSr.yfit, xticks, color, None, xlab, ylab,
@@ -448,7 +459,7 @@ def tuning_curve_sample(val, meanFR, semFR, xfit, yfit, xticks=None, color='b',
 
 def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
                        step=45, colors=None, pvals=[0.01], test='t-test',
-                       xlab='Degree', ylab='Firing rate (sp/s)', title='auto',
+                       xlab='Degree', ylab=FR_lbl, title='auto',
                        legend=True, lgn_lbl='units', ax=None, ffig=None):
     """Plot tuning curves (without data samples)."""
 
@@ -526,9 +537,10 @@ def plot_segments(segments, t_unit=ms, alpha=0.2, color='grey',
     ax = axes(ax)
     prds = segments.periods()
     for name, (t_start, t_stop) in prds.iterrows():
-        t1 = t_start.rescale(t_unit)
-        t2 = t_stop.rescale(t_unit)
-        ax.axvspan(t1, t2, alpha=alpha, color=color, **kwargs)
+        if t_unit is not None:
+            t_start = t_start.rescale(t_unit)
+            t_stop = t_stop.rescale(t_unit)
+        ax.axvspan(t_start, t_stop, alpha=alpha, color=color, **kwargs)
 
 
 def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
@@ -540,7 +552,8 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
 
     # Add each event to plot as a vertical line.
     for key, time in events.items():
-        time = time.rescale(t_unit)
+        if t_unit is not None:
+            time = time.rescale(t_unit)
         ymax = lbl_height-0.02 if add_names else 1
         ax.axvline(time, color=color, alpha=alpha, lw=lw, ymax=ymax, **kwargs)
 
@@ -550,6 +563,26 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
             yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
             ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
                     va='bottom', ha=lbl_ha)
+
+
+def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
+    """Add identity line to axes."""
+
+    ax = axes(ax)
+
+    if equal_xy:   # Safer to use this option, if x and y axes are equalised.
+        xymin, xymax = 0, 1
+        transform = ax.transAxes
+
+    else:  # Less safe because it breaks if axes limits are changed afterwards.
+        [xmin, xmax] = ax.get_xlim()
+        [ymin, ymax] = ax.get_ylim()
+        xymin = max(xmin, ymin)
+        xymax = min(xmax, ymax)
+        transform = None
+
+    lines([xymin, xymax], [xymin, xymax], ax=ax, color=color, ls=ls,
+          transform=transform)
 
 
 # %% Plot setup functions.
@@ -612,7 +645,7 @@ def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
 
 
 def show_spines(bottom=True, left=False, top=False, right=False, ax=None):
-    """Remove selected spines (axis lines) from current axes."""
+    """Remove selected spines (axis lines) from axes."""
 
     ax = axes(ax)
     if 'polar' in ax.spines:  # Polar coordinate
@@ -625,8 +658,8 @@ def show_spines(bottom=True, left=False, top=False, right=False, ax=None):
         ax.spines['right'].set_visible(right)
 
 
-def set_ticks(xtick_pos='bottom', ytick_pos='left', ax=None):
-    """Remove selected ticks from current axes.
+def set_ticks_side(xtick_pos='bottom', ytick_pos='left', ax=None):
+    """Remove selected tick marks on axes.
        xtick_pos: [ 'bottom' | 'top' | 'both' | 'default' | 'none' ]
        ytick_pos: [ 'left' | 'right' | 'both' | 'default' | 'none' ]
     """
@@ -677,10 +710,10 @@ def colorbar(fig, cb_map, cax=None, axs=None, cb_title=None, **kwargs):
     return cb
 
 
-def set_legend(ax, add_legend=True, loc='upper right',
-               frameon=False, **kwargs):
+def set_legend(ax, add_legend=True, loc=0, frameon=False, **kwargs):
     """Add legend to axes."""
 
+    ax = axes(ax)
     if not add_legend:
         return None
 
@@ -692,12 +725,27 @@ def set_legend(ax, add_legend=True, loc='upper right',
 def set_tick_labels(ax, axis, pos=None, lbls=None, **kwargs):
     """Set tick labels on axes."""
 
+    ax = axes(ax)
     if axis == 'x':
         ax.set_xticks(pos)
         ax.set_xticklabels(lbls, **kwargs)
-    else:
+    elif axis == 'y':
         ax.set_yticks(pos)
         ax.set_yticklabels(lbls, **kwargs)
+    else:
+        warnings.warn('Unidentified axes: {}'.format(axis))
+
+
+def rotate_labels(ax, axis, rot, ha='right', va='top'):
+    """Rotate labels on seletect axis."""
+
+    ax = axes(ax)
+    if axis == 'x':
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=rot, ha=ha)
+    elif axis == 'y':
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=rot, va=va)
+    else:
+        warnings.warn('Unidentified axes: {}'.format(axis))
 
 
 def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
@@ -822,6 +870,12 @@ def inline_off():
     plt.ioff()
 
 
+def change_style(style='classic'):
+    """Change Pyplot plotting style."""
+
+    plt.style.use(style)
+
+
 # %% Miscellanous plot related functions.
 
 def get_colors(from_mpl_cycle=False, as_cycle=True):
@@ -831,7 +885,7 @@ def get_colors(from_mpl_cycle=False, as_cycle=True):
         col_cylce = mpl.rcParams['axes.prop_cycle']  # MPL default color list
         cols = [d['color'] for d in col_cylce]
     else:
-        cols = ['m', 'g', 'r', 'c', 'b', 'y']  # custom list of colors
+        cols = my_color_list  # custom list of colors
 
     if as_cycle:  # for cyclic indexing
         cols = cycle(cols)
@@ -914,7 +968,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Format plot.
     set_limits(xlim, ylim, ax)
-    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(ax=ax)
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 
@@ -924,12 +978,11 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
 
 # TODO: add side histograms to scatter plot!
-# http://matplotlib.org/examples/pylab_examples/scatter_hist.html
+# http://seaborn.pydata.org/generated/seaborn.jointplot.html#seaborn.jointplot
 
 def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
-            title=None, ytitle=None, polar=False, add_r=False, sign_test=None,
-            add_id_line=True, equal_xy=True, match_xy_apsect=True, c='cyan',
-            ffig=None, ax=None, **kwargs):
+            title=None, ytitle=None, add_id_line=False, equal_xy=False,
+            match_xy_apsect=False, c='cyan', ffig=None, ax=None, **kwargs):
     """Plot two vectors on scatter plot."""
 
     # Fill significant points.
@@ -939,42 +992,85 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
         colors = [c if sign else 'w' for sign in is_sign]
 
     # Plot scatter plot.
-    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'scatter', c=colors, edgecolor=edgecolors, ffig=ffig,
-                   ax=ax, **kwargs)
-
-    # Add correlation test results.
-    if add_r:
-        r, p = util.pearson_r(x, y)
-        r_text = 'r = {:.2f} ({})'.format(r, util.format_pvalue(p))
-        ax.text(0.95, 0.05, r_text, transform=ax.transAxes,
-                ha='right', va='bottom')
-
-    # Add custom significance test results.
-    if sign_test is not None:
-        pval = sign_test(x, y)[1]
-        p_str = util.format_pvalue(pval)
-        ax.text(1, 0.02, p_str, transform=ax.transAxes,
-                ha='right', va='bottom')
+    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, False, 'scatter',
+                   c=colors, edgecolor=edgecolors, ffig=ffig, ax=ax, **kwargs)
 
     # Optionally: Equalise scale and match aspect ratio between x and y axes.
     sync_axes([ax], equal_xy=equal_xy, match_xy_aspect=match_xy_apsect)
 
-    # Add identity line.
     if add_id_line:
-        if equal_xy:
-            lines([0, 1], [0, 1], ax=ax, color='grey', ls='--',
-                  transform=ax.transAxes)
-        else:  # This breaks if axes limits are changed afterwards.
-            [xmin, xmax] = ax.get_xlim()
-            [ymin, ymax] = ax.get_ylim()
-            xymin = max(xmin, ymin)
-            xymax = min(xmax, ymax)
-            lines([xymin, xymax], [xymin, xymax], ax=ax, color='grey', ls='--')
+        add_identity_line(equal_xy=equal_xy, ax=ax)
 
     # Custom post-formatting.
     show_spines(bottom=True, left=True, ax=ax)
 
+    return ax
+
+
+# TODO: Report and test significant values separately.
+def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True,
+               add_id_line=True, equal_xy=True, match_xy_apsect=True,
+               xtext=0.80, ytext=0.02, ha_text='left', va_text='bottom',
+               ffig=None, ax=None, **kwargs):
+    """Scatter plot for testing identity/difference between pairs of values."""
+
+    # Plot scatter.
+    ax = scatter(x, y, is_sign, add_id_line=add_id_line, equal_xy=equal_xy,
+                 match_xy_apsect=match_xy_apsect, ax=ax, **kwargs)
+
+    # Report N.
+    report_txt = ''
+    if report_N:
+        report_txt += 'n = {}\n'.format(len(x))
+
+    # Add significance test results.
+    if sign_test is not None:
+        pval = sign_test(x, y)[1]
+        report_txt += util.format_pvalue(pval)
+
+    if report_txt:
+        ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
+                ha=ha_text, va=va_text)
+
+    # Save and return plot.
+    save_fig(ffig=ffig)
+    return ax
+
+
+# TODO: Report and test significant values separately.
+def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False,
+                 equal_xy=False, match_xy_apsect=False, add_lin_fit=True,
+                 xtext=0.05, ytext=0.95, ha_text='left', va_text='top',
+                 ffig=None, ax=None, **kwargs):
+    """Scatter plot for testing correlation between pairs of values."""
+
+    # Plot scatter.
+    ax = scatter(x, y, is_sign, add_id_line=add_id_line, equal_xy=equal_xy,
+                 match_xy_apsect=match_xy_apsect, ax=ax, **kwargs)
+
+    # Add linear fit.
+    # TODO: add confidence interval using stderr
+    # http://stackoverflow.com/questions/27164114/show-confidence-limits-and-prediction-limits-in-scatter-plot
+    if add_lin_fit:
+        slope, intercept, r, p, stderr = util.lin_regress(x, y)
+        ax.plot(x, slope*x + intercept, '-', c='grey')
+
+    # Report N.
+    report_txt = ''
+    if report_N:
+        report_txt += 'n = {}\n'.format(len(x))
+
+    # Add correlation test results.
+    r, p = util.pearson_r(x, y)
+    report_txt += 'r = {:.2f} ({})'.format(r, util.format_pvalue(p))
+    report_txt += '\nR$\mathdefault{^2}$' + ' = {:.0f}%'.format(100*r**2)
+
+    if report_txt:
+        ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
+                ha=ha_text, va=va_text)
+
+    # Save and return plot.
+    save_fig(ffig=ffig)
     return ax
 
 
@@ -1009,7 +1105,7 @@ def errorbar(x, y, ylim=None, xlim=None, xlab=None, ylab=None,
     return ax
 
 
-def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
+def histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
               ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot histogram."""
 
@@ -1019,6 +1115,7 @@ def histogram(vals, xlim=None, ylim=None, xlab=None, ylab=None, title=None,
     return ax
 
 
+# TODO: check if fig needs to be passed and/or created
 def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
                 xlim=None, ylim=None, xlab=None, ylab=None, title=None,
                 cbar=True, cb_title=None, ax=None, fig=None, ffig=None,
@@ -1045,7 +1142,7 @@ def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
 
     # Format plot.
     set_limits(xlim, ylim, ax)
-    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
@@ -1055,7 +1152,7 @@ def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
 
 
 def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
-            title=None, xlab='Time (ms)', ylab='Unit number', cmap='viridis',
+            title=None, xlab=t_lbl, ylab='Unit number', cmap='viridis',
             cbar=True, cb_title=None, ax=None, fig=None, ffig=None):
     """Plot 2D matrix as heatmap."""
 
@@ -1080,7 +1177,7 @@ def heatmap(mat, tvec, t_unit=ms, t1=None, t2=None, vmin=None, vmax=None,
 
     # Format plot.
     set_limits([min(X), max(X)], [min(Y), max(Y)], ax)
-    set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
     show_spines(False, False, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 

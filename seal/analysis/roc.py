@@ -3,7 +3,7 @@
 """
 Created on Tue Sep  6 10:17:45 2016
 
-Functions for performing and processing ROC analysis.
+Functions for performing and processing ROC analyses.
 
 @author: David Samu
 """
@@ -61,7 +61,7 @@ def ROC(x, y, n_perm=None, clf=None):
 
     pval = None
     if n_perm is not None and n_perm is not 0:
-        # Get a ditribution of null-hypothesis values by permutation test.
+        # Get null-hypothesis distribution by permutation test.
         rand_splits = ShuffleSplit(len(x), n_perm, len(np.where(y == 1)[0]))
         perm_auc = np.array([calc_auc(clf, x, y[np.concatenate(s)]) for s
                              in rand_splits])

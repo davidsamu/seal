@@ -397,7 +397,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                                (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
         title = '{} waveforms, {} spikes, {} trials'.format(st, n_sp, n_tr)
         plot.set_limits(xlim=wf_t_lim, ylim=glim, ax=ax)
-        plot.set_ticks(xtick_pos='none', ytick_pos='none', ax=ax)
+        plot.set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
         plot.show_spines(True, False, False, False, ax=ax)
         plot.set_labels(title=title, xlab=wf_t_lab, ylab=volt_lab, ax=ax)
 
@@ -413,7 +413,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # Waveform amplitude across session time.
     m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
     title = 'Waveform amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
-    plot.scatter(spike_times, wf_amp_all, add_r=False, c=get_color('m'), s=ss,
+    plot.scatter(spike_times, wf_amp_all, c=get_color('m'), s=ss,
                  xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_amp)
 
@@ -422,7 +422,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     wf_dur_inc = wf_dur_all[sp_inc]
     mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
     title = 'Waveform duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
-    plot.scatter(spike_times, wf_dur_all, add_r=False, c=get_color('c'), s=ss,
+    plot.scatter(spike_times, wf_dur_all, c=get_color('c'), s=ss,
                  xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_dur)
 
@@ -460,7 +460,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     ylim = [0, 1.1*np.max(rate_t.magnitude)]
     plot_periods(rate_t, 'b', ax_rate)
     plot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim,
-               title=title, xlab=ses_t_lab, ylab='Firing rate (spike/s)',
+               title=title, xlab=ses_t_lab, ylab=plot.FR_lbl,
                ax=ax_rate)
 
     # Add trial markers and highlight included period in each plot.
@@ -727,7 +727,7 @@ def check_recording_stability(UnitArr, fname):
         # Set limits and add labels to plot.
         plot.set_limits(xlim=[None, max(tr_time)], ax=ax)
         plot.set_labels(title=prd_name, xlab='Recording time (s)',
-                        ylab='Firing rate (sp/s)', ax=ax)
+                        ylab=plot.FR_lbl, ax=ax)
 
     # Format and save figure.
     title = 'Recording stability of ' + UnitArr.Name

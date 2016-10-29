@@ -476,6 +476,12 @@ def pearson_r(v1, v2):
     return r, p
 
 
+def lin_regress(x, y):
+    """Returns linear regression results."""
+
+    return sp.stats.linregress(x, y)
+
+
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.

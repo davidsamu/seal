@@ -363,6 +363,15 @@ class Unit:
 
         return ptrials
 
+    def correct_incorrect_trials(self):
+        """Return indices of correct and incorrect trials."""
+
+        ctrs = OrdDict()
+        ctrs['correct'] = self.trials_by_param_values('AnswCorr', [True])[0]
+        ctrs['error'] = self.trials_by_param_values('AnswCorr', [False])[0]
+
+        return ctrs
+
     # %% Methods that provide interface to Unit's Spikes data.
 
     def get_rates_by_trial(self, trials=None, t1=None, t2=None):
