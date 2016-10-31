@@ -364,6 +364,20 @@ def remove_dim_to_df_col(qcol):
 
 # %% Function for analysing directions.
 
+def deg2rad(v_deg):
+    """Convert degrees to radians."""
+
+    v_rad = np.pi * v_deg / 180
+    return v_rad
+
+
+def rad2deg(v_rad):
+    """Convert radians to degrees."""
+
+    v_deg = 180 * v_rad / np.pi
+    return v_deg
+
+
 def cart2pol(x, y):
     """Perform convertion from Cartesian to polar coordinates."""
 
@@ -398,16 +412,22 @@ def deg_diff(d1, d2):
     return d
 
 
-def deg_w_mean(dirs, weights=None):
+def deg_w_mean(dirs, weights=None, cdirs=None):
     """
-    Takes a vector of directions (2D unit vectors) and their weights, and returns
-        - index of unidirectionality of weights (inverse of spread, "direction selectivity")
-        - weighted mean of directions ("preferred direction")
-        - coarsed weighted mean of directions ("preferred one of the original direction").
+    Taking a vector of directions (2D unit vectors) and their weights, returns
+        - index of unidirectionality of weights
+            + inverse of spread, "direction selectivity", DSI
+        - weighted mean of directions
+            + "preferred direction", PD
+        - coarsed weighted mean of directions
+            + "preferred one of the original (or passed) directions", PDc.
     """
 
     if weights is None:
         weights = np.ones(len(dirs))
+
+    if cdirs is None:
+        cdirs = np.unique(dirs)
 
     # Remove values correspinding to NaN weights.
     idxs = np.logical_not(np.isnan(weights))
@@ -429,8 +449,8 @@ def deg_w_mean(dirs, weights=None):
     phi_deg = deg_mod(phi*rad)
 
     # Coarse to one of the original directions.
-    deg_diffs = np.array([deg_diff(d, phi_deg) for d in dirs])
-    phi_deg_c = dirs[np.argmin(deg_diffs)]
+    deg_diffs = np.array([deg_diff(d, phi_deg) for d in cdirs])
+    phi_deg_c = cdirs[np.argmin(deg_diffs)]
 
     return rho, phi_deg, phi_deg_c
 

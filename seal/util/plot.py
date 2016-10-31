@@ -21,11 +21,14 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
 
+import seaborn as sns
+
 from seal.util import util
 
 
 # %% Matplotlib setup
 plt.style.use('classic')
+sns.set(style='darkgrid')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
@@ -804,11 +807,12 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2, ax_kwargs_list=None,
     """Return list or array of GridSpec subplots."""
 
     # If ncol not specified: get approx'ly equal number of rows and columns.
-    nplots = None
     if ncol is None:
         nplots = nrow
         nrow = int(np.floor(np.sqrt(nplots)))
         ncol = int(np.ceil(nplots / nrow))
+    else:
+        nplots = nrow * ncol
 
     # Create figure, gridspec.
     if fig is None:
@@ -821,14 +825,19 @@ def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2, ax_kwargs_list=None,
 
         # Don't pass anything by default.
         if ax_kwargs_list is None:
-            ax_kwargs_list = (nrow*ncol)*[{}]
+            ax_kwargs_list = nplots * [{}]
+
+        # If single dictionary has been passed, instead of list of
+        # plot-specific params in dict), use it for all subplots.
+        elif isinstance(ax_kwargs_list, dict):
+            ax_kwargs_list = nplots * [ax_kwargs_list]
 
         # Initialise axes.
         axes = [fig.add_subplot(gs, **ax_kwargs)
                 for gs, ax_kwargs in zip(gsp, ax_kwargs_list)]
 
         # Turn off last (unrequested) axes on grid.
-        if nplots is not None:
+        if nplots < nrow * ncol:
             [ax.axis('off') for ax in axes[nplots:]]
 
         # Convert from list to array.
