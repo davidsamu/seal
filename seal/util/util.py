@@ -149,7 +149,15 @@ def star_pvalue(pval, n_max_stars=4):
 
     return pstr
 
+    
+def format_offsets(offsets):
+    """Returns list of degree offset values string formatted."""
 
+    offsets_str = ', '.join([str(int(off))+' deg' for off in offsets])
+    
+    return offsets_str
+    
+    
 # %% System-related functions.
 
 def run_in_pool(f, params, nCPU=None):

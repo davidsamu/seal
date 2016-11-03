@@ -16,6 +16,9 @@ from elephant.statistics import instantaneous_rate
 from seal.util import util
 
 
+# TODO: combine rates and times into DataFrame. Consider similar refactoring in other Seal objects.
+
+
 class Rate:
     """Class for storing firing rates per trial and associated properties."""
 

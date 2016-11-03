@@ -28,7 +28,8 @@ from seal.util import util
 
 # %% Matplotlib setup
 plt.style.use('classic')
-sns.set(style='darkgrid')
+sns.set_style('whitegrid')  # darkgrid, whitegrid, dark, white or ticks
+sns.set_context('notebook')  # notebook, paper, poster or talk
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
@@ -567,7 +568,15 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
             ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
                     va='bottom', ha=lbl_ha)
 
+            
+def add_chance_level_line(ylevel=0.5, color='grey', ls='--', alpha=0.5, 
+                          ax=None):
+    """Add horizontal line denoting chance level for decoder accuracy plot."""
 
+    ax = axes(ax)
+    ax.axhline(ylevel, color=color, ls=ls, alpha=alpha)
+    
+    
 def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
     """Add identity line to axes."""
 
