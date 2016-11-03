@@ -29,7 +29,7 @@ from seal.util import util
 # %% Matplotlib setup
 plt.style.use('classic')
 sns.set_style('whitegrid')  # darkgrid, whitegrid, dark, white or ticks
-sns.set_context('notebook')  # notebook, paper, poster or talk
+sns.set_context('poster')  # notebook, paper, poster or talk
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
@@ -911,14 +911,14 @@ def get_colors(from_mpl_cycle=False, as_cycle=True):
     return cols
 
 
-def get_proxy_artist(label, color, artist_type='patch'):
+def get_proxy_artist(label, color, artist_type='patch', **kwargs):
     """Return proxy artist. Useful for creating custom legends."""
 
     if artist_type == 'patch':
-        artist = mpl.patches.Patch(color=color, label=label)
+        artist = mpl.patches.Patch(color=color, label=label, **kwargs)
 
     else:   # line
-        artist = mpl.lines.Line2D([], [], color=color, label=label)
+        artist = mpl.lines.Line2D([], [], color=color, label=label, **kwargs)
 
     return artist
 
