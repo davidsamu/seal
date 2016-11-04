@@ -44,8 +44,8 @@ tr_prds = Periods([('Whole trial', [-1000*ms, 4000*ms]),
 stim_prds = Periods(tr_prds.periods(['S1', 'S2']))
 
 # Extended stimulus periods.
-ext_stim_prds = Periods([('S1', [ -1000*ms, 1250*ms]),
-                         ('S2', [  1250*ms, 3500*ms])])
+ext_stim_prds = Periods([('S1', [ -1000*ms, 1900*ms]),
+                         ('S2', [  1900*ms, 3500*ms])])
 
 # Delay sub-periods.
 delay_prds = Periods([('early',  [  500*ms, 1000*ms]),
@@ -71,11 +71,17 @@ del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
 
 # %% Analysis constants.
 
+def get_rec_kernel_sigma(width):
+    return width.rescale(ms)/2/np.sqrt(3)
+
 # Kernels for firing rate estimation.
 kernels = {'G20': GaussianKernel(sigma=20*ms),
            'G40': GaussianKernel(sigma=40*ms),
-           'R50': RectangularKernel(sigma=50*ms/2/np.sqrt(3)),
-           'R100': RectangularKernel(sigma=100*ms/2/np.sqrt(3))}
+           'R50': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
+           'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
 
-kernels = {'R100': RectangularKernel(sigma=100*ms/2/np.sqrt(3))}
+kernels = {'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
+           'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms)),
+           'R300': RectangularKernel(sigma=get_rec_kernel_sigma(300*ms))}
+
 step = 10*ms

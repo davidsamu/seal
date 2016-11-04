@@ -147,9 +147,9 @@ def empty_raster_rate(fig, outer_gsp, nraster):
 
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
                 segments=None, pvals=None, test=None, test_kwargs={},
-                ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
-                add_ylab_raster=True,  markersize=1.5, legend=True,
-                nlegend=True, fig=None, ffig=None, outer_gsp=None):
+                colors=None, ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
+                lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5, legend=True,
+                fig=None, ffig=None, outer_gsp=None):
     """Plot raster and rate plots."""
 
     # Create subplots (as nested gridspecs).
@@ -161,13 +161,17 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     ylab_posx = -0.05
 
     # Raster plot(s).
+    if colors is None:
+        col_cyc = get_colors(from_mpl_cycle=True)
+        colors = [next(col_cyc) for i in range(len(spikes_list))]
+        
     raster_axs = []
     for i, sp_tr in enumerate(spikes_list):
         ax = fig.add_subplot(gsp_raster[i, 0])
         ttl = title if i == 0 else None  # add title to top raster
         ylab = names[i] if add_ylab_raster else None
         raster(sp_tr, t1, t2, t_unit, segments, markersize,
-               ttl, None, ylab, ax=ax)
+               colors[i], ttl, None, ylab, ax=ax)
         ax.set_xticklabels([])
         ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
         raster_axs.append(ax)
@@ -175,8 +179,8 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, True, t_unit, segments, pvals, test,
-         test_kwargs, None, ylim, None, None, xlab, ylab_rate,  legend,
-         ax=rate_ax)
+         test_kwargs, None, ylim, colors, None, xlab, ylab_rate,  legend, 
+         lgn_lbl_rate, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Save and return plot.
@@ -185,17 +189,18 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
 
 
 def raster(spikes, t1, t2, t_unit=ms, segments=None,
-           markersize=1.5, title=None, xlab=t_lbl, ylab=None,
+           markersize=1.5, color=None, title=None, xlab=t_lbl, ylab=None,
            ffig=None, ax=None):
     """Plot rasterplot."""
 
     # Plot raster.
     ax = axes(ax)
+        
     plot_segments(segments, t_unit, ax=ax)
     for i, sp_tr in enumerate(spikes):
         t = sp_tr.rescale(t_unit)
-        ax.plot(t, (i+1) * np.ones_like(t), 'k.',
-                markersize=markersize, alpha=0.33)
+        ax.plot(t, (i+1) * np.ones_like(t), color=color, marker='.', ls='None',
+                markersize=markersize, alpha=1)
 
     # Format plot.
     xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
@@ -243,18 +248,22 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
     if not mean:
         lgn_patches = []
 
+    # Raster plot(s).
     if colors is None:
-        colors = get_colors(from_mpl_cycle=True)
+        col_cyc = get_colors(from_mpl_cycle=True)
+        colors = [next(col_cyc) for i in range(len(rates_list))]
 
-    for name, rts in zip(names, rates_list):
+    for i, (name, rts) in enumerate(zip(names, rates_list)):
 
         # Scale time vector.
         if t_unit is not None:
             time = time.rescale(t_unit)
 
         # Set line color and label.
-        col = next(colors)
-        lbl = '{} ({} {})'.format(name, rts.shape[0], lgn_lbl)
+        col = colors[i]
+        lbl = name
+        if lgn_lbl is not None and lgn_lbl is not False:
+            lbl += ' ({} {})'.format(rts.shape[0], lgn_lbl)
 
         # Plot mean +- SEM of rate vectors.
         if mean:
@@ -688,7 +697,7 @@ def set_max_n_ticks(max_n_ticks=5, axis='both', ax=None):
     ax.locator_params(axis=axis, nbins=max_n_ticks-1)
 
 
-def hide_ticks(show_x_ticks=False, show_y_ticks=False, ax=None):
+def hide_ticks(ax=None, show_x_ticks=False, show_y_ticks=False):
     """Hide ticks on either or both axes."""
 
     ax = axes(ax)
@@ -698,7 +707,7 @@ def hide_ticks(show_x_ticks=False, show_y_ticks=False, ax=None):
         ax.get_yaxis().set_ticks([])
 
 
-def hide_axes(show_x=False, show_y=False, ax=None):
+def hide_axes(ax=None, show_x=False, show_y=False):
     """Hide all ticks, labels and spines of either or both axes."""
 
     # Hide axis ticks and labels.
@@ -706,11 +715,14 @@ def hide_axes(show_x=False, show_y=False, ax=None):
     ax.xaxis.set_visible(show_x)
     ax.yaxis.set_visible(show_y)
 
-    # Hide spines.
-    upper = None if show_x else False
-    right = None if show_y else False
-    show_spines(show_x, show_y, upper, right, ax)
-
+    # Hide spines of axes to hide. (Don't change the others!)
+    if not show_x:
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['top'].set_visible(False)        
+    if not show_y:
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
 
 # See bottom of this for better colorbar handling!
 # http://matplotlib.org/users/tight_layout_guide.html
