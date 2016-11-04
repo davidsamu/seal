@@ -87,6 +87,7 @@ class Unit:
 
         self.UnitParams['PrefDir'] = OrdDict()
         self.UnitParams['PrefDirCoarse'] = OrdDict()
+        self.UnitParams['AntiPrefDirCoarse'] = OrdDict()
         self.UnitParams['DirSelectivity'] = OrdDict()
         self.UnitParams['DirTuningParams'] = OrdDict()
 
