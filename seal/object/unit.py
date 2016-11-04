@@ -260,8 +260,7 @@ class Unit:
     def anti_pref_dir(self, stim='S1'):
         """Return anti-preferred direction."""
 
-        pdir = self.pref_dir(stim)
-        adir = util.deg_mod(pdir+180*deg)
+        adir = self.UnitParams['AntiPrefDirCoarse'][stim]
         return adir
 
     # %% Generic methods to get various set of trials.
@@ -496,6 +495,7 @@ class Unit:
 
         return p_values, mean_rate, std_rate, sem_rate
 
+    # TODO: put these into Dataframe!
     def calc_dir_response(self, stim, t1=None, t2=None):
         """Calculate mean response to each direction during given stimulus."""
 
@@ -516,6 +516,14 @@ class Unit:
 
         # Calculate preferred direction and direction selectivity index.
         DSI, PD, PDc = util.deg_w_mean(dirs, meanFR)
+        
+        # Calculate antipreferred direction.
+        ADc = util.deg_mod(PDc+180*deg)
+        
+        # Calculate legacy direction selectivity index (FRpref - FRanti)        
+        pFR = meanFR[np.where(dirs == PDc)[0]]
+        aFR = meanFR[np.where(dirs == ADc)[0]]
+        DS2 = float(util.modulation_index(pFR, aFR))
 
         # Calculate parameters of Gaussian tuning curve.
         # Center stimulus - response firts.
@@ -527,9 +535,9 @@ class Unit:
 
         # Prepare results.
         res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
-               'DSI': DSI, 'PD': PD, 'PDc': PDc, 'dirs_cntr': dirs_cntr,
-               'meanFR_cntr': meanFR_cntr, 'semFR_cntr': semFR_cntr,
-               'fit_res': fit_res}
+               'DSI': DSI, 'DS2': DS2, 'PD': PD, 'PDc': PDc, 'ADc': ADc,
+               'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr, 
+               'semFR_cntr': semFR_cntr, 'fit_res': fit_res}
 
         return res
 
@@ -553,7 +561,9 @@ class Unit:
             # Add calculated values to unit.
             self.UnitParams['PrefDir'][stim] = res['PD']
             self.UnitParams['PrefDirCoarse'][stim] = res['PDc']
+            self.UnitParams['AntiPrefDirCoarse'][stim] = res['ADc']
             self.UnitParams['DirSelectivity'][stim] = res['DSI']
+            self.UnitParams['DS2'][stim] = res['DS2']
             self.UnitParams['DirTuningParams'][stim] = res['fit_res']
 
             # Collect data for plotting.

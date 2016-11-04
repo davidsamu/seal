@@ -28,8 +28,7 @@ from seal.util import util
 
 # %% Matplotlib setup
 plt.style.use('classic')
-sns.set_style('whitegrid')  # darkgrid, whitegrid, dark, white or ticks
-sns.set_context('poster')  # notebook, paper, poster or talk
+# set_seaborn_style_context('whitegrid', 'poster')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
@@ -48,7 +47,7 @@ savefig_dpi = 150
 # matplotlib.rcdefaults()
 
 
-# TODO: change everything to Seaborn API? :-)
+# TODO: change everything to Seaborn API? :-) 
 
 
 # %% Some plotting constants.
@@ -935,6 +934,20 @@ def get_proxy_artist(label, color, artist_type='patch', **kwargs):
     return artist
 
 
+# %% Seaborn related functions.
+
+def set_seaborn_style_context(style=None, context=None):
+    """Set Seaborn style and context."""
+    
+    # Available styles: darkgrid, whitegrid, dark, white or ticks.
+    if style is not None:
+        sns.set_style(style)
+        
+    # Available contexts: notebook, paper, poster or talk.      
+    if context is not None:
+        sns.set_context(context) 
+    
+    
 # %% General purpose plotting functions.
 
 def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
