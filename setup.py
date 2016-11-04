@@ -27,9 +27,10 @@ setup(name='seal',
       install_requires=[
         'numpy',       # core
         'scipy',
-        'pandas',
+        'pandas',      # data analysis
         'sklearn',
-        'matplotlib',
+        'matplotlib',  # plotting
+        'seaborn',
         'quantities',  # neurophy
         'neo',
         'elephant',
