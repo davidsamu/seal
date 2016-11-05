@@ -11,7 +11,7 @@ Collection of functions related to quality metrics of recording.
 import numpy as np
 import scipy as sp
 import pandas as pd
-from quantities import s, ms, us
+from quantities import s, ms, us, deg
 from collections import OrderedDict as OrdDict
 
 from elephant import statistics
@@ -489,6 +489,118 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
 # %% Quality tests across tasks.
 
+# TODO: change sectors to lines, add max FR labels, add S2 response to polar?
+# Separate S2 axes with for trials grouped by S2Dir!
+def direction_response_test(UnitArr, nrate, ftempl, tasks=None,
+                            match_FR_scale_across_tasks=True):
+    """Plot responses to 8 directions and polar plot in the center."""
+    
+    # Init plotting.
+    if tasks is None:
+        tasks = UnitArr.tasks()
+    unit_ids = UnitArr.rec_ch_unit_indices()
+    ntask = len(tasks)
+    nrate = 'R100'
+
+    t1 = -500*ms
+    t2 = 3000*ms    
+    # TODO: this should be done in plot.raster&rate automatically.
+    xticks = np.arange(-1000, 5000+1, 1000)    
+    xtck = xticks[np.logical_and(xticks > t1, xticks < t2+1*ms)]
+                  
+    # Reorder directions to match with order of axes.
+    rr_order = [3, 2, 1, 4, 0, 5, 6, 7]
+    dir_order = constants.all_dirs[rr_order]
+    dir_order = np.insert(dir_order, 4, np.nan) * deg  # add polar plot
+                  
+    # For each unit over all tasks.
+    for uid in unit_ids:
+        
+        print(uid)
+        
+        # Init unit and figure.
+        Unit_list = UnitArr.unit_list(tasks, [uid], return_empty=True)
+        fig, gsp, _ = plot.get_gs_subplots(nrow=1, ncol=ntask,
+                                           subw=6, subh=6, create_axes=False)
+        rate_axs = []
+        polar_axs = []
+    
+        # Plot direction response of unit in each task.
+        for itask, (unit_sps, u) in enumerate(zip(gsp, Unit_list)):
+    
+            unit_gsp = plot.embed_gsp(unit_sps, 3, 3)
+            
+            for i, u_gsp in enumerate(unit_gsp):
+                
+                # Polar plot.
+                if i == 4:
+                                        
+                    ax_polar = fig.add_subplot(u_gsp, polar=True)                    
+                    if u.is_empty():
+                        ax_polar.axis('off')
+                    else:                        
+                        dirs, FR, _, _ = u.calc_dir_response('S1', 50*ms, 500*ms)                
+                        plot.polar_direction_response(dirs, FR, DSI=None, PD=None,
+                                                      color='b', ax=ax_polar)
+                    
+                        # Remove y-axis ticklabels.
+                        plot.hide_ticks(ax_polar, 'y')
+                        
+                        polar_axs.append(ax_polar)
+                  
+                # Raster-rate plot.
+                else:
+
+                    # Prepare plotting.
+                    rr_gsp = plot.embed_gsp(u_gsp, 2, 1)                                                                               
+                    if u.is_empty():                                    
+                        raster_axs, rate_ax = plot.empty_raster_rate(fig, rr_gsp, 1)
+                        
+                    # Plot raster&rate plot.
+                    else:
+                        stim_dir = dir_order[i]
+                        dd_trials = u.trials_by_param_values('S1Dir', [stim_dir]) 
+                        res = u.plot_raster_rate(nrate, trials=dd_trials, 
+                                                 no_labels=True, t1=t1, t2=t2, 
+                                                 legend=False, fig=fig, 
+                                                 outer_gsp=rr_gsp)
+                        _, raster_axs, rate_ax = res
+    
+                        # Remove y-axis ticklabels from raster plot.
+                        [plot.hide_ticks(ax) for ax in raster_axs]
+    
+                        # Remove axis ticks from rate plot (except first one).
+                        if i == 0:
+                            plot.set_tick_labels(rate_ax, 'x', pos=xtck, lbls=xtck)
+                        else:
+                            plot.hide_ticks(rate_ax)
+
+                        rate_axs.append(rate_ax)
+                            
+                    # Add task name as title.
+                    if i == 1:
+                        title = tasks[itask]
+                        plot.set_labels(title=title, ytitle=1.10, 
+                                        ax=raster_axs[0])                        
+
+                    # Match scale of y axes, only within task.
+                    if not match_FR_scale_across_tasks:        
+                        plot.sync_axes(rate_axs, sync_y=True)
+                        rate_axs = []
+                        
+        # Match scale of y axes across tasks.
+        if match_FR_scale_across_tasks:
+            plot.sync_axes(rate_axs, sync_y=True)            
+            plot.sync_axes(polar_axs, sync_y=True)
+        
+        # Format and save figure.
+        uid_str = util.format_rec_ch_idx(uid)
+        title = uid_str.replace('_', ' ')
+        fname = ftempl.format(uid_str)
+        plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92, w_pad=5)
+
+
+# TODO: update, simplify, refactor, and plot 1 figure per unit over tasks.
 def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
                            plot_rr=True, plot_ds=True, plot_dd_rr=True):
     """Test unit responses within trails."""
@@ -512,18 +624,14 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     rr_t1 = stim_df.start.min()
     rr_t2 = stim_df.end.max()
 
-    # Width and height of unit-level subfigures.
-    subw = 4.5
-    subh = 7
-
     # Init plotting.
     tasks = UnitArr.tasks()
-    unit_ids = UnitArr.rec_chan_unit_indices()[:1]
+    unit_ids = UnitArr.rec_ch_unit_indices()
     ntask = len(tasks)
     nchunit = len(unit_ids)
     Unit_list = UnitArr.unit_list(tasks, unit_ids, return_empty=True)
     fig, gsp, _ = plot.get_gs_subplots(nrow=nchunit, ncol=ntask,
-                                       subw=subw, subh=subh, create_axes=False)
+                                       subw=4.5, subh=7, create_axes=False)
     legend_kwargs = {'borderaxespad': 0}
 
     # Plot within-trial activity of each unit during each task.
@@ -658,7 +766,7 @@ def check_recording_stability(UnitArr, fname):
         task_stop = unit_list[0].TrialParams['TrialStop'].iloc[-1]
         task_stats[task] = (len(unit_list), task_start, task_stop)
 
-    unit_ids = UnitArr.rec_chan_unit_indices()
+    unit_ids = UnitArr.rec_ch_unit_indices()
     for (prd_name, (t1, t2)), ax in zip(periods.iterrows(), ax_list):
         # Calculate and plot firing rate during given period within each trial
         # across session for all units.
@@ -666,7 +774,7 @@ def check_recording_stability(UnitArr, fname):
         for unit_id in unit_ids:
 
             # Get all units (including empty ones for color cycle consistency).
-            unit_list = UnitArr.unit_list(chan_unit_idxs=[unit_id],
+            unit_list = UnitArr.unit_list(ch_unit_idxs=[unit_id],
                                           return_empty=True)
             FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2)
                           for u in unit_list]

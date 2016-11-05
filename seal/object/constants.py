@@ -13,6 +13,7 @@ from quantities import ms, deg, cm
 
 from elephant.kernels import GaussianKernel, RectangularKernel
 
+from seal.util import util
 from seal.object.periods import Periods
 
 
@@ -85,3 +86,8 @@ kernels = {'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
            'R300': RectangularKernel(sigma=get_rec_kernel_sigma(300*ms))}
 
 step = 10*ms
+
+
+# %% Direction related constants.
+
+all_dirs = util.quantity_arange(0*deg, (315+1)*deg, 45*deg)

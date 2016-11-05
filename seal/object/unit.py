@@ -656,14 +656,14 @@ class Unit:
         plot_params = self.prep_plot_params(trials, t1, t2, nrate)
         trials, t1, t2, spikes, rates, times, names = plot_params
 
-        title = self.Name
-
+        title = self.Name 
+        
         # Minimise labels on plot.
         if no_labels:
             title = None
             kwargs['xlab'] = None
             kwargs['ylab_rate'] = None
-            kwargs['add_ylab_raster'] = False
+            kwargs['add_ylab_raster'] = False        
 
         # Plot raster and rate.
         res = plot.raster_rate(spikes, rates, times, t1, t2, names,

@@ -138,17 +138,18 @@ def empty_raster_rate(fig, outer_gsp, nraster):
     """Plot empty raster and rate plots."""
 
     mock_gsp_rasters = embed_gsp(outer_gsp[0], nraster, 1, hspace=.15)
-    for i in range(nraster):
-        add_mock_axes(fig, mock_gsp_rasters[i, 0])
+    mock_raster_axs = [add_mock_axes(fig, mock_gsp_rasters[i, 0]) 
+                       for i in range(nraster)]
     mock_gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
-    add_mock_axes(fig, mock_gsp_rate[0, 0])
+    mock_rate_ax = add_mock_axes(fig, mock_gsp_rate[0, 0])
 
-
+    return mock_raster_axs, mock_rate_ax
+    
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
                 segments=None, pvals=None, test=None, test_kwargs={},
                 colors=None, ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
-                lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5, legend=True,
-                fig=None, ffig=None, outer_gsp=None):
+                lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5, 
+                legend=True, legend_kwargs={}, fig=None, ffig=None, outer_gsp=None):
     """Plot raster and rate plots."""
 
     # Create subplots (as nested gridspecs).
@@ -320,10 +321,11 @@ def empty_direction_selectivity(fig, outer_gsp):
     """Plot empty direction selectivity plots."""
 
     mock_gsp_polar = embed_gsp(outer_gsp[0], 1, 1)
-    add_mock_axes(fig, mock_gsp_polar[0, 0], polar=True)
+    mock_polar_ax = add_mock_axes(fig, mock_gsp_polar[0, 0], polar=True)
     mock_gsp_tuning = embed_gsp(outer_gsp[1], 1, 1)
-    add_mock_axes(fig, mock_gsp_tuning[0, 0])
-
+    mock_tuning_ax = add_mock_axes(fig, mock_gsp_tuning[0, 0])
+    
+    return mock_polar_ax, mock_tuning_ax
 
 def direction_selectivity(DSres, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
@@ -418,6 +420,8 @@ def direction_selectivity(DSres, title=None, labels=True,
         outer_gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     save_fig(fig, ffig)
 
+    
+# TODO: add option to change bars to lines and symbols!
 
 def polar_direction_response(dirs, FR, DSI=None, PD=None,
                              color='g', title=None, ffig=None, ax=None):
@@ -444,6 +448,8 @@ def polar_direction_response(dirs, FR, DSI=None, PD=None,
                     arrowprops=dict(facecolor=color, edgecolor='k',
                                     shrink=0.0, alpha=0.5))
 
+    # ax.RadialLocator.MAXTICKS = 3
+        
     # Save and return plot.
     save_fig(ffig=ffig)
     return ax
@@ -620,7 +626,10 @@ def set_limits(xlim=None, ylim=None, ax=None):
 def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
               match_xy_aspect=False):
     """Synchronize x and/or y axis across list of axes."""
-
+    
+    if not len(axs):
+        return
+    
     # Synchronise x-axis limits across plots.
     if sync_x:
         all_xlims = np.array([ax.get_xlim() for ax in axs])
@@ -649,13 +658,12 @@ def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
     return axs
 
 
-def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
+def set_labels(title=None, xlab=None, ylab=None, ytitle=1.04, ax=None,
                title_kwargs=dict(), xlab_kwargs=dict(), ylab_kwargs=dict()):
     """Generic function to set title, labels and ticks on axes."""
 
     ax = axes(ax)
     if title is not None:
-        ytitle = ytitle if ytitle is not None else 1.04
         ax.set_title(title, y=ytitle, **title_kwargs)
     if xlab is not None:
         ax.set_xlabel(xlab, **xlab_kwargs)

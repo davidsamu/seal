@@ -151,11 +151,20 @@ def star_pvalue(pval, n_max_stars=4):
 
     
 def format_offsets(offsets):
-    """Returns list of degree offset values string formatted."""
+    """Return list of degree offset values string formatted."""
 
     offsets_str = ', '.join([str(int(off))+' deg' for off in offsets])
     
     return offsets_str
+    
+    
+def format_rec_ch_idx(rec_ch_idx):
+    """Format (recording, channel, unit idx) triple as string."""
+    
+    rec, ch, idx = rec_ch_idx
+    rec_ch_idx_str = '{}_Ch{}_{}'.format(rec, ch, idx)
+    
+    return rec_ch_idx_str
     
     
 # %% System-related functions.
