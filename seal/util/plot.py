@@ -591,6 +591,16 @@ def add_chance_level_line(ylevel=0.5, color='grey', ls='--', alpha=0.5,
     ax.axhline(ylevel, color=color, ls=ls, alpha=alpha)
     
     
+def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5, ax=None):
+    """Add zero line to x and/or y axes."""
+    
+    ax = axes(ax)
+    if axis in ('x', 'both'):
+        ax.axvline(0, color=color, ls=ls, alpha=alpha)
+    if axis in ('y', 'both'):
+        ax.axhline(0, color=color, ls=ls, alpha=alpha)
+    
+    
 def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
     """Add identity line to axes."""
 
@@ -658,12 +668,13 @@ def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
     return axs
 
 
-def set_labels(title=None, xlab=None, ylab=None, ytitle=1.04, ax=None,
+def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
                title_kwargs=dict(), xlab_kwargs=dict(), ylab_kwargs=dict()):
     """Generic function to set title, labels and ticks on axes."""
 
     ax = axes(ax)
     if title is not None:
+        ytitle = ytitle if ytitle is not None else 1.04  # None may be passed by caller functions. :-(
         ax.set_title(title, y=ytitle, **title_kwargs)
     if xlab is not None:
         ax.set_xlabel(xlab, **xlab_kwargs)
@@ -1028,12 +1039,13 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
-# TODO: add side histograms to scatter plot!
+# TODO: add side histograms to scatter plot using seaborn!
 # http://seaborn.pydata.org/generated/seaborn.jointplot.html#seaborn.jointplot
 
 def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
-            title=None, ytitle=None, add_id_line=False, equal_xy=False,
-            match_xy_apsect=False, c='cyan', ffig=None, ax=None, **kwargs):
+            title=None, ytitle=None, add_id_line=False, add_zero_lines=True,
+            equal_xy=False, match_xy_apsect=False, c='cyan', ffig=None, 
+            ax=None, **kwargs):
     """Plot two vectors on scatter plot."""
 
     # Fill significant points.
@@ -1046,20 +1058,21 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
     ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, False, 'scatter',
                    c=colors, edgecolor=edgecolors, ffig=ffig, ax=ax, **kwargs)
 
+    if add_id_line:
+        add_identity_line(equal_xy=equal_xy, ax=ax)    
+    if add_zero_lines:
+        add_zero_line(axis='both', ax=ax)
+    
     # Optionally: Equalise scale and match aspect ratio between x and y axes.
     sync_axes([ax], equal_xy=equal_xy, match_xy_aspect=match_xy_apsect)
-
-    if add_id_line:
-        add_identity_line(equal_xy=equal_xy, ax=ax)
 
     # Custom post-formatting.
     show_spines(bottom=True, left=True, ax=ax)
 
     return ax
 
-
-# TODO: Report and test significant values separately.
-def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True,
+    
+def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines=True,
                add_id_line=True, equal_xy=True, match_xy_apsect=True,
                xtext=0.80, ytext=0.02, ha_text='left', va_text='bottom',
                ffig=None, ax=None, **kwargs):
@@ -1072,12 +1085,18 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True,
     # Report N.
     report_txt = ''
     if report_N:
-        report_txt += 'n = {}\n'.format(len(x))
-
+        report_txt += 'n = {}'.format(len(x))
+        if is_sign is not None:
+            report_txt += ', sign: {}'.format(sum(is_sign))
+        report_txt += '\n'
+        
     # Add significance test results.
-    if sign_test is not None:
+    if sign_test is not None:        
         pval = sign_test(x, y)[1]
         report_txt += util.format_pvalue(pval)
+        if is_sign is not None:        
+            pval = sign_test(x[is_sign], y[is_sign])[1]
+            report_txt += ', sign: ' + util.format_pvalue(pval)[4:]        
 
     if report_txt:
         ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
@@ -1089,7 +1108,7 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True,
 
 
 # TODO: Report and test significant values separately.
-def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False,
+def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_lines=True,
                  equal_xy=False, match_xy_apsect=False, add_lin_fit=True,
                  xtext=0.05, ytext=0.95, ha_text='left', va_text='top',
                  ffig=None, ax=None, **kwargs):
@@ -1100,8 +1119,7 @@ def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False,
                  match_xy_apsect=match_xy_apsect, ax=ax, **kwargs)
 
     # Add linear fit.
-    # TODO: add confidence interval using stderr
-    # http://stackoverflow.com/questions/27164114/show-confidence-limits-and-prediction-limits-in-scatter-plot
+    # TODO: add confidence interval using seaborn!    
     if add_lin_fit:
         slope, intercept, r, p, stderr = util.lin_regress(x, y)
         ax.plot(x, slope*x + intercept, '-', c='grey')

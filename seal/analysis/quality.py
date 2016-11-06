@@ -516,12 +516,12 @@ def direction_response_test(UnitArr, nrate, ftempl, tasks=None,
     # For each unit over all tasks.
     for uid in unit_ids:
         
-        print(uid)
+        # print(uid)
         
         # Init unit and figure.
         Unit_list = UnitArr.unit_list(tasks, [uid], return_empty=True)
         fig, gsp, _ = plot.get_gs_subplots(nrow=1, ncol=ntask,
-                                           subw=6, subh=6, create_axes=False)
+                                           subw=7, subh=7, create_axes=False)
         rate_axs = []
         polar_axs = []
     

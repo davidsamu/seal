@@ -56,6 +56,7 @@ class Unit:
         self.Name = ' '.join([exp, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
 
+        # TODO: convert to series?
         self.SessParams['experiment'] = exp
         self.SessParams['monkey'] = monkey
         self.SessParams['date'] = dt.date(dt.strptime(date, '%m%d%y'))
@@ -75,6 +76,7 @@ class Unit:
         if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
         wf_time = range(wfs.shape[1]) * self.SessParams['SamplPer']
+        # TODO: convert to series?
         self.UnitParams['WaveformTime'] = wf_time
         self.UnitParams['SpikeWaveforms'] = wfs
         self.UnitParams['SpikeDuration'] = util.fill_dim(TPLCell.Spikes_dur * s)
@@ -85,6 +87,7 @@ class Unit:
         sp_train = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
         self.UnitParams['SpikeTimes'] = util.fill_dim(sp_train)
 
+        # TODO: make dataframe of this!
         self.UnitParams['PrefDir'] = OrdDict()
         self.UnitParams['PrefDirCoarse'] = OrdDict()
         self.UnitParams['AntiPrefDirCoarse'] = OrdDict()
@@ -383,7 +386,7 @@ class Unit:
         if trials is None:
             trials = self.included_trials()
 
-        # TODO: the below breaks with t1 or t2 equals None!
+        # TODO: the below breaks with t1 or t2 equal to None!
         frate = self.Spikes.spike_stats_in_prd(trials, t1, t2)[1]
         tr_time = self.TrialParams['TrialStart'][trials.trials]
         tr_time = util.remove_dim_to_df_col(tr_time)

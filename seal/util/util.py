@@ -506,6 +506,13 @@ def modulation_index(v1, v2):
     return mi
 
 
+def fano_factor(v):
+    """Calculate Fano factor of vector of spike counts."""
+    
+    fanofac = np.var(v) / np.mean(v)
+    return fanofac
+
+    
 def pearson_r(v1, v2):
     """Calculate Pearson's r and p value."""
 

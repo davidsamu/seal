@@ -10,14 +10,12 @@ Functions for performing and processing decoding analyses.
 
 import warnings
 
-from collections import OrderedDict as OrdDict
-
 import numpy as np
 import pandas as pd
 
 from sklearn.linear_model import LogisticRegressionCV
 
-from seal.util import plot, util
+from seal.util import util
 
 
 # %% Core decoding functions.
