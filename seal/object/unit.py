@@ -51,13 +51,15 @@ class Unit:
 
         # Extract session parameters.
         monkey, date, probe, exp, sortno = util.params_from_fname(TPLCell.File)
+        task, task_idx = exp[:-1], int(exp[-1])
 
         [chan, un] = TPLCell.ChanUnit
-        self.Name = ' '.join([exp, monkey, date, probe])
+        self.Name = ' '.join([task, monkey, date, probe])
         self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
 
         # TODO: convert to series?
-        self.SessParams['experiment'] = exp
+        self.SessParams['task'] = task
+        self.SessParams['task_idx'] = task_idx
         self.SessParams['monkey'] = monkey
         self.SessParams['date'] = dt.date(dt.strptime(date, '%m%d%y'))
         self.SessParams['probe'] = probe
@@ -92,6 +94,7 @@ class Unit:
         self.UnitParams['PrefDirCoarse'] = OrdDict()
         self.UnitParams['AntiPrefDirCoarse'] = OrdDict()
         self.UnitParams['DirSelectivity'] = OrdDict()
+        self.UnitParams['DS2'] = OrdDict()
         self.UnitParams['DirTuningParams'] = OrdDict()
 
         # Trial parameters.
@@ -177,7 +180,7 @@ class Unit:
         rec = self.get_recording_name()
         ich = self.SessParams['channel #']
         iunit = self.SessParams['unit #']
-        task = self.SessParams['experiment']
+        task = self.SessParams['task']
         uidx = (rec, ich, iunit, task)
         return uidx
 
@@ -201,7 +204,7 @@ class Unit:
         sp = self.SessParams
         unit_params['Session information'] = ''
         unit_params['Name'] = self.Name
-        unit_params['experiment'] = get_val(sp, 'experiment')
+        unit_params['task'] = get_val(sp, 'task')
         unit_params['monkey'] = get_val(sp, 'monkey')
         unit_params['date'] = get_val(sp, 'date')
         unit_params['probe'] = get_val(sp, 'probe')
@@ -396,6 +399,7 @@ class Unit:
 
     # %% Methods to trials with specific directions.
 
+    # TODO: remove 'stim'!!
     def dir_trials(self, direction, stim='S1', pname=['S1Dir', 'S2Dir'],
                    offsets=[0*deg], comb_params='all', comb_values=False):
         """Return trials with preferred or antipreferred direction."""
@@ -456,7 +460,7 @@ class Unit:
     def S_D_trials(self, stim='S1', offsets=[0*deg], combine=True):
         """
         Return trials for S1 = S2 (same) and S1 =/= S2 (different)
-        with S2 being at given offset from the units preferred direction.
+        with S2 being at given offset from the unit's preferred direction.
         """
 
         # Collect S- and D-trials for all offsets.
@@ -526,8 +530,8 @@ class Unit:
         
         # Calculate legacy direction selectivity index (FRpref - FRanti)        
         pFR = meanFR[np.where(dirs == PDc)[0]]
-        aFR = meanFR[np.where(dirs == ADc)[0]]
-        DS2 = float(util.modulation_index(pFR, aFR))
+        aFR = meanFR[np.where(dirs == ADc)[0]]        
+        DS2 = float(util.modulation_index(pFR, aFR)) if aFR.size else np.nan
 
         # Calculate parameters of Gaussian tuning curve.
         # Center stimulus - response firts.
@@ -563,6 +567,7 @@ class Unit:
                                         -180*deg, 180*deg)
 
             # Add calculated values to unit.
+            # TODO: rename these?
             self.UnitParams['PrefDir'][stim] = res['PD']
             self.UnitParams['PrefDirCoarse'][stim] = res['PDc']
             self.UnitParams['AntiPrefDirCoarse'][stim] = res['ADc']

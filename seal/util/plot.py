@@ -32,7 +32,7 @@ plt.style.use('classic')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
-mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Ariel'], 'style': 'italic'})  # Helvetica
 mpl.rc('legend', fontsize='small')
 mpl.rc(('xtick', 'ytick'), labelsize='small')
 mpl.rc('axes', labelsize='medium', titlesize='x-large')
@@ -126,7 +126,7 @@ def unit_info(u, fs='large', ax=None):
     # Set title.
     title = 'ch {} / {}  --  {}'.format(uparams['channel #'],
                                         uparams['unit #'],
-                                        uparams['experiment'])
+                                        uparams['task'])
     set_labels(title=title, ytitle=.30, ax=ax)
 
     return ax
@@ -153,6 +153,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     """Plot raster and rate plots."""
 
     # Create subplots (as nested gridspecs).
+    # TODO: outer_gsp should be matplotlib.gridspec.SubplotSpec, not matplotlib.gridspec.GridSpec?
     fig = figure(fig)
     if outer_gsp is None:
         outer_gsp = gs.GridSpec(2, 1, height_ratios=[1, 1])
@@ -180,7 +181,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, True, t_unit, segments, pvals, test,
          test_kwargs, None, ylim, colors, None, xlab, ylab_rate,  legend, 
-         lgn_lbl_rate, ax=rate_ax)
+         lgn_lbl_rate, legend_kwargs, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
     # Save and return plot.
@@ -287,8 +288,8 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
     if t1 is not None and t2 is not None and t_unit is not None:
         xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
     set_limits(xlim, ylim, ax=ax)
-    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
-    show_spines(True, False, False, False, ax=ax)
+    set_ticks_side(xtick_pos='bottom', ytick_pos='left', ax=ax)
+    show_spines(True, True, False, False, ax=ax)
     set_labels(title, xlab, ylab, ax=ax)
 
     # Add legend
@@ -596,9 +597,9 @@ def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5, ax=None):
     
     ax = axes(ax)
     if axis in ('x', 'both'):
-        ax.axvline(0, color=color, ls=ls, alpha=alpha)
-    if axis in ('y', 'both'):
         ax.axhline(0, color=color, ls=ls, alpha=alpha)
+    if axis in ('y', 'both'):
+        ax.axvline(0, color=color, ls=ls, alpha=alpha)
     
     
 def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
@@ -955,8 +956,8 @@ def get_proxy_artist(label, color, artist_type='patch', **kwargs):
 
 # %% Seaborn related functions.
 
-def set_seaborn_style_context(style=None, context=None):
-    """Set Seaborn style and context."""
+def set_seaborn_style_context(style=None, context=None, rc_args=None):
+    """Set Seaborn style, context and/or provide optional custom parameters."""
     
     # Available styles: darkgrid, whitegrid, dark, white or ticks.
     if style is not None:
@@ -965,6 +966,10 @@ def set_seaborn_style_context(style=None, context=None):
     # Available contexts: notebook, paper, poster or talk.      
     if context is not None:
         sns.set_context(context) 
+        
+    # Overrride parameters that are part of the style definition.
+    if rc_args is not None:
+        sns.axes_style(rc=rc_args)
     
     
 # %% General purpose plotting functions.
@@ -1030,7 +1035,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Format plot.
     set_limits(xlim, ylim, ax)
-    set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
+    set_ticks_side(xtick_pos='bottom', ytick_pos='left', ax=ax)
     show_spines(ax=ax)
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 

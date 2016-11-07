@@ -491,6 +491,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
 # TODO: change sectors to lines, add max FR labels, add S2 response to polar?
 # Separate S2 axes with for trials grouped by S2Dir!
+# Check if y-axes are really matched!
 def direction_response_test(UnitArr, nrate, ftempl, tasks=None,
                             match_FR_scale_across_tasks=True):
     """Plot responses to 8 directions and polar plot in the center."""

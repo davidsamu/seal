@@ -94,12 +94,12 @@ def get_latest_file(dir_name, ext='.data'):
 # %% String formatting functions.
 
 def params_from_fname(fname, nchar_date=6, n_ext=4):
-    """Extract experiment parameters from file name."""
+    """Extract recording parameters from file name."""
 
     # Remove extension and split into parts by '_' underscore character.
-    [monkey, dateprobe, exp, sortno] = fname[:-n_ext].split('_')
+    [monkey, dateprobe, task, sortno] = fname[:-n_ext].split('_')
     [date, probe] = [dateprobe[:nchar_date], dateprobe[nchar_date:].upper()]
-    return monkey, date, probe, exp, sortno
+    return monkey, date, probe, task, sortno
 
 
 def format_to_fname(s):
@@ -509,7 +509,12 @@ def modulation_index(v1, v2):
 def fano_factor(v):
     """Calculate Fano factor of vector of spike counts."""
     
-    fanofac = np.var(v) / np.mean(v)
+    varv, meanv = np.var(v),  np.mean(v)
+    
+    if meanv == 0:
+        return 0
+        
+    fanofac = varv / meanv
     return fanofac
 
     

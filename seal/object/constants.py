@@ -58,6 +58,11 @@ narrow_delay_prds = Periods([('early',  [  500*ms, 700*ms]),
                              ('middle', [ 1150*ms, 1350*ms]),
                              ('late',   [ 1800*ms, 2000*ms])])
 
+# Delay sub-periods.
+narrow_fixation_prds = Periods([('early',  [-1000*ms, -800*ms]),
+                                ('middle', [ -600*ms, -400*ms]),
+                                ('late',   [ -200*ms,    0*ms])])
+
 # Stimulus response delay in MT.
 MT_stim_resp_delay = 50*ms
 

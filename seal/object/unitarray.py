@@ -19,7 +19,7 @@ from seal.util import plot, util
 class UnitArray:
     """
     Generic class to store a 2D array of units (neurons or groups of neurons),
-    by channel (rows) and task/experiment (columns).
+    by channel (rows) and task (columns).
     """
 
     # %% Constructor.
@@ -33,14 +33,13 @@ class UnitArray:
         # Fill Units array with unit list provided.
         # Get available tasks, if task_order not provided.
         if not task_order:
-            task_order = sorted(set([u.SessParams['experiment']
-                                     for u in Unit_list]))
+            task_order = sorted(set([u.SessParams['task'] for u in Unit_list]))
 
         # Add units to UnitArray in task order
         # (determining column order of unit table).
         for task in task_order:
             units = [u for u in Unit_list
-                     if u.SessParams['experiment'] == task]
+                     if u.SessParams['task'] == task]
             self.add_task(task, units)
 
     # %% Utility methods.
