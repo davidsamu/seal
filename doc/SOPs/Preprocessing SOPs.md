@@ -36,10 +36,12 @@
 
 ## Further preprocessing
 
+**WARNING**: This section is out of date and needs to be updated!
+
 ### 4. Generate TPLCell data structure.
 
 - Use Matlab script extractTPLcell.m
-- Use scan_task_files() to get task files from the selected folder .
+- Use scan_task_files() to get task files from the selected folder.
 - Use Expand_cell() to extract and expand cell components.
 - Use mapD_load_trials_mixed() to fill trial-wise data fields.
 
