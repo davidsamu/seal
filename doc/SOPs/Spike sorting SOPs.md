@@ -43,7 +43,7 @@ In other words, just keeping the waveforms that look the best would be too subje
 
 ## Tips
 
-- You can do spike sorting much faster (and better) if you learn some of the keyboard shortcuts of the common operations.
+- You can do spike sorting much faster (and better) if you learn some of the keyboard shortcuts of the frequently used commands.
   - add cluster: Alt + draw circle using cursor
   - subtract region: TBA
   - (TODO: add more shortcuts here!)
