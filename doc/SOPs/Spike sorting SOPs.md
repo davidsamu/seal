@@ -23,7 +23,7 @@ http://www.scholarpedia.org/article/Spike_sorting
 - As you go through the axis-pairs, try to improve the separation (judging by eye), the consistency of the waveforms (SNR) and ISI v.r. by adding/removing spikes to/from each cluster.
 - To detect and remove waveforms, scan through each axis-pair (by moving the mouse while keeping the left mouse button pressed) and see how the shapes of the waveforms change in the waveform inspector window (top left).
   - General principle: choose spikes that have greater amplitude (“Nonlinear Energy” axis) and show a reasonably consistent waveform across time (higher SNR).
-- Use “Timestamp” axis to check signal drift and change, especially in terms of firing rate (spike frequency)! This is very important, as heavily drifting (dropping and jumping) parts of the session will have to be removed. 
+- Use “Timestamp” axis to check signal drift and change, especially in terms of firing rate (spike frequency)! This is very important, as heavily drifting (dropping and jumping) parts of the session will have to be removed during further preprocessing. 
 - When checking waveform consistency, remove outlier waveforms (trim). Do not overdo this! You want to base your trimming on the “ideal” waveform, AND justify the trimming by verifying that it results in a decrease in ISI violation ratio. 
 In other words, just keeping the waveforms that look the best would be too subjective of an approach, not a valid, objective strategy! You need to combine trimming with an independent metric to measure improvement.
 - While doing all the above, keep an eye on number of selected spikes: spike rate should not be too low (< ~3 Hz), nor too high (> ~50 Hz), depending on cell type and brain area.
