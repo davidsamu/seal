@@ -17,9 +17,7 @@ from sklearn.cross_validation import ShuffleSplit
 from sklearn.linear_model import LogisticRegression
 
 from seal.util import plot, util
-
-# Extra import to be removed/refactored.
-from matplotlib import gridspec as gs
+from seal.object import constants
 
 
 # %% Core ROC analysis functions.
@@ -81,7 +79,10 @@ def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
     """Run ROC analysis on single unit."""
 
     # Get rates for two sets of trials.
+    # TODO: trial selection should be refactored!!! and moved to Trials??
     all_trials = get_trials(u, **get_trials_kwargs)
+    if not isinstance(all_trials[0], list):  # BIIIIG HACK!!! Do above TODO!!
+        all_trials = [[trials] for trials in all_trials]
     all_rates = np.array([[u.Rates[nrate].get_rates(tr.trials, t1, t2)
                           for tr in trials] for trials in all_trials])
 
@@ -100,8 +101,8 @@ def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
         rates = np.vstack((rates1, rates2))
         target = np.array(rates1.shape[0]*[0] + rates2.shape[0]*[1])
 
-        # Z-score rates.
-        zrates = util.zscore_timeseries(rates)
+        # Z-score rates. axis=None: compute z-score over all trials!
+        zrates = util.zscore_timeseries(rates, axis=None)
 
         Rates.append(rates)
         ZRates.append(zrates)
@@ -113,6 +114,7 @@ def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
     Targets = np.hstack(Targets)
 
     # Run ROC on rates and target.
+    # Can pass ZRates or Rates to ROC!!!
     roc_res = np.array([ROC(ZRates[:, t_idx], Targets, n_perm)
                         for t_idx in range(rates.shape[1])], dtype='float')
     return roc_res
@@ -213,36 +215,43 @@ def first_period(vec, time, prd_len, pvec=None, pth=None,
 
 
 # Plot S and D trials on raster and rate plots and add AROC, per unit.
-def plot_AROC_results(Units, aroc, tvec, nrate, offsets,
+def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
                       get_trials, get_trials_kwargs, fig_dir):
     """Plots AROC results for each unit."""
 
+    colors = ['b', 'r']
     for i, u in enumerate(Units):
 
+        fig, gsp, axs = plot.get_gs_subplots(nrow=2, ncol=1,
+                                             subw=6, subh=3, 
+                                             height_ratios=[2, 1], 
+                                             create_axes=False)
+        
         # Plot standard raster-rate plot
         trials = get_trials(u, **get_trials_kwargs)
-        outer_gs = gs.GridSpec(3, 1, height_ratios=[1, 1, 1])
-        fig = u.plot_raster_rate(nrate, trials, outer_gs=outer_gs)
+
+        rr_gsp = plot.embed_gsp(gsp[0, 0], 2, 1)        
+        fig, raster_axs, rate_ax = u.plot_raster_rate(nrate, trials, t1, t2, 
+                                                      colors=colors,
+                                                      outer_gsp=rr_gsp, fig=fig)
 
         # Remove x axis and label from rate plot
-        ax_rate = fig.axes[-1]
-        ax_rate.get_xaxis().set_visible(False)
+        rate_ax.get_xaxis().set_visible(False)
 
         # Add axes for AROC
-        gs_aroc = gs.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gs[2])
-        ax = fig.add_subplot(gs_aroc[0, 0])
+        roc_ax = fig.add_subplot(gsp[1, 0])
 
         # Add chance line and grid lines
-        ax.axhline(0.5, color='k', alpha=0.33, lw=1)
+        plot.add_chance_level_line(ax=roc_ax)
         for y in [0.25, 0.75]:
-            ax.axhline(y, color='k', linestyle=':', alpha=0.5, lw=0.5)
+            plot.add_chance_level_line(ylevel=y, ls=':', ax=roc_ax)          
 
         # Plot AROC
-        plot.lines(tvec, aroc[i, :], ylim=[0, 1], xlab='Time (ms)',
-                   ylab='AROC', ax=ax, color='m')
-        plot.plot_segments(u.ExpSegments, t_unit=ms, ax=ax)
-        ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
-        plot.show_spines(True, False, True, False, ax)
+        plot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1], xlab=plot.t_lbl,
+                   ylab='AROC', ax=roc_ax, color='m')
+        plot.plot_segments(constants.stim_prds, t_unit=ms, ax=roc_ax)
+        roc_ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
+        plot.show_spines(True, True, True, True, roc_ax)
 
         # Save plot
         ffig = fig_dir + u.name_to_fname() + '.png'
@@ -283,7 +292,7 @@ def results_table(Units, aroc, pval, tvec, tmin, tmax, prd_len,
     T['sorted index'] = np.argsort(isort)
 
     # Export table as Excel table
-    util.save_table(T, excel_writer, sheet_name='AROC',
-                    na_rep='N/A', index=False)
+    util.write_table(T, excel_writer, sheet_name='AROC',
+                     na_rep='N/A', index=False)
 
     return T

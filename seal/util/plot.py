@@ -52,7 +52,7 @@ savefig_dpi = 150
 
 # %% Some plotting constants.
 
-t_lbl = 'time (ms)'
+t_lbl = 'Time since S1 onset (ms)'
 FR_lbl = 'Firing rate (sp/s)'
 
 my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
@@ -189,6 +189,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     return fig, raster_axs, rate_ax
 
 
+# TODO: add some light background to raster?
 def raster(spikes, t1, t2, t_unit=ms, segments=None,
            markersize=1.5, color=None, title=None, xlab=t_lbl, ylab=None,
            ffig=None, ax=None):
@@ -302,7 +303,7 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
 
     # Add significance line to top of plot.
     if pvals is not None and len(rates_list) == 2:
-        lws = [2.0 * i for i in range(1, len(pvals)+1)]
+        lws = [4.0 * i for i in range(1, len(pvals)+1)]
         cols = get_colors()
         # cols = len(pvals) * ['c']
         ypos = ax.get_ylim()[1]

@@ -81,14 +81,18 @@ def get_rec_kernel_sigma(width):
     return width.rescale(ms)/2/np.sqrt(3)
 
 # Kernels for firing rate estimation.
-kernels = {'G20': GaussianKernel(sigma=20*ms),
-           'G40': GaussianKernel(sigma=40*ms),
-           'R50': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
-           'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
+RG_kernels = {'G20': GaussianKernel(sigma=20*ms),
+              'G40': GaussianKernel(sigma=40*ms),
+              'R50': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
+              'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
 
-kernels = {'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
-           'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms)),
-           'R300': RectangularKernel(sigma=get_rec_kernel_sigma(300*ms))}
+shrtR_kernels = {'R050': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
+                 'R075': RectangularKernel(sigma=get_rec_kernel_sigma(75*ms)),
+                 'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
+
+lngR_kernels = {'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
+                'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms)),
+                'R500': RectangularKernel(sigma=get_rec_kernel_sigma(500*ms))}
 
 step = 10*ms
 

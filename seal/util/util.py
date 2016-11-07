@@ -8,6 +8,7 @@ Collection of utility functions.
 """
 
 import os
+import copy
 import warnings
 import pickle
 import datetime
@@ -25,7 +26,7 @@ from scipy import stats
 from quantities import Quantity, deg, rad
 
 
-# %% Input / output functions.
+# %% Input / output and object manipulation functions.
 
 def read_matlab_object(f, obj_names=None):
     """Return Matlab structure or object from it."""
@@ -91,6 +92,17 @@ def get_latest_file(dir_name, ext='.data'):
     return fname
 
 
+def get_copy(obj, deep=True):
+    """Returns (deep) copy of object."""
+    
+    if deep:
+        copy_obj = copy.deepcopy(obj)
+    else:
+        copy_obj = copy.copy(obj)
+
+    return copy_obj
+    
+    
 # %% String formatting functions.
 
 def params_from_fname(fname, nchar_date=6, n_ext=4):
@@ -306,10 +318,11 @@ def values_in_window(v, vmin=None, vmax=None):
     return v_idxs
 
 
-def zscore_timeseries(timeseries):
+def zscore_timeseries(timeseries, axis=0):
     """Z-score set of time series at each time point (per column)."""
 
-    zscored_ts = stats.zscore(timeseries)
+    # axis: Axis along which to operate. If None, compute over the whole array `a`.
+    zscored_ts = stats.zscore(timeseries, axis=axis)
     zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
 
     return zscored_ts
