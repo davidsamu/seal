@@ -35,7 +35,7 @@ In other words, just keeping the waveforms that look the best would be too subje
 
 ## Guidelines & Rules of Thumb
 
-- Altogether, you should spend ~2-5 minutes per channel, so between roughly between 20 and 60 mins total per recording.
+- You should spend ~2-5 minutes per channel, so altogether between roughly 20 and 60 mins total per recording.
 - As a hard limit, the minimum number of spikes for an hour-long session should be 7200, meaning minimum 2 spikes/second.
 - ISI v.r. should normally be much less than 1.5%, ideally 0.0-0.5%.
 - It is possible, but rare that there is no (separable) unit in a channel. You should attempt to find at least some multi-unit activity even if there is no obvious separation on any of the planes. Start by searching for regions with spike-like waveforms at certain segments of the big cloud. On the other hand, do not be afraid of deleting a unit you could not get to a satisfactory level of quality.
