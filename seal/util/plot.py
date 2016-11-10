@@ -49,6 +49,8 @@ savefig_dpi = 150
 
 # TODO: change everything to Seaborn API? :-) 
 
+# TODO: add distribution plot a la Tania.
+
 
 # %% Some plotting constants.
 
@@ -145,7 +147,8 @@ def empty_raster_rate(fig, outer_gsp, nraster):
 
     return mock_raster_axs, mock_rate_ax
     
-def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
+# TODO: skip param of rate() should be provided and default to NOne!
+def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
                 segments=None, pvals=None, test=None, test_kwargs={},
                 colors=None, ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
                 lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5, 
@@ -160,7 +163,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
     gsp_raster = embed_gsp(outer_gsp[0], len(spikes_list), 1, hspace=.15)
     gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
     ylab_posx = -0.05
-
+    
     # Raster plot(s).
     if colors is None:
         col_cyc = get_colors(from_mpl_cycle=True)
@@ -179,7 +182,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rates, times, t1, t2, names, True, t_unit, segments, pvals, test,
+    rate(rates, times, t1, t2, names, True, t_unit, skip, segments, pvals, test,
          test_kwargs, None, ylim, colors, None, xlab, ylab_rate,  legend, 
          lgn_lbl_rate, legend_kwargs, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
@@ -190,9 +193,9 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms,
 
 
 # TODO: add some light background to raster?
-def raster(spikes, t1, t2, t_unit=ms, segments=None,
-           markersize=1.5, color=None, title=None, xlab=t_lbl, ylab=None,
-           ffig=None, ax=None):
+# TODO: remove tick labels?
+def raster(spikes, t1, t2, t_unit=ms, segments=None, markersize=1.5, 
+           color=None, title=None, xlab=t_lbl, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
     # Plot raster.
@@ -236,7 +239,7 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
 
 
 def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
-         segments=None, pvals=None, test=None, test_kwargs={}, xlim=None,
+         skip=None, segments=None, pvals=None, test=None, test_kwargs={}, xlim=None,
          ylim=None, colors=None, title=None, xlab=t_lbl, ylab=FR_lbl,
          legend=True, lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
@@ -255,11 +258,15 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
         col_cyc = get_colors(from_mpl_cycle=True)
         colors = [next(col_cyc) for i in range(len(rates_list))]
 
-    for i, (name, rts) in enumerate(zip(names, rates_list)):
+    # Skip every nth element.
+    if skip is None:
+        skip = 1
 
-        # Scale time vector.
-        if t_unit is not None:
-            time = time.rescale(t_unit)
+    # Scale time vector.
+    if t_unit is not None:
+        time = time.rescale(t_unit)
+
+    for i, (name, rts) in enumerate(zip(names, rates_list)):
 
         # Set line color and label.
         col = colors[i]
@@ -272,13 +279,19 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
 
             # Calculate mean, SEM.
             meanr, semr = util.mean_sem(rts)
-
+            
+            # Skip every nth value (for smooting curve).
+            meanr_s = meanr[::skip].copy()
+            semr_s = semr[::skip].copy()
+            time_s = time[::skip].copy()
+                
             # Plot mean line and SEM area.
-            ax.plot(time, meanr, label=lbl, color=col)
-            ax.fill_between(time, meanr-semr, meanr+semr, alpha=0.2,
+            ax.plot(time_s, meanr_s, label=lbl, color=col)
+            ax.fill_between(time_s, meanr_s-semr_s, meanr_s+semr_s, alpha=0.2,
                             facecolor=col, edgecolor=col)
 
         # Plot each individual rate vector.
+        # TODO: add skip values?
         else:
             ax.plot(time, rts.T, c=col)
             lgn_patches.append(get_proxy_artist(lbl, col, artist_type='line'))

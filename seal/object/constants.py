@@ -80,11 +80,13 @@ del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
 def get_rec_kernel_sigma(width):
     return width.rescale(ms)/2/np.sqrt(3)
 
+# TODO: make a batch kernel generator function and replace below.
+
 # Kernels for firing rate estimation.
 RG_kernels = {'G20': GaussianKernel(sigma=20*ms),
               'G40': GaussianKernel(sigma=40*ms),
-              'R50': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
-              'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
+              'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
+              'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms))}
 
 shrtR_kernels = {'R050': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
                  'R075': RectangularKernel(sigma=get_rec_kernel_sigma(75*ms)),

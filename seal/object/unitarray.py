@@ -16,6 +16,8 @@ from seal.object import unit
 from seal.util import plot, util
 
 
+# TODO: add more common reporting functions here, e.g. dir. select., mean FR, etc.
+
 class UnitArray:
     """
     Generic class to store a 2D array of units (neurons or groups of neurons),

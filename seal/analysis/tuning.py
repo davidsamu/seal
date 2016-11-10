@@ -28,7 +28,8 @@ def gaus(x, a=0, b=1, x0=0, sigma=1):
     return g
 
 
-# TODO: optionally, provide bounds for fit?
+# TODO: optionally, provide bounds and init values for fit? 
+# TODO: check if bounds and init values are consistent, change them otherwise!
 def fit_gaus_curve(x, y, y_err=None):
     """
     Fit Gaussian curve to stimulus - response values. Returns best estimate on
@@ -75,7 +76,7 @@ def fit_gaus_curve(x, y, y_err=None):
         # Lower and upper bounds of variables.
         bounds = ([0.8*ymin,   0,               xmin, 0.],
                   [np.mean(y), 1.2*(ymax-ymin), xmax, (xmax-xmin)/2])
-
+        
         # Find optimal Gaussian curve fit,
         # using ‘trf’ (Trust Region Reflective) method.
         p_opt, p_cov = curve_fit(gaus, x, y, p0=p_init, bounds=bounds,
@@ -150,6 +151,7 @@ def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):
     return xfit, yfit
 
     
+# TODO: calculate R2 and RMSE on all samples (rather than means to direction?)
 def calc_R2_RMSE(x, y, f, **f_kwargs):
     """Calculate root mean squared error and R-squared value of fit."""
     
