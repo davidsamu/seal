@@ -296,7 +296,7 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
     # Add legend
     def_legend_kwargs = dict([('frameon', False), ('framealpha', 0.5),
                               ('loc', 'upper right'), ('borderaxespad', 0.5),
-                              ('handletextpad', 0)])
+                              ('handletextpad', 0.1)])
     # Merge default and user defined legend kwargs (user's overwrites default).
     legend_kwargs = {**def_legend_kwargs, **legend_kwargs}
     set_legend(ax, legend, handles=lgn_patches, **legend_kwargs)
@@ -368,8 +368,9 @@ def direction_selectivity(DSres, title=None, labels=True,
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_artist(lgd_lbl, color))
 
+        # TODO: add new parameters! FWHM (instead of sigma?), R2, RSME(?)
         # Collect parameters of tuning curve fit.
-        a, b, x0, sigma = DSr.fit_res.loc['fit']
+        a, b, x0, sigma = DSr.fit_res.loc['fit'][0:4]
         s_a = str(float(round(a, 1)))
         s_b = str(float(round(b, 1)))
         s_x0 = str(float(round(x0, 1)))
@@ -1086,7 +1087,8 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines
 
     # Plot scatter.
     ax = scatter(x, y, is_sign, add_id_line=add_id_line, equal_xy=equal_xy,
-                 match_xy_apsect=match_xy_apsect, ax=ax, **kwargs)
+                 match_xy_apsect=match_xy_apsect, add_zero_lines=add_zero_lines,
+                 ax=ax, **kwargs)
 
     # Report N.
     report_txt = ''
@@ -1122,7 +1124,8 @@ def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_
 
     # Plot scatter.
     ax = scatter(x, y, is_sign, add_id_line=add_id_line, equal_xy=equal_xy,
-                 match_xy_apsect=match_xy_apsect, ax=ax, **kwargs)
+                 match_xy_apsect=match_xy_apsect, add_zero_lines=add_zero_lines,
+                 ax=ax, **kwargs)
 
     # Add linear fit.
     # TODO: add confidence interval using seaborn!    

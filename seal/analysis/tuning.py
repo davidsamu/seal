@@ -28,6 +28,7 @@ def gaus(x, a=0, b=1, x0=0, sigma=1):
     return g
 
 
+# TODO: optionally, provide bounds for fit?
 def fit_gaus_curve(x, y, y_err=None):
     """
     Fit Gaussian curve to stimulus - response values. Returns best estimate on
@@ -35,8 +36,8 @@ def fit_gaus_curve(x, y, y_err=None):
     """
 
     # Init fit results.
-    fit_res = pd.DataFrame(index=['fit', 'std err'],
-                           columns=['a', 'b', 'x0', 'sigma'])
+    columns = ['a', 'b', 'x0', 'sigma', 'FWHM', 'R2', 'RMSE']
+    fit_res = pd.DataFrame(index=['fit', 'std err'], columns=columns)
 
     # Remove NaN values from input.
     idx = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
@@ -73,7 +74,7 @@ def fit_gaus_curve(x, y, y_err=None):
 
         # Lower and upper bounds of variables.
         bounds = ([0.8*ymin,   0,               xmin, 0.],
-                  [np.mean(y), 1.2*(ymax-ymin), xmax, xmax-xmin])
+                  [np.mean(y), 1.2*(ymax-ymin), xmax, (xmax-xmin)/2])
 
         # Find optimal Gaussian curve fit,
         # using ‘trf’ (Trust Region Reflective) method.
@@ -82,19 +83,26 @@ def fit_gaus_curve(x, y, y_err=None):
 
         # Errors on (standard deviation of) parameter estimates.
         p_err = np.sqrt(np.diag(p_cov))
-
+        
         # Convert results into Pandas dataframe.
-        fit_res.loc['fit'] = p_opt
-        fit_res.loc['std err'] = p_err
+        fit_res.loc['fit', columns[0:4]] = p_opt
+        fit_res.loc['std err', columns[0:4]] = p_err
 
-    # TODO: add FWHM! (here or later?)
+        # Add additional metrics of fit.
+        a, b, x0, sigma = p_opt
+        fit_res.loc['fit', 'FWHM'] = 2 * np.sqrt(2*np.log(2)) * sigma * x_dim
+
+        R2, RMSE = calc_R2_RMSE(x, y, gaus, a=a, b=b, x0=x0, sigma=sigma)
+        fit_res.loc['fit', 'R2'] = R2
+        fit_res.loc['fit', 'RMSE'] = RMSE
+
     fit_res.a = util.add_dim_to_df_col(fit_res.a, y_dim)
     fit_res.b = util.add_dim_to_df_col(fit_res.b, y_dim)
     fit_res.x0 = util.add_dim_to_df_col(fit_res.x0, x_dim)
-    fit_res.sigma = util.add_dim_to_df_col(fit_res.sigma, x_dim)
+    fit_res.sigma = util.add_dim_to_df_col(fit_res.sigma, x_dim)    
 
     return fit_res
-
+    
 
 # %% Miscullaneous functions.
 
@@ -131,14 +139,35 @@ def center_pref_dir(dirs, PD, meanFR=None, semFR=None):
     return dirs_ctrd, meanFR_ctrd, semFR_ctrd
 
 
-def gen_fit_curve(fit_params, stim_units, stim_min, stim_max, n=100):
+# TODO: this could be sped up by doing the fit on the whole vector and then adding quantity dimension!
+def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):
     """Generate data points for plotting fitted tuning curve."""
-
-    # Extract parameters from results DataFrame
-    a, b, x0, sigma = [v.magnitude for v in fit_params]
-
+    
     # Generate synthetic stimulus-response data points.
     xfit = util.quantity_linspace(stim_min, stim_max, stim_units, n)
-    yfit = np.array([gaus(xi, a, b, x0, sigma) for xi in np.array(xfit)])
+    yfit = np.array([f(xi, **f_kwargs) for xi in np.array(xfit)])
 
     return xfit, yfit
+
+    
+def calc_R2_RMSE(x, y, f, **f_kwargs):
+    """Calculate root mean squared error and R-squared value of fit."""
+    
+    # Init.
+    n, nparams = x.size, len(f_kwargs)
+    
+    ymean = np.mean(y)        
+    yfit = f(x, **f_kwargs)    
+    resid = y - yfit
+    
+    # R-squared.
+    SS_res = np.sum(resid**2)    
+    SS_tot = np.sum((y-ymean)**2)
+    R2 = 1 - SS_res / SS_tot
+
+    # RMSE.
+    MSE = SS_res / (n - nparams)
+    RMSE = MSE**0.5
+    
+    return R2, RMSE
+    

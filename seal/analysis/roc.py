@@ -279,15 +279,16 @@ def results_table(Units, aroc, pval, tvec, tmin, tmax, prd_len,
     T = pd.DataFrame()
     T['index'] = range(1, aroc_w.shape[0]+1)
     T['name'] = [u.Name for u in Units]
+    T['utidx'] = [u.get_rec_ch_un_task_index() for u in Units]
     T['effect'] = eff_time[:, 0]
-    T['time (ms)'] = np.array(eff_time[:, 1], dtype=float)
+    T['time'] = np.array(eff_time[:, 1], dtype=float)
     T['AROC'] = [aroc_w[i, util.index(tvec_w, t)] if pd.notnull(t) else None
-                 for i, t in enumerate(T['time (ms)'])]
+                 for i, t in enumerate(T['time'])]
     T['p-value'] = [pval_w[i, util.index(tvec_w, t)] if pd.notnull(t) else None
-                    for i, t in enumerate(T['time (ms)'])]
+                    for i, t in enumerate(T['time'])]
 
     # Order by effect timing.
-    isort = T.sort_values(['effect', 'time (ms)'],
+    isort = T.sort_values(['effect', 'time'],
                           ascending=[True, False]).index
     T['sorted index'] = np.argsort(isort)
 

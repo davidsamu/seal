@@ -485,6 +485,21 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
     return rho, phi_deg, phi_deg_c
 
 
+def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
+    """Returns values in timeseries v within given period around maximum."""
+    
+    if t_start is None:
+        t_start = ts.index[0]
+
+    if t_stop is None:
+        t_stop = ts.index[-1]
+
+    tmax = ts.argmax()
+    t1, t2 = tmax - twidth, tmax + twidth
+    
+    return t1, t2
+    
+    
 # %% General statistics and analysis functions.
 
 def SNR(v):
@@ -505,7 +520,6 @@ def sem(v, axis=0):
 def mean_sem(v, axis=0):
     """Return mean and SEM of array."""
 
-    # Calculate mean and SEM.
     v_mean = np.mean(v, axis=axis)
     v_sem = sem(v, axis=axis)
 
@@ -515,7 +529,14 @@ def mean_sem(v, axis=0):
 def modulation_index(v1, v2):
     """Calculate modulation index between pair(s) of values."""
 
-    mi = (v1 - v2) / (v1 + v2)
+    if v1 == 0 and v2 == 0:
+        mi = 0
+    elif v1 == -v2:
+        warnings.warn('+ve / -ve opposites encountered, returning 0.')
+        mi = 0
+    else:        
+        mi = (v1 - v2) / (v1 + v2)
+        
     return mi
 
 

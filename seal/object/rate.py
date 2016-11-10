@@ -72,6 +72,7 @@ class Rate:
 
         return rates
 
+    # TODO: see above!!
     def get_rates_and_times(self, trials=None, t1=None, t2=None):
         """Return firing rates and times of some trials within time window."""
 

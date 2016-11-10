@@ -510,15 +510,27 @@ class Unit:
         # Calculate binned spike count per direction.
         pname = stim + 'Dir'
         if t1 is None or t2 is None:
-            t1, t2 = constants.del_stim_prds.periods(stim)
+            # TODO: this is updating both t1 and t2, even if one is specified,
+            # have to redesign this and other such code!!!
+            t1, t2 = constants.del_stim_prds.periods(stim)   
         response_stats = self.calc_response_stats(pname, t1, t2)
         dirs, mean_rate, std_rate, sem_rate = response_stats
 
         return dirs, mean_rate, std_rate, sem_rate
 
-    def calc_DS(self, stim, t1=None, t2=None):
+    def calc_DS(self, stim, t1=None, t2=None, maxFR_width=100*ms):
         """Calculate direction selectivity."""
-
+        
+        # Get time period around max FR, if requested.
+        # TODO: rate is hardcoded, change this!!!
+        nrate = 'R100'  
+        if maxFR_width is not None:
+            if t1 is None or t2 is None:
+                t1, t2 = constants.del_stim_prds.periods(stim)
+            rates, times = self.Rates[nrate].get_rates_and_times(t1=t1, t2=t2)
+            ts = pd.Series(rates.mean(0), index=times)
+            t1, t2 = util.select_period_around_max(ts, maxFR_width)
+            
         # Get mean response to each direction.
         dirs, meanFR, stdFR, semFR = self.calc_dir_response(stim, t1, t2)
 
@@ -549,22 +561,28 @@ class Unit:
 
         return res
 
-    def test_direction_selectivity(self, stims=['S1', 'S2'], no_labels=False,
-                                   do_plot=True, ffig_tmpl=None, **kwargs):
+    def test_direction_selectivity(self, stims=['S1', 'S2'], maxFR_width=100*ms,
+                                   no_labels=False, do_plot=True, 
+                                   ffig_tmpl=None, **kwargs):
         """
         Test direction selectivity of unit by calculating
           - direction selectivity index and preferred direction, and
           - parameters of Gaussian tuning curve.
+          
+        Calculation can be based on FR around the max FR during stimulus
+        using a given window width (maxFR_width = x * ms) or using the whole
+        stimulus period (maxFR_width = False).
         """
 
         DSres = {}
-        for stim in stims:
+        for stim in stims:            
 
-            res = self.calc_DS(stim, t1=None, t2=None)
+            res = self.calc_DS(stim, t1=None, t2=None, maxFR_width=maxFR_width)
 
             # Generate data points for plotting fitted tuning curve.
-            x, y = tuning.gen_fit_curve(res['fit_res'].loc['fit'], deg,
-                                        -180*deg, 180*deg)
+            a, b, x0, sigma = [float(v) for v in res['fit_res'].loc['fit'][0:4]]
+            x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
+                                        a=a, b=b, x0=x0, sigma=sigma)
 
             # Add calculated values to unit.
             # TODO: rename these?
