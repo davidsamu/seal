@@ -145,8 +145,11 @@ def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):
     """Generate data points for plotting fitted tuning curve."""
     
     # Generate synthetic stimulus-response data points.
-    xfit = util.quantity_linspace(stim_min, stim_max, stim_units, n)
-    yfit = np.array([f(xi, **f_kwargs) for xi in np.array(xfit)])
+    if stim_units is not None:        
+        xfit = util.quantity_linspace(stim_min, stim_max, stim_units, n)
+    else:
+        xfit = np.linspace(stim_min, stim_max, n)
+    yfit = np.array([f(xi, **f_kwargs) for xi in xfit])
 
     return xfit, yfit
 

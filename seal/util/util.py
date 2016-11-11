@@ -133,6 +133,9 @@ def date_to_str(datetime):
 def format_pvalue(pval, max_digit=4):
     """Format a p-value into readable string."""
 
+    if (pval > 1 or pval < 0):
+        warnings.warn('Invalid p-value passed: {:.4f}'.format(pval))
+    
     if pval < 10**-4 and max_digit >= 4:
         pstr = 'p < 0.0001'
     elif pval < 10**-3 and max_digit >= 3:
@@ -366,11 +369,11 @@ def list_to_quantity(lvec, dim=None):
     return np_vec
 
 
-def remove_dimension(qvec):
+def remove_dimension(qvec, dtype=float):
     """Remove dimension from Quantity array and return Numpy array."""
 
-    np_vec = np.array([float(qv) for qv in qvec])
-
+    np_vec = np.array([float(qv) for qv in qvec], dtype=dtype)
+    
     return np_vec
 
 
@@ -546,7 +549,7 @@ def fano_factor(v):
     varv, meanv = np.var(v),  np.mean(v)
     
     if meanv == 0:
-        return 0
+        return np.nan
         
     fanofac = varv / meanv
     return fanofac
@@ -565,6 +568,7 @@ def lin_regress(x, y):
     return sp.stats.linregress(x, y)
 
 
+# TODO: add non-parametric AND non-paired test!
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.

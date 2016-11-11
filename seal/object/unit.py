@@ -133,8 +133,8 @@ class Unit:
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
         self.Events = pd.DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
                                     TPLCell.Timestamps[iS1off]*s,
-                                     TPLCell.Timestamps[iS2on]*s,
-                                     TPLCell.Timestamps[iS2on]*s+S2_len]).T
+                                    TPLCell.Timestamps[iS2on]*s,
+                                    TPLCell.Timestamps[iS2on]*s+S2_len]).T
         self.Events.columns = ['S1 onset', 'S1 offset',
                                'S2 onset', 'S2 offset']
         # Align trial events to S1 onset.

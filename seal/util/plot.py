@@ -1016,7 +1016,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     elif figtype == 'hist':
 
         # Categorical data.
-        if not util.is_numeric_array(x):
+        if not util.is_numeric_array(x) and not isinstance(x, list):  # TODO: HACK!! FIX!
 
             # Sort by category value (with missing values at the end).
             counts = np.array(Counter(x).most_common())
@@ -1039,7 +1039,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
             set_tick_labels(ax, 'x', pos, cats, rotation=rot, ha=ha)
 
         else:  # Plot Numeric data.
-            x = x[~np.isnan(x)]  # remove NANs
+            #x = x[~np.isnan(x)]  # remove NANs
             ax.hist(x, **kwargs)
 
     elif figtype == 'scatter':
