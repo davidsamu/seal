@@ -516,14 +516,15 @@ def sem(v, axis=0):
     """Return standard error of the mean."""
 
     # Keeping dimension of Quantity arrays (as opposed to scipy.stats.sem).
-    sem = np.std(v, axis) / np.sqrt(v.shape[axis])
+    # TODO: correct denominator by NAN values!
+    sem = np.nanstd(v, axis) / np.sqrt(v.shape[axis])
     return sem
 
 
 def mean_sem(v, axis=0):
     """Return mean and SEM of array."""
 
-    v_mean = np.mean(v, axis=axis)
+    v_mean = np.nanmean(v, axis=axis)
     v_sem = sem(v, axis=axis)
 
     return v_mean, v_sem

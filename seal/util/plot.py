@@ -183,7 +183,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, True, t_unit, skip, segments, pvals, test,
-         test_kwargs, None, ylim, colors, None, xlab, ylab_rate,  legend, 
+         test_kwargs, None, ylim, colors, None, xlab, ylab_rate, None, legend, 
          lgn_lbl_rate, legend_kwargs, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
@@ -240,7 +240,7 @@ def replace_tr_num_with_tr_name(ax, trs_name, ylab_kwargs={'fontsize': 'x-small'
 
 def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
          skip=None, segments=None, pvals=None, test=None, test_kwargs={}, xlim=None,
-         ylim=None, colors=None, title=None, xlab=t_lbl, ylab=FR_lbl,
+         ylim=None, colors=None, title=None, xlab=t_lbl, ylab=FR_lbl, smooth=None,
          legend=True, lgn_lbl='trs', legend_kwargs={}, ffig=None, ax=None):
     """Plot firing rate."""
 
@@ -279,15 +279,24 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
 
             # Calculate mean, SEM.
             meanr, semr = util.mean_sem(rts)
+                
+            # TODO: fix this as an option.
+            # TODO: Add smoothing to util.
+            time_sm, meanr_sm, semr_sm = time, meanr, semr
+            if smooth is not None:
+                from scipy.interpolate import spline
+                time_sm = util.quantity_linspace(time.min(), time.max(), ms, 100)
+                meanr_sm = spline(time, meanr, time_sm, order=3)
+                semr_sm = spline(time, semr, time_sm, order=3)
             
             # Skip every nth value (for smooting curve).
-            meanr_s = meanr[::skip].copy()
-            semr_s = semr[::skip].copy()
-            time_s = time[::skip].copy()
+            time_sk = time_sm[::skip].copy()
+            meanr_sk = meanr_sm[::skip].copy()
+            semr_sk = semr_sm[::skip].copy()
                 
             # Plot mean line and SEM area.
-            ax.plot(time_s, meanr_s, label=lbl, color=col)
-            ax.fill_between(time_s, meanr_s-semr_s, meanr_s+semr_s, alpha=0.2,
+            ax.plot(time_sk, meanr_sk, label=lbl, color=col)
+            ax.fill_between(time_sk, meanr_sk-semr_sk, meanr_sk+semr_sk, alpha=0.2,
                             facecolor=col, edgecolor=col)
 
         # Plot each individual rate vector.
@@ -1091,7 +1100,8 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     return ax
 
-    
+
+# TODO: Add option to plot 45degrees histogram of difference.
 def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines=True,
                add_id_line=True, equal_xy=True, match_xy_apsect=True,
                xtext=0.80, ytext=0.02, ha_text='left', va_text='bottom',
@@ -1196,6 +1206,7 @@ def errorbar(x, y, ylim=None, xlim=None, xlab=None, ylab=None,
     return ax
 
 
+# TODO: Use seaborn for histogram plotting.
 def histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
               ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot histogram."""
