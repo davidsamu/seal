@@ -21,9 +21,8 @@ import multiprocessing as mp
 from collections import Iterable
 from collections import OrderedDict as OrdDict
 
-from scipy import stats
-
-from quantities import Quantity, deg, rad
+from quantities import Quantity, deg, rad, ms
+from elephant.kernels import GaussianKernel, RectangularKernel
 
 
 # %% Input / output and object manipulation functions.
@@ -94,15 +93,15 @@ def get_latest_file(dir_name, ext='.data'):
 
 def get_copy(obj, deep=True):
     """Returns (deep) copy of object."""
-    
+
     if deep:
         copy_obj = copy.deepcopy(obj)
     else:
         copy_obj = copy.copy(obj)
 
     return copy_obj
-    
-    
+
+
 # %% String formatting functions.
 
 def params_from_fname(fname, nchar_date=6, n_ext=4):
@@ -135,7 +134,7 @@ def format_pvalue(pval, max_digit=4):
 
     if (pval > 1 or pval < 0):
         warnings.warn('Invalid p-value passed: {:.4f}'.format(pval))
-    
+
     if pval < 10**-4 and max_digit >= 4:
         pstr = 'p < 0.0001'
     elif pval < 10**-3 and max_digit >= 3:
@@ -164,24 +163,24 @@ def star_pvalue(pval, n_max_stars=4):
 
     return pstr
 
-    
+
 def format_offsets(offsets):
     """Return list of degree offset values string formatted."""
 
     offsets_str = ', '.join([str(int(off))+' deg' for off in offsets])
-    
+
     return offsets_str
-    
-    
+
+
 def format_rec_ch_idx(rec_ch_idx):
     """Format (recording, channel, unit idx) triple as string."""
-    
+
     rec, ch, idx = rec_ch_idx
     rec_ch_idx_str = '{}_Ch{}_{}'.format(rec, ch, idx)
-    
+
     return rec_ch_idx_str
-    
-    
+
+
 # %% System-related functions.
 
 def run_in_pool(f, params, nCPU=None):
@@ -325,7 +324,7 @@ def zscore_timeseries(timeseries, axis=0):
     """Z-score set of time series at each time point (per column)."""
 
     # axis: Axis along which to operate. If None, compute over the whole array `a`.
-    zscored_ts = stats.zscore(timeseries, axis=axis)
+    zscored_ts = sp.stats.zscore(timeseries, axis=axis)
     zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
 
     return zscored_ts
@@ -373,7 +372,7 @@ def remove_dimension(qvec, dtype=float):
     """Remove dimension from Quantity array and return Numpy array."""
 
     np_vec = np.array([float(qv) for qv in qvec], dtype=dtype)
-    
+
     return np_vec
 
 
@@ -490,7 +489,7 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
 
 def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
     """Returns values in timeseries v within given period around maximum."""
-    
+
     if t_start is None:
         t_start = ts.index[0]
 
@@ -499,10 +498,10 @@ def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
 
     tmax = ts.argmax()
     t1, t2 = tmax - twidth, tmax + twidth
-    
+
     return t1, t2
-    
-    
+
+
 # %% General statistics and analysis functions.
 
 def SNR(v):
@@ -538,28 +537,28 @@ def modulation_index(v1, v2):
     elif v1 == -v2:
         warnings.warn('+ve / -ve opposites encountered, returning 0.')
         mi = 0
-    else:        
+    else:
         mi = (v1 - v2) / (v1 + v2)
-        
+
     return mi
 
 
 def fano_factor(v):
     """Calculate Fano factor of vector of spike counts."""
-    
+
     varv, meanv = np.var(v),  np.mean(v)
-    
+
     if meanv == 0:
         return np.nan
-        
+
     fanofac = varv / meanv
     return fanofac
 
-    
+
 def pearson_r(v1, v2):
     """Calculate Pearson's r and p value."""
 
-    r, p = stats.pearsonr(v1, v2)
+    r, p = sp.stats.pearsonr(v1, v2)
     return r, p
 
 
@@ -576,9 +575,9 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
 
     if paired:
-        stat, pval = stats.ttest_rel(x, y, nan_policy=nan_policy)
+        stat, pval = sp.stats.ttest_rel(x, y, nan_policy=nan_policy)
     else:
-        stat, pval = stats.ttest_ind(x, y, equal_var=equal_var)
+        stat, pval = sp.stats.ttest_ind(x, y, equal_var=equal_var)
 
     return stat, pval
 
@@ -595,8 +594,8 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
           that n > 20.
     """
 
-    stat, pval = stats.wilcoxon(x, y, zero_method=zero_method,
-                                correction=correction)
+    stat, pval = sp.stats.wilcoxon(x, y, zero_method=zero_method,
+                                   correction=correction)
     return stat, pval
 
 
@@ -670,3 +669,58 @@ def sign_periods(ts1, ts2, time, p, test, test_kwargs):
     sign_periods = periods(tsign, time)
 
     return sign_periods
+
+
+# %% Functions to create kernels for firing rate estimation.
+
+def rect_kernel(width):
+    """Create rectangular kernel with given width."""
+
+    sigma = width.rescale(ms)/2/np.sqrt(3)  # convert kernel width to sigma
+    rk = RectangularKernel(sigma=sigma)
+    return rk
+
+
+def gaus_kernel(sigma):
+    """Create Gaussian kernel with given sigma."""
+
+    gk = GaussianKernel(sigma=sigma)
+    return gk
+
+
+def create_kernel(kerneltype, width):
+    """Create kernel of given type with given width."""
+
+    if kerneltype in ('G', 'Gaussian'):
+        fkernel = gaus_kernel
+
+    elif kerneltype in ('R', 'Rectangular'):
+        fkernel = rect_kernel
+
+    else:
+        warnings.warn('Unrecognised kernel type %s'.format(kerneltype) +
+                      ', returning Rectangular kernel.')
+        fkernel = rect_kernel
+
+    krnl = fkernel(width)
+
+    return krnl
+
+
+def kernel(kname):
+    """
+    Return kernel created with parameters encoded in name (type and width).
+    """
+
+    kerneltype = kname[0]
+    width = int(kname[1:]) * ms
+    kern = create_kernel(kerneltype, width)
+
+    return kern
+
+
+def kernel_set(knames):
+    """Return set of kernels specified in list of knames."""
+
+    kset = OrdDict((kname, kernel(kname)) for kname in knames)
+    return kset

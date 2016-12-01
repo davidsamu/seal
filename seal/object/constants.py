@@ -8,10 +8,7 @@ Definition of constants relating to task and analysis.
 @author: David Samu
 """
 
-import numpy as np
 from quantities import ms, deg, cm
-
-from elephant.kernels import GaussianKernel, RectangularKernel
 
 from seal.util import util
 from seal.object.periods import Periods
@@ -77,24 +74,10 @@ del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
 
 # %% Analysis constants.
 
-def get_rec_kernel_sigma(width):
-    return width.rescale(ms)/2/np.sqrt(3)
-
-# TODO: make a batch kernel generator function and replace below.
-
-# Kernels for firing rate estimation.
-RG_kernels = {'G20': GaussianKernel(sigma=20*ms),
-              'G40': GaussianKernel(sigma=40*ms),
-              'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
-              'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms))}
-
-shrtR_kernels = {'R050': RectangularKernel(sigma=get_rec_kernel_sigma(50*ms)),
-                 'R075': RectangularKernel(sigma=get_rec_kernel_sigma(75*ms)),
-                 'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms))}
-
-lngR_kernels = {'R100': RectangularKernel(sigma=get_rec_kernel_sigma(100*ms)),
-                'R200': RectangularKernel(sigma=get_rec_kernel_sigma(200*ms)),
-                'R500': RectangularKernel(sigma=get_rec_kernel_sigma(500*ms))}
+# Kernel sets for firing rate estimation.
+RG_kernels = util.kernel_set(['G20', 'G40', 'R100', 'R200'])
+shrtR_kernels = util.kernel_set(['R50', 'R75', 'R100'])
+lngR_kernels = util.kernel_set(['R100', 'R200', 'R500'])
 
 step = 10*ms
 
