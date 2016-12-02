@@ -24,6 +24,7 @@ from matplotlib import collections as mc
 import seaborn as sns
 
 from seal.util import util
+from seal.object import constants
 
 
 # %% Matplotlib setup
@@ -49,7 +50,8 @@ savefig_dpi = 150
 
 # TODO: change everything to Seaborn API? :-)
 
-# TODO: add distribution plot a la Tania.
+# TODO: add distribution plot a la Tania (side-by-side bars).
+# TODO: add diagonal distribution to id scatter (after converting it to seaborn)
 
 
 # %% Some plotting constants.
@@ -353,6 +355,7 @@ def empty_direction_selectivity(fig, outer_gsp):
 
     return mock_polar_ax, mock_tuning_ax
 
+
 def direction_selectivity(DSres, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
                           ffig=None, fig=None, outer_gsp=None):
@@ -382,23 +385,21 @@ def direction_selectivity(DSres, title=None, labels=True,
         ylab = FR_lbl if labels else None
         xticks = [-180, -90, 0, 90, 180]
         tuning_curve_sample(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
-                            DSr.xfit, DSr.yfit, xticks, color, None, xlab, ylab,
-                            ax=ax_tuning)
+                            DSr.xfit, DSr.yfit, xticks, color, None,
+                            xlab, ylab, ax=ax_tuning)
 
         # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(DSr.PD, 1)))
-        s_pd_c = str(int(DSr.PDc)) if not np.isnan(DSr.PDc.magnitude) else 'nan'
+        s_pd_c = str(int(DSr.PDc)) if not np.isnan(float(DSr.PDc)) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(name, DSr.DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_artist(lgd_lbl, color))
 
         # TODO: add new parameters! FWHM (instead of sigma?), R2, RSME(?)
         # Collect parameters of tuning curve fit.
-        a, b, x0, sigma = DSr.fit_res.loc['fit'][0:4]
-        s_a = str(float(round(a, 1)))
-        s_b = str(float(round(b, 1)))
-        s_x0 = str(float(round(x0, 1)))
-        s_sigma = str(float(round(sigma, 1)))
+        a, b, x0, sigma = DSr.fit_params.loc['fit']
+        s_a, s_b, s_x0, s_sigma = [str(float(round(p, 1)))
+                                   for p in (a, b, x0, sigma)]
         lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(name, 5 * ' ', s_a, 5 * ' ', s_b)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
         tuning_patches.append(get_proxy_artist(lgd_lbl, color))
@@ -459,7 +460,7 @@ def polar_direction_response(dirs, FR, DSI=None, PD=None,
 
     # Plot response to each directions on polar plot.
     rad_dirs = np.array([d.rescale(rad) for d in dirs])
-    ndirs = rad_dirs.size
+    ndirs = constants.all_dirs.size  # rad_dirs.size
     left_rad_dirs = rad_dirs - np.pi/ndirs
     w = 2*np.pi / ndirs
     ax = bars(left_rad_dirs, FR, polar=True, width=w, alpha=0.50,
@@ -1209,6 +1210,7 @@ def errorbar(x, y, ylim=None, xlim=None, xlab=None, ylab=None,
 
 
 # TODO: Use seaborn for histogram plotting.
+# http://stackoverflow.com/questions/36362624/how-to-plot-multiple-histograms-on-same-plot-with-seaborn
 def histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
               ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot histogram."""

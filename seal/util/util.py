@@ -393,7 +393,7 @@ def quantity_arange(q1, q2, step):
 
 
 def list_to_quantity(lvec, dim=None):
-    """Convert list, or Pandas vector, of quantity values to Quantity array."""
+    """Convert list or Pandas Series of quantity values to Quantity array."""
 
     dim = lvec[0].units if dim is None else dim
     np_vec = np.array([v for v in lvec]) * dim
@@ -401,7 +401,16 @@ def list_to_quantity(lvec, dim=None):
     return np_vec
 
 
-def remove_dimension(qvec, dtype=float):
+def add_dim_to_series(ser, dim):
+    """Add physical dimension to Pandas Series."""
+
+    qarr = list_to_quantity(ser, dim)
+    qser = pd.DataFrame([qarr], columns=ser.index).T
+
+    return qser
+
+
+def remove_dim_from_array(qvec, dtype=float):
     """Remove dimension from Quantity array and return Numpy array."""
 
     np_vec = np.array([float(qv) for qv in qvec], dtype=dtype)
@@ -409,22 +418,21 @@ def remove_dimension(qvec, dtype=float):
     return np_vec
 
 
-def add_dim_to_df_col(col, dim):
-    """Add physical dimension to Pandas dataframe column."""
+def remove_dim_from_series(qser):
+    """Remove physical dimension from Pandas Series."""
 
-    quantity_col = list_to_quantity(col, dim)
-    dim_col = pd.DataFrame([quantity_col], columns=col.index).T
-
-    return dim_col
-
-
-def remove_dim_to_df_col(qcol):
-    """Remove physical dimension to Pandas dataframe column."""
-
-    col = remove_dimension(qcol)
-    series = pd.Series(col, index=qcol.index, name=qcol.name)
+    arr = remove_dim_from_array(qser)
+    series = pd.Series(arr, index=qser.index, name=qser.name)
 
     return series
+
+
+def dim_series_to_array(qser):
+    """Convert quantity Series to quantity array."""
+
+    qarr = list_to_quantity(list(qser))
+
+    return qarr
 
 
 # %% Function for analysing directions.

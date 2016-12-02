@@ -12,6 +12,7 @@ Class for array of spike trains.
 from itertools import compress
 
 import numpy as np
+import pandas as pd
 from quantities import s
 from neo import SpikeTrain
 from elephant import statistics
@@ -110,7 +111,11 @@ class Spikes:
         std_rate = np.std(f_rate)
         sem_rate = std_rate / np.sqrt(f_rate.size)
 
-        return mean_rate, std_rate, sem_rate
+        # Put them into a Series.
+        spike_stats = pd.Series([mean_rate, std_rate, sem_rate],
+                                index=['mean', 'std', 'sem'])
+
+        return spike_stats
 
     def isi(self, trs=None, t1=None, t2=None):
         """Return interspike intervals per trial."""

@@ -13,7 +13,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from quantities import Quantity, s, ms, us, deg, Hz
+from quantities import s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import plot, util
@@ -24,6 +24,7 @@ from seal.object.trials import Trials
 from seal.analysis import tuning
 
 # TODO: add receptive field coverage information!
+# TODO: put stuff into Series/DFs, especially composite return values!
 
 
 class Unit:
@@ -43,7 +44,7 @@ class Unit:
         self.Spikes = Spikes([])
         self.Rates = pd.Series()
         self.QualityMetrics = pd.Series()
-        self.Selectivity = pd.DataFrame()
+        self.Selectivity = OrdDict()
 
         self.t_start = t_start
         self.t_stop = t_stop
@@ -115,7 +116,7 @@ class Unit:
                 # Rename column.
                 trp_df.rename(columns={name: nnew}, inplace=True)
                 if dim is not None:  # add dimension
-                    trp_df[nnew] = util.add_dim_to_df_col(trp_df[nnew], dim)
+                    trp_df[nnew] = util.add_dim_to_series(trp_df[nnew], dim)
 
         self.TrialParams = trp_df
 
@@ -229,13 +230,13 @@ class Unit:
     def pref_dir(self, stim='S1'):
         """Return preferred direction."""
 
-        pdir = self.UnitParams['PrefDirCoarse'][stim]
+        pdir = self.Selectivity['PrefDirCoarse'][stim]
         return pdir
 
     def anti_pref_dir(self, stim='S1'):
         """Return anti-preferred direction."""
 
-        adir = self.UnitParams['AntiPrefDirCoarse'][stim]
+        adir = self.Selectivity['AntiPrefDirCoarse'][stim]
         return adir
 
     # %% Generic methods to get various set of trials.
@@ -372,7 +373,7 @@ class Unit:
 
     def dir_trials(self, direction, pname=['S1Dir', 'S2Dir'], offsets=[0*deg],
                    comb_params='all', comb_values=False):
-        """Return trials with preferred or antipreferred direction."""
+        """Return trials with some direction +- offset during S1 and/or S2."""
 
         if not util.is_iterable(pname):
             pname = [pname]
@@ -453,7 +454,7 @@ class Unit:
 
         return trs
 
-    # %% Methods to calculate tuning curves and preferred feature values.
+    # %% Methods to calculate tuning curves and preferred values of features.
 
     def calc_response_stats(self, pname, t1, t2):
         """Calculate mean response to different values of trial parameter."""
@@ -461,44 +462,48 @@ class Unit:
         # Get trials for each parameter value.
         trs = self.trials_by_param_values(pname)
 
-        # Calculate binned spike count per value.
-        p_values = util.list_to_quantity([tr.value for tr in trs])
-        sp_stats = [self.Spikes.spike_count_stats(tr, t1, t2) for tr in trs]
-        mean_rate, std_rate, sem_rate = zip(*sp_stats)
-        mean_rate = util.list_to_quantity(mean_rate)
-        std_rate = util.list_to_quantity(std_rate)
-        sem_rate = util.list_to_quantity(sem_rate)
+        # Calculate spike count and stats for each value of parameter.
+        p_values = [float(tr.value) for tr in trs]
+        sp_stats = pd.DataFrame([self.Spikes.spike_count_stats(tr, t1, t2)
+                                 for tr in trs], index=p_values)
 
-        return p_values, mean_rate, std_rate, sem_rate
+        return sp_stats
 
-    # TODO: put these into Dataframe!
     def calc_dir_response(self, stim, t1=None, t2=None):
         """Calculate mean response to each direction during given stimulus."""
 
-        # Calculate binned spike count per direction.
+        # Init stimulus.
         pname = stim + 'Dir'
-        if t1 is None or t2 is None:
-            # TODO: this is updating both t1 and t2, even if one is specified,
-            # have to redesign this and other such code!!!
-            t1, t2 = constants.del_stim_prds.periods(stim)
-        response_stats = self.calc_response_stats(pname, t1, t2)
-        dirs, mean_rate, std_rate, sem_rate = response_stats
 
-        return dirs, mean_rate, std_rate, sem_rate
+        # Init time period.
+        t1_stim, t2_stim = constants.del_stim_prds.periods(stim)
+        if t1 is None:
+            t1 = t1_stim
+        if t2 is None:
+            t2 = t2_stim
+
+        # Calculate response statistics.
+        response_stats = self.calc_response_stats(pname, t1, t2)
+
+        return response_stats
 
     def calc_DS(self, stim, t1=None, t2=None):
-        """Calculate direction selectivity."""
+        """Calculate direction selectivity (DS)."""
 
-        # Get mean response to each direction.
-        dirs, meanFR, stdFR, semFR = self.calc_dir_response(stim, t1, t2)
+        # Get response stats to each direction.
+        resp_stats = self.calc_dir_response(stim, t1, t2)
+        dirs = np.array(resp_stats.index) * deg
+        meanFR, stdFR, semFR = [util.dim_series_to_array(resp_stats[stat])
+                                for stat in ('mean', 'std', 'sem')]
 
-        # Calculate preferred direction and direction selectivity index.
+        # Calculate preferred direction PD and direction selectivity index DSI.
         DSI, PD, PDc = util.deg_w_mean(dirs, meanFR)
 
         # Calculate antipreferred direction.
         ADc = util.deg_mod(PDc+180*deg)
 
-        # Calculate legacy direction selectivity index (FRpref - FRanti)
+        # Calculate legacy direction selectivity index,
+        # based on just two directions: FRpref - FRanti / (FRpref + FRanti)
         pFR = meanFR[np.where(dirs == PDc)[0]]
         aFR = meanFR[np.where(dirs == ADc)[0]]
         DS2 = float(util.modulation_index(pFR, aFR)) if aFR.size else np.nan
@@ -509,50 +514,71 @@ class Unit:
         dirs_cntr, meanFR_cntr, semFR_cntr = tun_res
 
         # Fit Gaussian tuning curve to stimulus - response.
-        fit_res = tuning.fit_gaus_curve(dirs_cntr, meanFR_cntr, semFR_cntr)
+        fit_params, fit_res = tuning.fit_gaus_curve(dirs_cntr, meanFR_cntr,
+                                                    semFR_cntr)
 
         # Prepare results.
         res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
                'DSI': DSI, 'DS2': DS2, 'PD': PD, 'PDc': PDc, 'ADc': ADc,
                'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr,
-               'semFR_cntr': semFR_cntr, 'fit_res': fit_res}
+               'semFR_cntr': semFR_cntr, 'fit_params': fit_params,
+               'fit_res': fit_res}
 
         return res
 
-    def test_direction_selectivity(self, stims=['S1', 'S2'],
-                                   no_labels=False, do_plot=True,
-                                   ffig_tmpl=None, **kwargs):
+    def test_DS(self, stims=['S1', 'S2'], no_labels=False, do_plot=True,
+                ffig_tmpl=None, **kwargs):
         """
-        Test direction selectivity of unit by calculating
-          - direction selectivity index and preferred direction, and
+        Test DS of unit by calculating
+          - DS index and PD, and
           - parameters of Gaussian tuning curve.
         """
 
-        DSres = {}
+        # Init field to store DS results.
+        DSres_plot = {}
+        df_temp = pd.DataFrame(index=stims)
+        DSres = OrdDict([('DSIs', df_temp.copy()), ('PDs', df_temp.copy()),
+                         ('TPs', df_temp.copy())])
+
         for stim in stims:
 
             res = self.calc_DS(stim, t1=None, t2=None)
 
             # Generate data points for plotting fitted tuning curve.
-            a, b, x0, sigma = [float(v) for v in res['fit_res'].loc['fit'][0:4]]
+            a, b, x0, sigma = res['fit_params'].loc['fit']
             x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
                                         a=a, b=b, x0=x0, sigma=sigma)
 
             # Add calculated values to unit.
-            # TODO: rename these?
-            self.UnitParams['PrefDir'][stim] = res['PD']
-            self.UnitParams['PrefDirCoarse'][stim] = res['PDc']
-            self.UnitParams['AntiPrefDirCoarse'][stim] = res['ADc']
-            self.UnitParams['DirSelectivity'][stim] = res['DSI']
-            self.UnitParams['DS2'][stim] = res['DS2']
-            self.UnitParams['DirTuningParams'][stim] = res['fit_res']
+
+            # DSIs
+            DSres['DSIs'].loc[stim, 'DSm'] = res['DS2']
+            DSres['DSIs'].loc[stim, 'DSw'] = res['DSI']
+
+            # PDs
+            # By maximum rate.
+            DSres['PDs'].loc[stim, 'PDm'] = res['PD']
+            DSres['PDs'].loc[stim, 'cPDm'] = res['PDc']
+            DSres['PDs'].loc[stim, 'cADm'] = res['ADc']
+            # By weighted vector sum.
+            DSres['PDs'].loc[stim, 'PDw'] = res['PD']
+            DSres['PDs'].loc[stim, 'cPDw'] = res['PDc']
+            DSres['PDs'].loc[stim, 'cADw'] = res['ADc']
+            # By Gaussian tuning curve fit.
+            # TODO: add preferred direction found by tuning curve fit???
+            # Would it worth it?
+
+            # TPs
+            for fres, val in res['fit_res'].items():
+                DSres['TPs'].loc[stim, fres] = val
 
             # Collect data for plotting.
-            DSres[stim] = res
-            DSres[stim]['xfit'] = x
-            DSres[stim]['yfit'] = y
+            DSres_plot[stim] = res
+            DSres_plot[stim]['xfit'] = x
+            DSres_plot[stim]['yfit'] = y
 
-        DSres = pd.DataFrame(DSres).T
+        DSres_plot = pd.DataFrame(DSres_plot).T
+        self.Selectivity['DS'] = DSres
 
         # Plot direction selectivity results.
         if do_plot:
@@ -568,7 +594,8 @@ class Unit:
             if ffig_tmpl is not None:
                 ffig = ffig_tmpl.format(self.name_to_fname())
             title = self.Name
-            plot.direction_selectivity(DSres, title=title, ffig=ffig, **kwargs)
+            plot.direction_selectivity(DSres_plot, title=title,
+                                       ffig=ffig, **kwargs)
 
     # %% Plotting methods.
 
