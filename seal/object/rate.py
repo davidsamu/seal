@@ -27,10 +27,10 @@ class Rate:
         """Create a Rate instance."""
 
         # Create empty instance.
-        self.name = ''
+        self.name = name
         self.rates = None
-        self.kernel = None
-        self.step = None
+        self.kernel = kernel
+        self.step = step
         self.tdim = tdim
         self.rdim = rdim
 
@@ -52,22 +52,21 @@ class Rate:
         if min_rate is not None:
             rates[rates < float(min_rate.rescale(rdim))] = 0
 
-        # Store rate values and kernel.
-        self.name = name
+        # Store rate values.
         self.rates = rates
-        self.kernel = kernel
-        self.step = step
 
     # %% Kernel query methods.
 
     def kernel_type(self):
-        """Return type of kernel."""
+        """Return kernel type."""
 
         ktype = type(self.kernel)
         return ktype
 
     def kernel_sigma(self):
-        """Return sigma of Gaussian kernel or width of Rectangular kernel."""
+        """
+        Return kernel width (Rectangular kernel) or sigma (Gaussian kernel).
+        """
 
         sigma = self.kernel.sigma
 
@@ -76,9 +75,8 @@ class Rate:
             width = util.rect_width_from_sigma(sigma)
             return width
 
-        # Gaussian kernel.
-        else:
-            return sigma
+        # Any other, e.g. Gaussian, kernel.
+        return sigma
 
     # %% Methods to get times and rates for given time windows and trials.
 
@@ -97,7 +95,7 @@ class Rate:
     def get_rates(self, trs=None, t1=None, t2=None):
         """Return firing rates of some trials within time window."""
 
-        # Set default values.
+        # Set default trials.
         if trs is None:
             trs = np.ones(len(self.rates), dtype=bool)
 

@@ -548,8 +548,10 @@ def sem(v, axis=0):
     """Return standard error of the mean."""
 
     # Keeping dimension of Quantity arrays (as opposed to scipy.stats.sem).
-    # TODO: correct denominator by NAN values!
-    sem = np.nanstd(v, axis) / np.sqrt(v.shape[axis])
+    std = np.nanstd(v, axis)      # standard deviation
+    n = (~np.isnan(v)).sum(axis)  # number of (non-None) samples
+    sem = std / np.sqrt(n)
+
     return sem
 
 

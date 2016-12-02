@@ -355,22 +355,23 @@ class Unit:
         if self.is_empty():
             return None
 
+        # Init trials.
         if trs is None:
             trs = self.included_trials()
 
-        # TODO: the below breaks with t1 or t2 is equal to None!
+        # Get rates.
         frate = self.Spikes.spike_stats_in_prd(trs, t1, t2)[1]
+
+        # Put them into a Series with trials start times.
         tr_time = self.TrialParams['TrialStart'][trs.trials]
-        tr_time = util.remove_dim_to_df_col(tr_time)
         frate_tr_time = pd.Series(frate, index=tr_time, name='FR (1/s)')
 
         return frate_tr_time
 
     # %% Methods to trials with specific directions.
 
-    # TODO: remove 'stim'!!
-    def dir_trials(self, direction, stim='S1', pname=['S1Dir', 'S2Dir'],
-                   offsets=[0*deg], comb_params='all', comb_values=False):
+    def dir_trials(self, direction, pname=['S1Dir', 'S2Dir'], offsets=[0*deg],
+                   comb_params='all', comb_values=False):
         """Return trials with preferred or antipreferred direction."""
 
         if not util.is_iterable(pname):
@@ -389,8 +390,7 @@ class Unit:
 
         # Get trials with preferred direction.
         pdir = self.pref_dir(stim)
-        trs = self.dir_trials(pdir, stim, pname, offsets,
-                              comb_params, comb_values)
+        trs = self.dir_trials(pdir, pname, offsets, comb_params, comb_values)
 
         # Rename trials.
         if len(trs) == 1:
@@ -404,8 +404,7 @@ class Unit:
 
         # Get trials with anti-preferred direction.
         adir = self.anti_pref_dir(stim)
-        trs = self.dir_trials(adir, stim, pname, offsets,
-                              comb_params, comb_values)
+        trs = self.dir_trials(adir, pname, offsets, comb_params, comb_values)
 
         # Rename trials.
         if len(trs) == 1:
