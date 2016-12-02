@@ -80,11 +80,11 @@ def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
 
     # Get rates for two sets of trials.
     # TODO: trial selection should be refactored!!! and moved to Trials??
-    all_trials = get_trials(u, **get_trials_kwargs)
-    if not isinstance(all_trials[0], list):  # BIIIIG HACK!!! Do above TODO!!
-        all_trials = [[trials] for trials in all_trials]
+    all_trs = get_trials(u, **get_trials_kwargs)
+    if not isinstance(all_trs[0], list):  # BIIIIG HACK!!! Do above TODO!!
+        all_trs = [[trs] for trs in all_trs]
     all_rates = np.array([[u.Rates[nrate].get_rates(tr.trials, t1, t2)
-                          for tr in trials] for trials in all_trials])
+                          for tr in trs] for trs in all_trs])
 
     # Create rate matrix and target vector.
     # Z-score across time in corresponding trial-pairs (e.g., per direction).
@@ -149,7 +149,7 @@ def run_AROC(Units, nrate, t1, t2, offsets, n_perm,
         res = np.array(util.run_in_pool(run_unit_ROC, params))
         aroc = res[:, :, 0]
         pval = res[:, :, 1]
-        tvec = util.quantity_linspace(t1, t2, ms, aroc.shape[1])
+        tvec = util.quantity_linspace(t1, t2, aroc.shape[1], ms)
 
         # Save results.
         aroc_results = {'aroc': aroc, 'pval': pval, 'tvec': tvec,
@@ -197,8 +197,8 @@ def first_period(vec, time, prd_len, pvec=None, pth=None,
     lo_prds = util.periods(sign_lo_idxs, time, prd_len)
 
     # Earliest periods of each.
-    earliest_hi_run = min([sp[0] for sp in hi_prds]) if hi_prds else np.nan
-    earliest_lo_run = min([sp[0] for sp in lo_prds]) if lo_prds else np.nan
+    earliest_hi_run = min([prd[0] for prd in hi_prds]) if hi_prds else np.nan
+    earliest_lo_run = min([prd[0] for prd in lo_prds]) if lo_prds else np.nan
 
     # Find the earlier one, if any.
     try:
@@ -223,15 +223,15 @@ def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
     for i, u in enumerate(Units):
 
         fig, gsp, axs = plot.get_gs_subplots(nrow=2, ncol=1,
-                                             subw=6, subh=3, 
-                                             height_ratios=[2, 1], 
+                                             subw=6, subh=3,
+                                             height_ratios=[2, 1],
                                              create_axes=False)
-        
+
         # Plot standard raster-rate plot
         trials = get_trials(u, **get_trials_kwargs)
 
-        rr_gsp = plot.embed_gsp(gsp[0, 0], 2, 1)        
-        fig, raster_axs, rate_ax = u.plot_raster_rate(nrate, trials, t1, t2, 
+        rr_gsp = plot.embed_gsp(gsp[0, 0], 2, 1)
+        fig, raster_axs, rate_ax = u.plot_raster_rate(nrate, trials, t1, t2,
                                                       colors=colors,
                                                       outer_gsp=rr_gsp, fig=fig)
 
@@ -244,7 +244,7 @@ def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
         # Add chance line and grid lines
         plot.add_chance_level_line(ax=roc_ax)
         for y in [0.25, 0.75]:
-            plot.add_chance_level_line(ylevel=y, ls=':', ax=roc_ax)          
+            plot.add_chance_level_line(ylevel=y, ls=':', ax=roc_ax)
 
         # Plot AROC
         plot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1], xlab=plot.t_lbl,

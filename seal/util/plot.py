@@ -47,7 +47,7 @@ savefig_dpi = 150
 # matplotlib.rcdefaults()
 
 
-# TODO: change everything to Seaborn API? :-) 
+# TODO: change everything to Seaborn API? :-)
 
 # TODO: add distribution plot a la Tania.
 
@@ -64,6 +64,8 @@ my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 
 def group_params(unit_params, params_to_plot=None, ffig=None):
     """Plot histogram of parameter values across units."""
+
+    # TODO: make this automatic? move labels to constants?
 
     # Init params to plot.
     if params_to_plot is None:
@@ -140,18 +142,18 @@ def empty_raster_rate(fig, outer_gsp, nraster):
     """Plot empty raster and rate plots."""
 
     mock_gsp_rasters = embed_gsp(outer_gsp[0], nraster, 1, hspace=.15)
-    mock_raster_axs = [add_mock_axes(fig, mock_gsp_rasters[i, 0]) 
+    mock_raster_axs = [add_mock_axes(fig, mock_gsp_rasters[i, 0])
                        for i in range(nraster)]
     mock_gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
     mock_rate_ax = add_mock_axes(fig, mock_gsp_rate[0, 0])
 
     return mock_raster_axs, mock_rate_ax
-    
+
 # TODO: skip param of rate() should be provided and default to NOne!
 def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
                 segments=None, pvals=None, test=None, test_kwargs={},
                 colors=None, ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
-                lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5, 
+                lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5,
                 legend=True, legend_kwargs={}, fig=None, ffig=None, outer_gsp=None):
     """Plot raster and rate plots."""
 
@@ -163,12 +165,12 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
     gsp_raster = embed_gsp(outer_gsp[0], len(spikes_list), 1, hspace=.15)
     gsp_rate = embed_gsp(outer_gsp[1], 1, 1)
     ylab_posx = -0.05
-    
+
     # Raster plot(s).
     if colors is None:
         col_cyc = get_colors(from_mpl_cycle=True)
         colors = [next(col_cyc) for i in range(len(spikes_list))]
-        
+
     raster_axs = []
     for i, sp_tr in enumerate(spikes_list):
         ax = fig.add_subplot(gsp_raster[i, 0])
@@ -183,7 +185,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rates, times, t1, t2, names, True, t_unit, skip, segments, pvals, test,
-         test_kwargs, None, ylim, colors, None, xlab, ylab_rate, None, legend, 
+         test_kwargs, None, ylim, colors, None, xlab, ylab_rate, None, legend,
          lgn_lbl_rate, legend_kwargs, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
 
@@ -194,13 +196,13 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
 
 # TODO: add some light background to raster?
 # TODO: remove tick labels?
-def raster(spikes, t1, t2, t_unit=ms, segments=None, markersize=1.5, 
+def raster(spikes, t1, t2, t_unit=ms, segments=None, markersize=1.5,
            color=None, title=None, xlab=t_lbl, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
     # Plot raster.
     ax = axes(ax)
-        
+
     plot_segments(segments, t_unit, ax=ax)
     for i, sp_tr in enumerate(spikes):
         t = sp_tr.rescale(t_unit)
@@ -279,21 +281,21 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
 
             # Calculate mean, SEM.
             meanr, semr = util.mean_sem(rts)
-                
+
             # TODO: fix this as an option.
             # TODO: Add smoothing to util.
             time_sm, meanr_sm, semr_sm = time, meanr, semr
             if smooth is not None:
                 from scipy.interpolate import spline
-                time_sm = util.quantity_linspace(time.min(), time.max(), ms, 100)
+                time_sm = util.quantity_linspace(time.min(), time.max(), 100, ms)
                 meanr_sm = spline(time, meanr, time_sm, order=3)
                 semr_sm = spline(time, semr, time_sm, order=3)
-            
+
             # Skip every nth value (for smooting curve).
             time_sk = time_sm[::skip].copy()
             meanr_sk = meanr_sm[::skip].copy()
             semr_sk = semr_sm[::skip].copy()
-                
+
             # Plot mean line and SEM area.
             ax.plot(time_sk, meanr_sk, label=lbl, color=col)
             ax.fill_between(time_sk, meanr_sk-semr_sk, meanr_sk+semr_sk, alpha=0.2,
@@ -348,7 +350,7 @@ def empty_direction_selectivity(fig, outer_gsp):
     mock_polar_ax = add_mock_axes(fig, mock_gsp_polar[0, 0], polar=True)
     mock_gsp_tuning = embed_gsp(outer_gsp[1], 1, 1)
     mock_tuning_ax = add_mock_axes(fig, mock_gsp_tuning[0, 0])
-    
+
     return mock_polar_ax, mock_tuning_ax
 
 def direction_selectivity(DSres, title=None, labels=True,
@@ -445,7 +447,7 @@ def direction_selectivity(DSres, title=None, labels=True,
         outer_gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     save_fig(fig, ffig)
 
-    
+
 # TODO: add option to change bars to lines and symbols!
 
 def polar_direction_response(dirs, FR, DSI=None, PD=None,
@@ -474,7 +476,7 @@ def polar_direction_response(dirs, FR, DSI=None, PD=None,
                                     shrink=0.0, alpha=0.5))
 
     # ax.RadialLocator.MAXTICKS = 3
-        
+
     # Save and return plot.
     save_fig(ffig=ffig)
     return ax
@@ -607,25 +609,25 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
             ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
                     va='bottom', ha=lbl_ha)
 
-            
-def add_chance_level_line(ylevel=0.5, color='grey', ls='--', alpha=0.5, 
+
+def add_chance_level_line(ylevel=0.5, color='grey', ls='--', alpha=0.5,
                           ax=None):
     """Add horizontal line denoting chance level for decoder accuracy plot."""
 
     ax = axes(ax)
     ax.axhline(ylevel, color=color, ls=ls, alpha=alpha)
-    
-    
+
+
 def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5, ax=None):
     """Add zero line to x and/or y axes."""
-    
+
     ax = axes(ax)
     if axis in ('x', 'both'):
         ax.axhline(0, color=color, ls=ls, alpha=alpha)
     if axis in ('y', 'both'):
         ax.axvline(0, color=color, ls=ls, alpha=alpha)
-    
-    
+
+
 def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
     """Add identity line to axes."""
 
@@ -661,10 +663,10 @@ def set_limits(xlim=None, ylim=None, ax=None):
 def sync_axes(axs, sync_x=False, sync_y=False, equal_xy=False,
               match_xy_aspect=False):
     """Synchronize x and/or y axis across list of axes."""
-    
+
     if not len(axs):
         return
-    
+
     # Synchronise x-axis limits across plots.
     if sync_x:
         all_xlims = np.array([ax.get_xlim() for ax in axs])
@@ -761,11 +763,11 @@ def hide_axes(ax=None, show_x=False, show_y=False):
     # Hide spines of axes to hide. (Don't change the others!)
     if not show_x:
         ax.spines['bottom'].set_visible(False)
-        ax.spines['top'].set_visible(False)        
+        ax.spines['top'].set_visible(False)
     if not show_y:
         ax.spines['left'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        
+
 
 # See bottom of this for better colorbar handling!
 # http://matplotlib.org/users/tight_layout_guide.html
@@ -982,20 +984,20 @@ def get_proxy_artist(label, color, artist_type='patch', **kwargs):
 
 def set_seaborn_style_context(style=None, context=None, rc_args=None):
     """Set Seaborn style, context and/or provide optional custom parameters."""
-    
+
     # Available styles: darkgrid, whitegrid, dark, white or ticks.
     if style is not None:
         sns.set_style(style)
-        
-    # Available contexts: notebook, paper, poster or talk.      
+
+    # Available contexts: notebook, paper, poster or talk.
     if context is not None:
-        sns.set_context(context) 
-        
+        sns.set_context(context)
+
     # Overrride parameters that are part of the style definition.
     if rc_args is not None:
         sns.axes_style(rc=rc_args)
-    
-    
+
+
 # %% General purpose plotting functions.
 
 def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
@@ -1073,7 +1075,7 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
 def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
             title=None, ytitle=None, add_id_line=False, add_zero_lines=True,
-            equal_xy=False, match_xy_apsect=False, c='cyan', ffig=None, 
+            equal_xy=False, match_xy_apsect=False, c='cyan', ffig=None,
             ax=None, **kwargs):
     """Plot two vectors on scatter plot."""
 
@@ -1088,10 +1090,10 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
                    c=colors, edgecolor=edgecolors, ffig=ffig, ax=ax, **kwargs)
 
     if add_id_line:
-        add_identity_line(equal_xy=equal_xy, ax=ax)    
+        add_identity_line(equal_xy=equal_xy, ax=ax)
     if add_zero_lines:
         add_zero_line(axis='both', ax=ax)
-    
+
     # Optionally: Equalise scale and match aspect ratio between x and y axes.
     sync_axes([ax], equal_xy=equal_xy, match_xy_aspect=match_xy_apsect)
 
@@ -1120,14 +1122,14 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines
         if is_sign is not None:
             report_txt += ', sign: {}'.format(sum(is_sign))
         report_txt += '\n'
-        
+
     # Add significance test results.
-    if sign_test is not None:        
+    if sign_test is not None:
         pval = sign_test(x, y)[1]
         report_txt += util.format_pvalue(pval)
-        if is_sign is not None:        
+        if is_sign is not None:
             pval = sign_test(x[is_sign], y[is_sign])[1]
-            report_txt += ', sign: ' + util.format_pvalue(pval)[4:]        
+            report_txt += ', sign: ' + util.format_pvalue(pval)[4:]
 
     if report_txt:
         ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
@@ -1151,7 +1153,7 @@ def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_
                  ax=ax, **kwargs)
 
     # Add linear fit.
-    # TODO: add confidence interval using seaborn!    
+    # TODO: add confidence interval using seaborn!
     if add_lin_fit:
         slope, intercept, r, p, stderr = util.lin_regress(x, y)
         ax.plot(x, slope*x + intercept, '-', c='grey')

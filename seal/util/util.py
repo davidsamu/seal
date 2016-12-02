@@ -321,9 +321,12 @@ def values_in_window(v, vmin=None, vmax=None):
 
 
 def zscore_timeseries(timeseries, axis=0):
-    """Z-score set of time series at each time point (per column)."""
+    """
+    Z-score set of time series at each time point (per column).
 
-    # axis: Axis along which to operate. If None, compute over the whole array `a`.
+    axis: Axis along which to operate. If None, compute over the whole array.
+    """
+
     zscored_ts = sp.stats.zscore(timeseries, axis=axis)
     zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
 
@@ -338,10 +341,40 @@ def make_df(row_list, col_names=None):
     return df
 
 
-# %% Functions to handle Numpy and Pandas objects containing Quantities elements.
+def series_from_tuple_list(tuple_list):
+    """Create Pandas series from list of (name, value) tuples."""
 
-def quantity_linspace(q1, q2, dim, n, endpoint=True, retstep=False):
+    sp_names, sp_vals = zip(*tuple_list)
+    series = pd.Series(sp_vals, index=sp_names)
+
+    return series
+
+
+def get_scalar_vals(series, remove_dimensions=False):
+    """
+    Function to all non-iterator type value from Series.
+    Optionally, remove dimension from quantity values.
+    """
+
+    # Select non-iterator type values.
+    idxs = [not is_iterable(val) for val in series.values]
+    sub_series = series[idxs]
+
+    # Remove dimension from quantity values.
+    if remove_dimensions:
+        [sub_series.replace(v, float(v), inplace=True)
+         for v in sub_series.values if isinstance(v, Quantity)]
+
+    return sub_series
+
+
+# %% Functions to handle Numpy and Pandas objects with Quantities as elements.
+
+def quantity_linspace(q1, q2, n, dim=None, endpoint=True, retstep=False):
     """Implement numpy.linspace on phyisical quantities."""
+
+    if dim is None:
+        dim = q1.units
 
     v1 = np.array(q1.rescale(dim))
     v2 = np.array(q2.rescale(dim))
@@ -673,10 +706,24 @@ def sign_periods(ts1, ts2, time, p, test, test_kwargs):
 
 # %% Functions to create kernels for firing rate estimation.
 
+def rect_width_from_sigma(sigma):
+    """Return rectangular kernel width from sigma."""
+
+    width = 2 * np.sqrt(3) * sigma.rescale(ms)
+    return width
+
+
+def sigma_from_rect_width(width):
+    """Return sigma from rectangular kernel width."""
+
+    sigma = width.rescale(ms) / 2 / np.sqrt(3)
+    return sigma
+
+
 def rect_kernel(width):
     """Create rectangular kernel with given width."""
 
-    sigma = width.rescale(ms)/2/np.sqrt(3)  # convert kernel width to sigma
+    sigma = sigma_from_rect_width(width)
     rk = RectangularKernel(sigma=sigma)
     return rk
 

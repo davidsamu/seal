@@ -17,12 +17,11 @@ from seal.object.periods import Periods
 # %% Task constants.
 
 # Define parameter info.
-pinfo = dict(markS1Dir=('S1Dir', deg), markS2Dir=('S2Dir', deg),
-             markS1LocX=('S1LocX', cm), markS1LocY=('S1LocY', cm),
-             MarkS2LocX=('S2LocX', cm), MarkS2LocY=('S2LocY', cm),
-             markS1range=('S1Rng', deg), markS2range=('S2Rng', deg),
-             subjectAnswer=('AnswCorr', None))
-
+tr_params = dict(markS1Dir=('S1Dir', deg), markS2Dir=('S2Dir', deg),
+                 markS1LocX=('S1LocX', cm), markS1LocY=('S1LocY', cm),
+                 MarkS2LocX=('S2LocX', cm), MarkS2LocY=('S2LocY', cm),
+                 markS1range=('S1Rng', deg), markS2range=('S2Rng', deg),
+                 subjectAnswer=('AnswCorr', None))
 
 # Trial start and stop times.
 t_start = -1000*ms
@@ -75,6 +74,7 @@ del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
 # %% Analysis constants.
 
 # Kernel sets for firing rate estimation.
+R100_kernel = util.kernel_set(['R100'])
 RG_kernels = util.kernel_set(['G20', 'G40', 'R100', 'R200'])
 shrtR_kernels = util.kernel_set(['R50', 'R75', 'R100'])
 lngR_kernels = util.kernel_set(['R100', 'R200', 'R500'])
@@ -84,4 +84,4 @@ step = 10*ms
 
 # %% Direction related constants.
 
-all_dirs = util.quantity_arange(0*deg, (315+1)*deg, 45*deg)
+all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)

@@ -25,23 +25,26 @@ from seal.analysis import tuning
 
 # TODO: add receptive field coverage information!
 
+
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
     def __init__(self, t_start=None, t_stop=None, kernels=None, step=10*ms,
-                 TPLCell=None, params_info=None):
+                 TPLCell=None, tr_params=None):
         """Create Unit instance, optionally from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
-        self.SessParams = OrdDict()
-        self.UnitParams = OrdDict()
-        self.QualityMetrics = OrdDict()
+        self.SessParams = pd.Series()
+        self.Waveforms = pd.Series()
         self.TrialParams = pd.DataFrame()
         self.Events = pd.DataFrame()
-        self.Spikes = []
-        self.Rates = OrdDict()
+        self.Spikes = Spikes([])
+        self.Rates = pd.Series()
+        self.QualityMetrics = pd.Series()
+        self.Selectivity = pd.DataFrame()
+
         self.t_start = t_start
         self.t_stop = t_stop
 
@@ -49,66 +52,72 @@ class Unit:
         if TPLCell is None:
             return
 
-        # Extract session parameters.
+        # %% Session parameters.
+
+        # Prepare session params.
         monkey, date, probe, exp, sortno = util.params_from_fname(TPLCell.File)
         task, task_idx = exp[:-1], int(exp[-1])
-
         [chan, un] = TPLCell.ChanUnit
-        self.Name = ' '.join([task, monkey, date, probe])
-        self.Name += ' Ch{:02}/{} ({})'.format(chan, un, sortno)
-
-        # TODO: convert to series?
-        self.SessParams['task'] = task
-        self.SessParams['task_idx'] = task_idx
-        self.SessParams['monkey'] = monkey
-        self.SessParams['date'] = dt.date(dt.strptime(date, '%m%d%y'))
-        self.SessParams['probe'] = probe
-        self.SessParams['channel #'] = chan
-        self.SessParams['unit #'] = un
-        self.SessParams['sort #'] = sortno
-        self.SessParams['filepath'] = TPLCell.Filename
-        self.SessParams['filename'] = TPLCell.File
-        self.SessParams['paraminfo'] = [p.tolist() if isinstance(p, np.ndarray)
-                                        else p for p in TPLCell.PInfo]
         sampl_per = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
-        self.SessParams['SamplPer'] = sampl_per
+        pinfo = [p.tolist() if isinstance(p, np.ndarray)
+                 else p for p in TPLCell.PInfo]
+        sess_date = dt.date(dt.strptime(date, '%m%d%y'))
 
-        # Unit parameters/stats.
+        # Name unit.
+        self.Name = (' '.join([task, monkey, date, probe]) +
+                     ' Ch{:02}/{} ({})'.format(chan, un, sortno))
+
+        # Assign session params.
+        sp_list = [('task', task),
+                   ('task_idx', task_idx),
+                   ('monkey', monkey),
+                   ('date', sess_date),
+                   ('probe', probe),
+                   ('channel #', chan),
+                   ('unit #', un),
+                   ('sort #', sortno),
+                   ('filepath', TPLCell.Filename),
+                   ('filename', TPLCell.File),
+                   ('paraminfo', pinfo),
+                   ('SamplPer', sampl_per)]
+        self.SessParams = util.series_from_tuple_list(sp_list)
+
+        # %% Waveform data.
+
+        # Prepare waveform data.
         wfs = TPLCell.Waves
         if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
         wf_time = range(wfs.shape[1]) * self.SessParams['SamplPer']
-        # TODO: convert to series?
-        self.UnitParams['WaveformTime'] = wf_time
-        self.UnitParams['SpikeWaveforms'] = wfs
-        self.UnitParams['SpikeDuration'] = util.fill_dim(TPLCell.Spikes_dur * s)
-        self.UnitParams['MeanSpikeDur'] = TPLCell.MeanSpikeDur * s
 
         t_min = np.min(TPLCell.Spikes)
         t_max = np.max(TPLCell.Spikes)
-        sp_train = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
-        self.UnitParams['SpikeTimes'] = util.fill_dim(sp_train)
+        sp_times = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
 
-        # TODO: make dataframe of this!
-        self.UnitParams['PrefDir'] = OrdDict()
-        self.UnitParams['PrefDirCoarse'] = OrdDict()
-        self.UnitParams['AntiPrefDirCoarse'] = OrdDict()
-        self.UnitParams['DirSelectivity'] = OrdDict()
-        self.UnitParams['DS2'] = OrdDict()
-        self.UnitParams['DirTuningParams'] = OrdDict()
+        # Assign waveform data.
+        wf_list = [('WaveformTime', wf_time),
+                   ('SpikeWaveforms', wfs),
+                   ('SpikeDuration', util.fill_dim(TPLCell.Spikes_dur * s)),
+                   ('MeanSpikeDur', TPLCell.MeanSpikeDur * s),
+                   ('SpikeTimes', util.fill_dim(sp_times)),
+                   ('DirSelectivity', pd.DataFrame())]
+        self.Waveforms = util.series_from_tuple_list(wf_list)
 
-        # Trial parameters.
-        self.TrialParams = pd.DataFrame(TPLCell.TrialParams,
-                                        columns=TPLCell.Header)
-        if params_info is not None:  # This takes a lot of time, speed it up?
-            for name, (new_name, dim) in params_info.items():
-                if name not in self.TrialParams.columns:
+        # %% Trial parameters.
+
+        trp_df = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
+
+        if tr_params is not None:
+            for name, (nnew, dim) in tr_params.items():
+                if name not in trp_df.columns:
                     print('Warning: Parameter {0} not found!'.format(name))
                     continue
-                self.TrialParams.rename(columns={name: new_name}, inplace=True)
-                if dim is not None:  # add physical dimension
-                    c = util.add_dim_to_df_col(self.TrialParams[new_name], dim)
-                    self.TrialParams[new_name] = c
+                # Rename column.
+                trp_df.rename(columns={name: nnew}, inplace=True)
+                if dim is not None:  # add dimension
+                    trp_df[nnew] = util.add_dim_to_df_col(trp_df[nnew], dim)
+
+        self.TrialParams = trp_df
 
         # Add column for subject response (saccade direction).
         if 'AnswCorr' in self.TrialParams.columns:
@@ -119,27 +128,31 @@ class Unit:
                                         (~same_dir & ~corr_ans))
 
         # Start and end times of each trials.
-        trial_times = [(TPLCell.Timestamps[i1-1]*s, TPLCell.Timestamps[i2-1]*s)
-                       for i1, i2 in TPLCell.Info.successfull_trials_indices]
-        self.TrialParams['TrialStart'] = [tr_t[0] for tr_t in trial_times]
-        self.TrialParams['TrialStop'] = [tr_t[1] for tr_t in trial_times]
-        self.TrialParams['TrialLength'] = [tr_t[1] - tr_t[0]
-                                           for tr_t in trial_times]
+        tstamps = TPLCell.Timestamps
+        tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
+                                in TPLCell.Info.successfull_trials_indices]) * s
+        self.TrialParams['TrialStart'] = tr_times[:, 0]
+        self.TrialParams['TrialStop'] = tr_times[:, 1]
+        self.TrialParams['TrialLength'] = tr_times[:, 1] - tr_times[:, 0]
+
+        # %% Trial events.
 
         # Timestamps of events. Only S1 offset and S2 onset are reliable!
-        # Take care of indexing starting with 0! (not with 1 as in Matlab)
+        # Watch out: indexing starting with 0! (not with 1 as in Matlab)
         S1_len, S2_len = constants.stim_prds.dur()
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
+        event_cols = ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset']
         self.Events = pd.DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
                                     TPLCell.Timestamps[iS1off]*s,
                                     TPLCell.Timestamps[iS2on]*s,
-                                    TPLCell.Timestamps[iS2on]*s+S2_len]).T
-        self.Events.columns = ['S1 onset', 'S1 offset',
-                               'S2 onset', 'S2 offset']
+                                    TPLCell.Timestamps[iS2on]*s+S2_len],
+                                   index=event_cols).T
         # Align trial events to S1 onset.
         S1on = self.Events['S1 onset']
         self.Events = self.Events.subtract(S1on, axis=0)
+
+        # %% Spikes and rates.
 
         # Trials spikes, aligned to S1 onset.
         spk_trains = [TS*s-S1on[i] for i, TS in enumerate(TPLCell.TrialSpikes)]
@@ -147,11 +160,9 @@ class Unit:
 
         # Estimate firing rate per trial.
         spikes = self.Spikes.get_spikes()
-        self.Rates = OrdDict([(name, Rate(name, kernel, spikes, step))
-                              for name, kernel in kernels.items()])
-
-        # Calculate preferred direction.
-        # self.test_direction_selectivity()
+        rate_list = [Rate(name, kernel, spikes, step)
+                     for name, kernel in kernels.items()]
+        self.Rates = pd.Series(rate_list, index=kernels.keys())
 
     # %% Utility methods.
 
@@ -178,85 +189,42 @@ class Unit:
         """Return (recording, channel #, unit #, task) index quadruple."""
 
         rec = self.get_recording_name()
-        ich = self.SessParams['channel #']
-        iunit = self.SessParams['unit #']
-        task = self.SessParams['task']
+        task, ich, iunit = [self.SessParams[p]
+                            for p in ('task', 'channel #', 'unit #')]
         uidx = (rec, ich, iunit, task)
+
         return uidx
 
-    def get_unit_params(self, remove_dimensions=True):
+    def get_unit_params(self, rem_dims=True):
         """Return main unit parameters."""
 
-        # TODO: remove this by exporting all available metrics automatically?
-
-        # Function to get value from dictionary, or None if key does not exist.
-        # Optionally, remove dimension from quantity values.
-        def get_val(dic, key):
-            val = None
-            if dic is not None and key in dic.keys():
-                val = dic[key]
-                if remove_dimensions and isinstance(val, Quantity):
-                    val = float(val)
-            return val
+        unit_params = pd.Series()
 
         # Recording parameters.
-        unit_params = OrdDict()
-        sp = self.SessParams
         unit_params['Session information'] = ''
-        unit_params['Name'] = self.Name
-        unit_params['task'] = get_val(sp, 'task')
-        unit_params['monkey'] = get_val(sp, 'monkey')
-        unit_params['date'] = get_val(sp, 'date')
-        unit_params['probe'] = get_val(sp, 'probe')
-        unit_params['channel #'] = get_val(sp, 'channel #')
-        unit_params['unit #'] = get_val(sp, 'unit #')
-        unit_params['sort #'] = get_val(sp, 'sort #')
-        unit_params['filepath'] = get_val(sp, 'filepath')
-        unit_params['filename'] = get_val(sp, 'filename')
+        unit_params.append(util.get_scalar_vals(self.SessParams, rem_dims))
 
         # Quality metrics.
-        qm = self.QualityMetrics
         unit_params['Quality metrics'] = ''
-        unit_params['MeanWfAmplitude'] = get_val(qm, 'MeanWfAmplitude')
-        unit_params['MeanWfDuration (us)'] = get_val(qm, 'MeanWfDuration')
-        unit_params['SNR'] = get_val(qm, 'SNR')
-        unit_params['MeanFiringRate (sp/s)'] = get_val(qm, 'MeanFiringRate')
-        unit_params['ISIviolation (%)'] = get_val(qm, 'ISIviolation')
-        unit_params['TrueSpikes (%)'] = get_val(qm, 'TrueSpikes')
-        unit_params['UnitType'] = get_val(qm, 'UnitType')
+        unit_params.append(util.get_scalar_vals(self.QualityMetrics, rem_dims))
 
-        # Trial stats.
-        unit_params['Trial stats'] = ''
-        unit_params['total # trials'] = get_val(qm, 'NTrialsTotal')
-        unit_params['# rejected trials'] = get_val(qm, 'NTrialsExcluded')
-        unit_params['# remaining trials'] = get_val(qm, 'NTrialsIncluded')
-
-        # Stimulus response properties.
-        up = self.UnitParams
-        DSI = get_val(up, 'DirSelectivity')
-        PD = get_val(up, 'PrefDir')
-        PDc = get_val(up, 'PrefDirCoarse')
-        unit_params['Direction selectivity'] = ''
-        unit_params['DSI S1'] = get_val(DSI, 'S1')
-        unit_params['DSI S2'] = get_val(DSI, 'S2')
-        unit_params['PD S1 (deg)'] = get_val(PD, 'S1')
-        unit_params['PD S2 (deg)'] = get_val(PD, 'S2')
-        unit_params['PD8 S1 (deg)'] = get_val(PDc, 'S1')
-        unit_params['PD8 S2 (deg)'] = get_val(PDc, 'S2')
+        # Stimulus selectivity.
+        unit_params['Selectivity'] = ''
+        unit_params.append(util.get_scalar_vals(self.Selectivity, rem_dims))
 
         return unit_params
 
-    def get_trial_params(self, trials=None, t1=None, t2=None):
+    def get_trial_params(self, trs=None, t1=None, t2=None):
         """Return default values of some common parameters."""
 
-        if trials is None:
-            trials = [self.all_trials()]
+        if trs is None:
+            trs = [self.all_trials()]
         if t1 is None:
             t1 = self.t_start
         if t2 is None:
             t2 = self.t_stop
 
-        return trials, t1, t2
+        return trs, t1, t2
 
     def pref_dir(self, stim='S1'):
         """Return preferred direction."""
@@ -281,39 +249,40 @@ class Unit:
             included_trials = self.all_trials(filtered=False)
         return included_trials
 
-    def filter_trials(self, trials):
+    def filter_trials(self, trs):
         """Filter trials by excluding rejected ones."""
 
-        tr_idxs = np.logical_and(trials.trials, self.included_trials().trials)
-        filtered_trials = Trials(tr_idxs, trials.value, trials.name)
+        tr_idxs = np.logical_and(trs.trials, self.included_trials().trials)
+        filtered_trials = Trials(tr_idxs, trs.value, trs.name)
         return filtered_trials
 
-    def ftrials(self, trials, value=None, name=None, filtered=True):
+    # TODO: distinguish between list and object of trials!
+    def ftrials(self, trs, value=None, name=None, filtered=True):
         """
         Create and return trial object from list of trial indices
         after excluding unit's rejected trials.
         """
 
-        trials = Trials(trials, value, name)
+        trs = Trials(trs, value, name)
         if filtered:
-            trials = self.filter_trials(trials)
+            trs = self.filter_trials(trs)
 
-        return trials
+        return trs
 
     def all_trials(self, filtered=True):
         """Return indices of all trials."""
 
         tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
-        trials = self.ftrials(tr_idxs, 'all trials', None, filtered)
+        trs = self.ftrials(tr_idxs, 'all trials', None, filtered)
 
-        return trials
+        return trs
 
-    def param_values_in_trials(self, trials, pnames=None):
+    def param_values_in_trials(self, trs, pnames=None):
         """Return list of parameter values during given trials."""
 
         if pnames is None:
             pnames = self.TrialParams.columns.values
-        pvals = self.TrialParams[pnames][trials.trials]
+        pvals = self.TrialParams[pnames][trs.trials]
 
         return pvals
 
@@ -380,18 +349,18 @@ class Unit:
 
     # %% Methods that provide interface to Unit's Spikes data.
 
-    def get_rates_by_trial(self, trials=None, t1=None, t2=None):
+    def get_rates_by_trial(self, trs=None, t1=None, t2=None):
         """Return spike statistics of time interval in given trials."""
 
         if self.is_empty():
             return None
 
-        if trials is None:
-            trials = self.included_trials()
+        if trs is None:
+            trs = self.included_trials()
 
-        # TODO: the below breaks with t1 or t2 equal to None!
-        frate = self.Spikes.spike_stats_in_prd(trials, t1, t2)[1]
-        tr_time = self.TrialParams['TrialStart'][trials.trials]
+        # TODO: the below breaks with t1 or t2 is equal to None!
+        frate = self.Spikes.spike_stats_in_prd(trs, t1, t2)[1]
+        tr_time = self.TrialParams['TrialStart'][trs.trials]
         tr_time = util.remove_dim_to_df_col(tr_time)
         frate_tr_time = pd.Series(frate, index=tr_time, name='FR (1/s)')
 
@@ -410,9 +379,9 @@ class Unit:
         # Get trials for direction + each offset value.
         degs = [util.deg_mod(direction + offset) for offset in offsets]
         deg_dict = OrdDict([(pn, degs) for pn in pname])
-        trials = self.trials_by_comb_params(deg_dict, comb_params, comb_values)
+        trs = self.trials_by_comb_params(deg_dict, comb_params, comb_values)
 
-        return trials
+        return trs
 
     def dir_pref_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
                         offsets=[0*deg], comb_params='all', comb_values=False):
@@ -420,14 +389,14 @@ class Unit:
 
         # Get trials with preferred direction.
         pdir = self.pref_dir(stim)
-        trials = self.dir_trials(pdir, stim, pname, offsets,
-                                 comb_params, comb_values)
+        trs = self.dir_trials(pdir, stim, pname, offsets,
+                              comb_params, comb_values)
 
         # Rename trials.
-        if len(trials) == 1:
-            trials[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' pref'
+        if len(trs) == 1:
+            trs[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' pref'
 
-        return trials
+        return trs
 
     def dir_anti_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
                         offsets=[0*deg], comb_params='all', comb_values=False):
@@ -435,14 +404,14 @@ class Unit:
 
         # Get trials with anti-preferred direction.
         adir = self.anti_pref_dir(stim)
-        trials = self.dir_trials(adir, stim, pname, offsets,
-                                 comb_params, comb_values)
+        trs = self.dir_trials(adir, stim, pname, offsets,
+                              comb_params, comb_values)
 
         # Rename trials.
-        if len(trials) == 1:
-            trials[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' anti'
+        if len(trs) == 1:
+            trs[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' anti'
 
-        return trials
+        return trs
 
     def dir_pref_anti_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
                              offsets=[0*deg], comb_params='all',
@@ -481,9 +450,9 @@ class Unit:
             trS = Trials.combine_trials(trS, 'or', 'S trials')
             trD = Trials.combine_trials(trD, 'or', 'D trials')
 
-        trials = [trS, trD]
+        trs = [trS, trD]
 
-        return trials
+        return trs
 
     # %% Methods to calculate tuning curves and preferred feature values.
 
@@ -491,11 +460,11 @@ class Unit:
         """Calculate mean response to different values of trial parameter."""
 
         # Get trials for each parameter value.
-        trials = self.trials_by_param_values(pname)
+        trs = self.trials_by_param_values(pname)
 
         # Calculate binned spike count per value.
-        p_values = util.list_to_quantity([tr.value for tr in trials])
-        sp_stats = [self.Spikes.spike_count_stats(tr, t1, t2) for tr in trials]
+        p_values = util.list_to_quantity([tr.value for tr in trs])
+        sp_stats = [self.Spikes.spike_count_stats(tr, t1, t2) for tr in trs]
         mean_rate, std_rate, sem_rate = zip(*sp_stats)
         mean_rate = util.list_to_quantity(mean_rate)
         std_rate = util.list_to_quantity(std_rate)
@@ -512,7 +481,7 @@ class Unit:
         if t1 is None or t2 is None:
             # TODO: this is updating both t1 and t2, even if one is specified,
             # have to redesign this and other such code!!!
-            t1, t2 = constants.del_stim_prds.periods(stim)   
+            t1, t2 = constants.del_stim_prds.periods(stim)
         response_stats = self.calc_response_stats(pname, t1, t2)
         dirs, mean_rate, std_rate, sem_rate = response_stats
 
@@ -520,19 +489,19 @@ class Unit:
 
     def calc_DS(self, stim, t1=None, t2=None):
         """Calculate direction selectivity."""
-            
+
         # Get mean response to each direction.
         dirs, meanFR, stdFR, semFR = self.calc_dir_response(stim, t1, t2)
 
         # Calculate preferred direction and direction selectivity index.
         DSI, PD, PDc = util.deg_w_mean(dirs, meanFR)
-        
+
         # Calculate antipreferred direction.
         ADc = util.deg_mod(PDc+180*deg)
-        
-        # Calculate legacy direction selectivity index (FRpref - FRanti)        
+
+        # Calculate legacy direction selectivity index (FRpref - FRanti)
         pFR = meanFR[np.where(dirs == PDc)[0]]
-        aFR = meanFR[np.where(dirs == ADc)[0]]        
+        aFR = meanFR[np.where(dirs == ADc)[0]]
         DS2 = float(util.modulation_index(pFR, aFR)) if aFR.size else np.nan
 
         # Calculate parameters of Gaussian tuning curve.
@@ -546,13 +515,13 @@ class Unit:
         # Prepare results.
         res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
                'DSI': DSI, 'DS2': DS2, 'PD': PD, 'PDc': PDc, 'ADc': ADc,
-               'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr, 
+               'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr,
                'semFR_cntr': semFR_cntr, 'fit_res': fit_res}
 
         return res
 
     def test_direction_selectivity(self, stims=['S1', 'S2'],
-                                   no_labels=False, do_plot=True, 
+                                   no_labels=False, do_plot=True,
                                    ffig_tmpl=None, **kwargs):
         """
         Test direction selectivity of unit by calculating
@@ -561,7 +530,7 @@ class Unit:
         """
 
         DSres = {}
-        for stim in stims:            
+        for stim in stims:
 
             res = self.calc_DS(stim, t1=None, t2=None)
 
@@ -604,34 +573,34 @@ class Unit:
 
     # %% Plotting methods.
 
-    def prep_plot_params(self, trials, t1, t2, nrate=None):
+    def prep_plot_params(self, trs, t1, t2, nrate=None):
         """Prepare plotting parameters."""
 
         # Get trial params.
-        trials, t1, t2 = self.get_trial_params(trials, t1, t2)
-        names = [tr.name for tr in trials]
+        trs, t1, t2 = self.get_trial_params(trs, t1, t2)
+        names = [tr.name for tr in trs]
 
         # Get spikes.
-        spikes = [self.Spikes.get_spikes(tr, t1, t2) for tr in trials]
+        spikes = [self.Spikes.get_spikes(tr, t1, t2) for tr in trs]
 
         # Get rates and rate times.
         rates, times = None, None
         if nrate is not None:
             rates = [self.Rates[nrate].get_rates(tr.trials, t1, t2)
-                     for tr in trials]
+                     for tr in trs]
             times = self.Rates[nrate].get_times(t1, t2)
 
-        return trials, t1, t2, spikes, rates, times, names
+        return trs, t1, t2, spikes, rates, times, names
 
-    def plot_raster(self, trials=None, t1=None, t2=None, **kwargs):
+    def plot_raster(self, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trials, t1, t2, nrate=None)
-        trials, t1, t2, spikes, rates, times, names = plot_params
+        plot_params = self.prep_plot_params(trs, t1, t2, nrate=None)
+        trs, t1, t2, spikes, rates, times, names = plot_params
         spikes = spikes[0]
         names = names[0]
 
@@ -641,15 +610,15 @@ class Unit:
                          title=self.Name, **kwargs)
         return ax
 
-    def plot_rate(self, nrate, trials=None, t1=None, t2=None, **kwargs):
+    def plot_rate(self, nrate, trs=None, t1=None, t2=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trials, t1, t2, nrate)
-        trials, t1, t2, spikes, rates, times, names = plot_params
+        plot_params = self.prep_plot_params(trs, t1, t2, nrate)
+        trs, t1, t2, spikes, rates, times, names = plot_params
 
         # Plot rate.
         ax = plot.rate(rates, times, t1, t2, names,
@@ -657,7 +626,7 @@ class Unit:
                        title=self.Name, **kwargs)
         return ax
 
-    def plot_raster_rate(self, nrate, trials=None, t1=None, t2=None,
+    def plot_raster_rate(self, nrate, trs=None, t1=None, t2=None,
                          no_labels=False, **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
@@ -665,17 +634,17 @@ class Unit:
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trials, t1, t2, nrate)
-        trials, t1, t2, spikes, rates, times, names = plot_params
+        plot_params = self.prep_plot_params(trs, t1, t2, nrate)
+        trs, t1, t2, spikes, rates, times, names = plot_params
 
-        title = self.Name 
-        
+        title = self.Name
+
         # Minimise labels on plot.
         if no_labels:
             title = None
             kwargs['xlab'] = None
             kwargs['ylab_rate'] = None
-            kwargs['add_ylab_raster'] = False        
+            kwargs['add_ylab_raster'] = False
 
         # Plot raster and rate.
         res = plot.raster_rate(spikes, rates, times, t1, t2, names,
