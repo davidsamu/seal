@@ -50,7 +50,6 @@ savefig_dpi = 150
 
 # TODO: change everything to Seaborn API? :-)
 
-# TODO: add distribution plot a la Tania (side-by-side bars).
 # TODO: add diagonal distribution to id scatter (after converting it to seaborn)
 
 
@@ -64,43 +63,25 @@ my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 
 # %% Functions to plot group and unit level properties.
 
-def group_params(unit_params, params_to_plot=None, ffig=None):
+def group_params(unit_params, rec_name, ffig=None):
     """Plot histogram of parameter values across units."""
 
-    # TODO: make this automatic? move labels to constants?
-
-    # Init params to plot.
-    if params_to_plot is None:
-        params_to_plot = [  # Session parameters
-                          'date', 'channel #', 'unit #', 'sort #',
-                          # Quality metrics
-                          'MeanWfAmplitude', 'MeanWfDuration (us)', 'SNR',
-                          'MeanFiringRate (sp/s)', 'ISIviolation (%)',
-                          'TrueSpikes (%)', 'UnitType', 'total # trials',
-                          '# rejected trials', '# remaining trials',
-                          # Direction selectivity metrics
-                          'DSI S1', 'DSI S2',
-                          'PD S1 (deg)', 'PD S2 (deg)',
-                          'PD8 S1 (deg)', 'PD8 S2 (deg)'
-                         ]
-    categorical = ['date', 'channel #', 'unit #', 'sort #', 'UnitType',
-                   'PD8 S1 (deg)', 'PD8 S2 (deg)']
+    # Init parameters to plot.
+    to_skip = ['task_idx', 'filepath', 'filename', 'monkey', 'date', 'probe'
+               'SamplPer']
+    params = [p for p in unit_params.columns if p not in to_skip]
 
     # Init figure.
-    fig, _, axs = get_gs_subplots(nrow=len(params_to_plot), subw=4, subh=3,
+    fig, _, axs = get_gs_subplots(nrow=len(params), subw=4, subh=3,
                                   as_array=False)
 
     # Plot distribution of each parameter.
-    colors = get_colors()
-    for pp, ax in zip(params_to_plot, axs):
-        v = unit_params[pp]
-        if pp in categorical:
-            v = np.array(v, dtype='object')
-        histogram(v, xlab=pp, title=pp, color=next(colors), ax=ax)
+    for param, ax in zip(params, axs):
+        categorical_histogram(unit_params[param], ax=ax)
 
     # Add main title
-    fig_title = ('Distributions of session parameters, quality metrics ' +
-                 'and stimulus response properties across units' +
+    fig_title = ('{} session parameters, quality metrics '.format(rec_name) +
+                 'and stimulus selectivity across units' +
                  ' (n = {})'.format(unit_params.shape[0]))
     fig.suptitle(fig_title, y=1.06, fontsize='xx-large')
 
@@ -356,6 +337,7 @@ def empty_direction_selectivity(fig, outer_gsp):
     return mock_polar_ax, mock_tuning_ax
 
 
+# TODO: add R-sqared to tuning plot as label.
 def direction_selectivity(DSres, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
                           ffig=None, fig=None, outer_gsp=None):
@@ -376,8 +358,12 @@ def direction_selectivity(DSres, title=None, labels=True,
         # Init stimulus plotting.
         color = next(colors)
 
+        DSI = DSr.DSI.loc['wDS']
+        PD = DSr.PD.loc['PD', 'weighted']
+        cPD = DSr.PD.loc['cPD', 'weighted']
+
         # Plot direction selectivity on polar plot.
-        polar_direction_response(DSr.dirs, DSr.meanFR, DSr.DSI, DSr.PD,
+        polar_direction_response(DSr.dirs, DSr.meanFR, DSI, PD,
                                  color=color, ax=ax_polar)
 
         # Calculate and plot direction tuning curve.
@@ -389,9 +375,9 @@ def direction_selectivity(DSres, title=None, labels=True,
                             xlab, ylab, ax=ax_tuning)
 
         # Collect parameters of polar plot (stimulus - response).
-        s_pd = str(float(round(DSr.PD, 1)))
-        s_pd_c = str(int(DSr.PDc)) if not np.isnan(float(DSr.PDc)) else 'nan'
-        lgd_lbl = '{}:   {:.3f}'.format(name, DSr.DSI)
+        s_pd = str(float(round(PD, 1)))
+        s_pd_c = str(int(cPD)) if not np.isnan(float(cPD)) else 'nan'
+        lgd_lbl = '{}:   {:.3f}'.format(name, DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_artist(lgd_lbl, color))
 
@@ -1001,64 +987,9 @@ def set_seaborn_style_context(style=None, context=None, rc_args=None):
 
 # %% General purpose plotting functions.
 
-def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
-              title=None, ytitle=None, polar=False, figtype='lines',
-              ffig=None, ax=None, **kwargs):
+def format_plot(xlim=None, ylim=None, xlab=None, ylab=None,
+                title=None, ytitle=None, ax=None):
     """Generic plotting function."""
-
-    ax = axes(ax, polar=polar)
-
-    # Categorical data.
-    # TODO: finish! check against 'hist'!
-    is_x_cat = False
-    x = np.array(x)
-#    if not util.is_numeric_array(x):
-#        is_x_cat = True
-#        x_cat, x = x, np.array(range(len()))
-
-    if figtype == 'lines':
-        ax.plot(x, y, **kwargs)
-
-    elif figtype == 'bars':
-        ax.bar(x, y, **kwargs)
-
-    elif figtype == 'errorbar':
-        ax.errorbar(x, y, **kwargs)
-
-    elif figtype == 'hist':
-
-        # Categorical data.
-        if not util.is_numeric_array(x) and not isinstance(x, list):  # TODO: HACK!! FIX!
-
-            # Sort by category value (with missing values at the end).
-            counts = np.array(Counter(x).most_common())
-            idx = pd.notnull(counts[:, 0])
-            non_null_order = counts[idx, 0].argsort()
-            null_order = np.where(np.logical_not(idx))[0]
-            counts = counts[np.hstack((non_null_order, null_order)), :]
-
-            # Plot data.
-            cats, cnts = counts[:, 0], np.array(counts[:, 1], dtype=int)
-            xx = range(len(cats))
-            width = 0.7
-            ax.bar(xx, cnts, width, **kwargs)
-
-            # Format labels on categorical axis.
-            pos = [i+width/2 for i in xx]
-            rot_x_labs = np.sum([len(str(cat)) for cat in cats]) > 60
-            rot = 45 if rot_x_labs else 0
-            ha = 'right' if rot_x_labs else 'center'
-            set_tick_labels(ax, 'x', pos, cats, rotation=rot, ha=ha)
-
-        else:  # Plot Numeric data.
-            #x = x[~np.isnan(x)]  # remove NANs
-            ax.hist(x, **kwargs)
-
-    elif figtype == 'scatter':
-        ax.scatter(x, y, **kwargs)
-
-    else:
-        warnings.warn('Unidentified figure type: {}'.format(figtype))
 
     # Format plot.
     set_limits(xlim, ylim, ax)
@@ -1066,8 +997,6 @@ def base_plot(x, y=None, xlim=None, ylim=None, xlab=None, ylab=None,
     show_spines(ax=ax)
     set_labels(title, xlab, ylab, ytitle, ax=ax)
 
-    # Save and return plot.
-    save_fig(ffig=ffig)
     return ax
 
 
@@ -1082,13 +1011,14 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Fill significant points.
     colors = len(x) * [c]
-    edgecolors = c
     if is_sign is not None:
         colors = [c if sign else 'w' for sign in is_sign]
 
     # Plot scatter plot.
-    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, False, 'scatter',
-                   c=colors, edgecolor=edgecolors, ffig=ffig, ax=ax, **kwargs)
+    ax = axes(ax)
+    ax.scatter(x, y, edgecolors=c, colors=colors, **kwargs)
+    format_plot(xlim, ylim, xlab, ylab,
+                title, ytitle, ax)
 
     if add_id_line:
         add_identity_line(equal_xy=equal_xy, ax=ax)
@@ -1100,6 +1030,9 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
     # Custom post-formatting.
     show_spines(bottom=True, left=True, ax=ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
 
     return ax
 
@@ -1136,8 +1069,9 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines
         ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
                 ha=ha_text, va=va_text)
 
-    # Save and return plot.
+    # Save figure.
     save_fig(ffig=ffig)
+
     return ax
 
 
@@ -1173,8 +1107,9 @@ def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_
         ax.text(xtext, ytext, report_txt, transform=ax.transAxes,
                 ha=ha_text, va=va_text)
 
-    # Save and return plot.
+    # Save figure.
     save_fig(ffig=ffig)
+
     return ax
 
 
@@ -1182,19 +1117,29 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
           ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot simple lines."""
 
-    # Plot line plot.
-    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'lines', ffig, ax=ax, **kwargs)
+    ax = axes(ax, polar=polar)
+    ax.plot(x, y, **kwargs)
+
+    format_plot(xlim, ylim, xlab, ylab, title, ytitle, ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
+
     return ax
 
 
 def bars(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
          ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
-    """Plot simple lines."""
+    """Plot bar plot."""
 
-    # Plot bar plot.
-    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'bars', ffig, ax=ax, **kwargs)
+    ax = axes(ax, polar=polar)
+    ax.bar(x, y, **kwargs)
+
+    format_plot(xlim, ylim, xlab, ylab, title, ytitle, ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
+
     return ax
 
 
@@ -1203,25 +1148,48 @@ def errorbar(x, y, ylim=None, xlim=None, xlab=None, ylab=None,
              **kwargs):
     """Plot error bars."""
 
-    # Plot line plot.
-    ax = base_plot(x, y, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'errorbar', ffig, ax=ax, **kwargs)
+    ax = axes(ax, polar=polar)
+    ax.errorbar(x, y, **kwargs)
+
+    format_plot(xlim, ylim, xlab, ylab, title, ytitle, ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
+
     return ax
 
 
-# TODO: Use seaborn for histogram plotting.
-# http://stackoverflow.com/questions/36362624/how-to-plot-multiple-histograms-on-same-plot-with-seaborn
-def histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
-              ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
+def categorical_histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n',
+                          title=None, ytitle=None, polar=False,
+                          ffig=None, ax=None, **kwargs):
     """Plot histogram."""
 
-    # Plot histogram.
-    ax = base_plot(vals, None, xlim, ylim, xlab, ylab, title, ytitle, polar,
-                   'hist', ffig, ax=ax, **kwargs)
+    # Categorical data.
+    ax = sns.countplot(vals, ax=ax)
+
+    format_plot(xlim, ylim, xlab, ylab, title, ytitle, ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
+
     return ax
 
 
-# TODO: check if fig needs to be passed and/or created
+def multi_histogram(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
+                    ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
+    """Plot histogram of multiple samples side by side."""
+
+    ax = axes(ax, polar=polar)
+    ax.hist(vals, **kwargs)
+
+    format_plot(xlim, ylim, xlab, ylab, title, ytitle, ax)
+
+    # Save figure.
+    save_fig(ffig=ffig)
+
+    return ax
+
+
 def histogram2D(x, y, nbins=100, hist_type='hexbin', cmap='viridis',
                 xlim=None, ylim=None, xlab=None, ylab=None, title=None,
                 cbar=True, cb_title=None, ax=None, fig=None, ffig=None,

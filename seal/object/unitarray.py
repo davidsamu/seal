@@ -25,24 +25,12 @@ class UnitArray:
     """
 
     # %% Constructor.
-    def __init__(self, name, Unit_list, task_order=None):
-        """Create UnitArray instance from list of units."""
+    def __init__(self, name):
+        """Create UnitArray empty instance. Use 'add_task' method to fill it."""
 
         # Init instance.
         self.Name = name
         self.Units = pd.DataFrame()
-
-        # Fill Units array with unit list provided.
-        # Get available tasks, if task_order not provided.
-        if not task_order:
-            task_order = sorted(set([u.SessParams['task'] for u in Unit_list]))
-
-        # Add units to UnitArray in task order
-        # (determining column order of unit table).
-        for task in task_order:
-            units = [u for u in Unit_list
-                     if u.SessParams['task'] == task]
-            self.add_task(task, units)
 
     # %% Utility methods.
 
@@ -127,11 +115,9 @@ class UnitArray:
         # Concatenate new task as last column.
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
-        idxs = [(u.SessParams['monkey'] + '_' + util.date_to_str(u.SessParams['date']),
-                 u.SessParams['channel #'], u.SessParams['unit #'])
+        idxs = [(u.get_recording_name(), u.SessParams['channel #'], u.SessParams['unit #'])
                 for u in task_units]
-        names = ['rec', 'ch', 'unit']
-        multi_idx = pd.MultiIndex.from_tuples(idxs, names=names)
+        multi_idx = pd.MultiIndex.from_tuples(idxs, names=['rec', 'ch', 'unit'])
         task_df = pd.DataFrame(task_units, columns=[task_name], index=multi_idx)
         self.Units = pd.concat([self.Units, task_df], axis=1, join='outer')
 
@@ -160,7 +146,7 @@ class UnitArray:
     # %% Exporting and reporting methods.
 
     def unit_params(self):
-        """Return unit parameters as Pandas table."""
+        """Return unit parameters in DataFrame."""
 
         unit_params = [u.get_unit_params() for u in self.unit_list()]
         unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
@@ -177,4 +163,4 @@ class UnitArray:
         """Plot group level histogram of unit parameters."""
 
         unit_params = self.unit_params()
-        plot.group_params(unit_params, ffig=ffig)
+        plot.group_params(unit_params, self.Name, ffig=ffig)

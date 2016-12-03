@@ -39,7 +39,7 @@ def fit_gaus_curve(x, y, y_err=None):
     # Init fit results.
     fit_params = pd.DataFrame(index=['fit', 'std err'],
                               columns=['a', 'b', 'x0', 'sigma'])
-    fit_res = pd.Series(index=['FWHM', 'R2', 'RMSE'])
+    fit_res = pd.Series(index=['FWHM', 'R2', 'RMSE'], dtype=object)
 
     # Remove NaN values from input.
     idx = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))

@@ -748,6 +748,7 @@ def within_trial_unit_test(UnitArr, nrate, fname, plot_info=True,
     plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
 
 
+# TODO: check task order! UA order is not recording order!
 def check_recording_stability(UnitArr, fname):
     """Check stability of recording session across tasks."""
 

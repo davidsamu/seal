@@ -31,8 +31,8 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, t_start=None, t_stop=None, kernels=None, step=10*ms,
-                 TPLCell=None, tr_params=None):
+    def __init__(self, TPLCell=None, t_start=None, t_stop=None, kernels=None,
+                 step=10*ms, tr_params=None):
         """Create Unit instance, optionally from TPLCell data structure."""
 
         # Create empty instance.
@@ -44,7 +44,7 @@ class Unit:
         self.Spikes = Spikes([])
         self.Rates = pd.Series()
         self.QualityMetrics = pd.Series()
-        self.Selectivity = OrdDict()
+        self.DS = pd.Series()
 
         self.t_start = t_start
         self.t_stop = t_stop
@@ -100,8 +100,7 @@ class Unit:
                    ('SpikeWaveforms', wfs),
                    ('SpikeDuration', util.fill_dim(TPLCell.Spikes_dur * s)),
                    ('MeanSpikeDur', TPLCell.MeanSpikeDur * s),
-                   ('SpikeTimes', util.fill_dim(sp_times)),
-                   ('DirSelectivity', pd.DataFrame())]
+                   ('SpikeTimes', util.fill_dim(sp_times))]
         self.Waveforms = util.series_from_tuple_list(wf_list)
 
         # %% Trial parameters.
@@ -131,7 +130,7 @@ class Unit:
         # Start and end times of each trials.
         tstamps = TPLCell.Timestamps
         tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
-                                in TPLCell.Info.successfull_trials_indices]) * s
+                             in TPLCell.Info.successfull_trials_indices]) * s
         self.TrialParams['TrialStart'] = tr_times[:, 0]
         self.TrialParams['TrialStop'] = tr_times[:, 1]
         self.TrialParams['TrialLength'] = tr_times[:, 1] - tr_times[:, 0]
@@ -199,21 +198,32 @@ class Unit:
     def get_unit_params(self, rem_dims=True):
         """Return main unit parameters."""
 
-        unit_params = pd.Series()
+        upars = pd.Series()
 
         # Recording parameters.
-        unit_params['Session information'] = ''
-        unit_params.append(util.get_scalar_vals(self.SessParams, rem_dims))
+        upars['Session information'] = ''
+        upars = upars.append(util.get_scalar_vals(self.SessParams, rem_dims))
 
         # Quality metrics.
-        unit_params['Quality metrics'] = ''
-        unit_params.append(util.get_scalar_vals(self.QualityMetrics, rem_dims))
+        upars['Quality metrics'] = ''
+        upars = upars.append(util.get_scalar_vals(self.QualityMetrics,
+                                                  rem_dims))
 
-        # Stimulus selectivity.
-        unit_params['Selectivity'] = ''
-        unit_params.append(util.get_scalar_vals(self.Selectivity, rem_dims))
+        # Direction selectivity.
+        upars['DS'] = ''
+        for pname, pdf in self.DS.items():
+            upars[pname] = ''
+            pdf_melt = pd.melt(pdf)
+            idxs = list(pdf.index)
+            if isinstance(pdf.index, pd.MultiIndex):
+                idxs = [' '.join(idx) for idx in idxs]
+            stim_list = pdf.shape[1] * idxs
+            pdf_melt.index = [' '.join([pr, st]) for pr, st
+                              in zip(pdf_melt.variable, stim_list)]
+            upars = upars.append(util.get_scalar_vals(pdf_melt.value,
+                                                      rem_dims))
 
-        return unit_params
+        return upars
 
     def get_trial_params(self, trs=None, t1=None, t2=None):
         """Return default values of some common parameters."""
@@ -227,16 +237,16 @@ class Unit:
 
         return trs, t1, t2
 
-    def pref_dir(self, stim='S1'):
+    def pref_dir(self, stim='S1', method='weighted', pd_type='cPD'):
         """Return preferred direction."""
 
-        pdir = self.Selectivity['PrefDirCoarse'][stim]
+        pdir = self.DS['PD'].loc[(stim, method), pd_type]
         return pdir
 
-    def anti_pref_dir(self, stim='S1'):
+    def anti_pref_dir(self, stim='S1', method='weighted', pd_type='cAD'):
         """Return anti-preferred direction."""
 
-        adir = self.Selectivity['AntiPrefDirCoarse'][stim]
+        adir = self.DS['PD'].loc[(stim, method), pd_type]
         return adir
 
     # %% Generic methods to get various set of trials.
@@ -490,39 +500,53 @@ class Unit:
     def calc_DS(self, stim, t1=None, t2=None):
         """Calculate direction selectivity (DS)."""
 
+        pd_idx = ['PD', 'cPD', 'AD', 'cAD']
+
         # Get response stats to each direction.
         resp_stats = self.calc_dir_response(stim, t1, t2)
         dirs = np.array(resp_stats.index) * deg
         meanFR, stdFR, semFR = [util.dim_series_to_array(resp_stats[stat])
                                 for stat in ('mean', 'std', 'sem')]
 
-        # Calculate preferred direction PD and direction selectivity index DSI.
-        DSI, PD, PDc = util.deg_w_mean(dirs, meanFR)
+        # DS based on maximum rate only (legacy method).
+        mPD = dirs[np.argmax(meanFR)]
+        mAD = util.deg_mod(mPD+180*deg)
+        cmPD, cmAD = mPD, mAD
+        mPR, mAR = [meanFR[np.where(dirs == d)[0]] for d in (mPD, mAD)]
+        mDS = float(util.modulation_index(mPR, mAR)) if mAR.size else np.nan
 
-        # Calculate antipreferred direction.
-        ADc = util.deg_mod(PDc+180*deg)
+        mPDres = pd.Series([mPD, mAD, cmPD, cmAD], pd_idx)
 
-        # Calculate legacy direction selectivity index,
-        # based on just two directions: FRpref - FRanti / (FRpref + FRanti)
-        pFR = meanFR[np.where(dirs == PDc)[0]]
-        aFR = meanFR[np.where(dirs == ADc)[0]]
-        DS2 = float(util.modulation_index(pFR, aFR)) if aFR.size else np.nan
+        # DS based on weighted sum of all rates & directions.
+        wDS, wPD, cwPD = util.deg_w_mean(dirs, meanFR, constants.all_dirs)
+        wAD, cwAD = [util.deg_mod(d+180*deg) for d in (wPD, cwPD)]
+
+        wPDres = pd.Series([wPD, wAD, cwPD, cwAD], pd_idx)
 
         # Calculate parameters of Gaussian tuning curve.
-        # Center stimulus - response firts.
-        tun_res = tuning.center_pref_dir(dirs, PD, meanFR, semFR)
+        # Start by centering stimulus - response.
+        tun_res = tuning.center_pref_dir(dirs, wPD, meanFR, semFR)
         dirs_cntr, meanFR_cntr, semFR_cntr = tun_res
-
         # Fit Gaussian tuning curve to stimulus - response.
         fit_params, fit_res = tuning.fit_gaus_curve(dirs_cntr, meanFR_cntr,
                                                     semFR_cntr)
 
+        # DS based on Gaussian tuning curve fit.
+        tPD = wPD + fit_params.loc['fit', 'x0']
+        ctPD = util.coarse_dir(tPD, constants.all_dirs)
+        tAD, ctAD = [util.deg_mod(d+180*deg) for d in (tPD, ctPD)]
+
+        tPDres = pd.Series([tPD, tAD, ctPD, ctAD], pd_idx)
+
+        PD = pd.concat([mPDres, wPDres, tPDres], axis=1,
+                       keys=('max', 'weighted', 'tuned'))
+        DSI = pd.Series([mDS, wDS], index=['mDS', 'wDS'])
+
         # Prepare results.
         res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
-               'DSI': DSI, 'DS2': DS2, 'PD': PD, 'PDc': PDc, 'ADc': ADc,
                'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr,
                'semFR_cntr': semFR_cntr, 'fit_params': fit_params,
-               'fit_res': fit_res}
+               'fit_res': fit_res, 'PD': PD, 'DSI': DSI}
 
         return res
 
@@ -536,10 +560,7 @@ class Unit:
 
         # Init field to store DS results.
         DSres_plot = {}
-        df_temp = pd.DataFrame(index=stims)
-        DSres = OrdDict([('DSIs', df_temp.copy()), ('PDs', df_temp.copy()),
-                         ('TPs', df_temp.copy())])
-
+        lDSI, lPD, lTP = [], [], []
         for stim in stims:
 
             res = self.calc_DS(stim, t1=None, t2=None)
@@ -549,39 +570,31 @@ class Unit:
             x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
                                         a=a, b=b, x0=x0, sigma=sigma)
 
-            # Add calculated values to unit.
-
-            # DSIs
-            DSres['DSIs'].loc[stim, 'DSm'] = res['DS2']
-            DSres['DSIs'].loc[stim, 'DSw'] = res['DSI']
-
-            # PDs
-            # By maximum rate.
-            DSres['PDs'].loc[stim, 'PDm'] = res['PD']
-            DSres['PDs'].loc[stim, 'cPDm'] = res['PDc']
-            DSres['PDs'].loc[stim, 'cADm'] = res['ADc']
-            # By weighted vector sum.
-            DSres['PDs'].loc[stim, 'PDw'] = res['PD']
-            DSres['PDs'].loc[stim, 'cPDw'] = res['PDc']
-            DSres['PDs'].loc[stim, 'cADw'] = res['ADc']
-            # By Gaussian tuning curve fit.
-            # TODO: add preferred direction found by tuning curve fit???
-            # Would it worth it?
+            # Collect calculated DS results param values.
+            lDSI.append(res['DSI'])
+            lPD.append(res['PD'])
 
             # TPs
-            for fres, val in res['fit_res'].items():
-                DSres['TPs'].loc[stim, fres] = val
+            lTP.append(res['fit_params'].loc['fit'].append(res['fit_res']))
 
             # Collect data for plotting.
             DSres_plot[stim] = res
             DSres_plot[stim]['xfit'] = x
             DSres_plot[stim]['yfit'] = y
 
-        DSres_plot = pd.DataFrame(DSres_plot).T
-        self.Selectivity['DS'] = DSres
+        # Convert each to a DataFrame.
+        DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
+                       for rlist in (lDSI, lPD, lTP)]
+
+        # Save DS results.
+        self.DS['DSI'] = DSI
+        self.DS['PD'] = PD
+        self.DS['TP'] = TP
 
         # Plot direction selectivity results.
         if do_plot:
+            DSres_plot = pd.DataFrame(DSres_plot).T
+            title = self.Name
 
             # Minimise labels on plot.
             if no_labels:
@@ -590,10 +603,8 @@ class Unit:
                 kwargs['polar_legend'] = True
                 kwargs['tuning_legend'] = False
 
-            ffig = None
-            if ffig_tmpl is not None:
-                ffig = ffig_tmpl.format(self.name_to_fname())
-            title = self.Name
+            ffig = (None if ffig_tmpl is None
+                    else ffig_tmpl.format(self.name_to_fname()))
             plot.direction_selectivity(DSres_plot, title=title,
                                        ffig=ffig, **kwargs)
 

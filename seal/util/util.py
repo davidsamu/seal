@@ -352,7 +352,7 @@ def series_from_tuple_list(tuple_list):
 
 def get_scalar_vals(series, remove_dimensions=False):
     """
-    Function to all non-iterator type value from Series.
+    Function to extract all non-iterator type value from Series.
     Optionally, remove dimension from quantity values.
     """
 
@@ -435,6 +435,14 @@ def dim_series_to_array(qser):
     return qarr
 
 
+def add_quant(df, row, col, qel):
+    """Add quantity element to DataFrame object."""
+
+    df.loc[row, col] = qel  # this creates the column if not in DF yet
+    df[col] = df[col].astype(object)
+    df.loc[row, col] = qel
+
+
 # %% Function for analysing directions.
 
 def deg2rad(v_deg):
@@ -485,6 +493,15 @@ def deg_diff(d1, d2):
     return d
 
 
+def coarse_dir(origd, dirs):
+    """Return direction from list that is closest to provided one."""
+
+    deg_diffs = np.array([deg_diff(d, origd) for d in dirs])
+    cd = dirs[np.argmin(deg_diffs)]
+
+    return cd
+
+
 def deg_w_mean(dirs, weights=None, cdirs=None):
     """
     Taking a vector of directions (2D unit vectors) and their weights, returns
@@ -522,8 +539,7 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
     phi_deg = deg_mod(phi*rad)
 
     # Coarse to one of the original directions.
-    deg_diffs = np.array([deg_diff(d, phi_deg) for d in cdirs])
-    phi_deg_c = cdirs[np.argmin(deg_diffs)]
+    phi_deg_c = coarse_dir(phi_deg, cdirs)
 
     return rho, phi_deg, phi_deg_c
 
