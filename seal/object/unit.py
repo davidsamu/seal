@@ -80,7 +80,7 @@ class Unit:
                    ('filepath', TPLCell.Filename),
                    ('filename', TPLCell.File),
                    ('paraminfo', pinfo),
-                   ('SamplPer', sampl_per)]
+                   ('sampl_prd', sampl_per)]
         self.SessParams = util.series_from_tuple_list(sp_list)
 
         # %% Waveform data.
@@ -89,19 +89,19 @@ class Unit:
         wfs = TPLCell.Waves
         if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
-        wf_time = range(wfs.shape[1]) * self.SessParams['SamplPer']
+        wf_time = range(wfs.shape[1]) * self.SessParams['sampl_prd']
 
         t_min = np.min(TPLCell.Spikes)
         t_max = np.max(TPLCell.Spikes)
         sp_times = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
 
         # Assign waveform data.
-        wf_list = [('WaveformTime', wf_time),
+        wf_data = [('WaveformTime', wf_time),
                    ('SpikeWaveforms', wfs),
                    ('SpikeDuration', util.fill_dim(TPLCell.Spikes_dur * s)),
                    ('MeanSpikeDur', TPLCell.MeanSpikeDur * s),
                    ('SpikeTimes', util.fill_dim(sp_times))]
-        self.Waveforms = util.series_from_tuple_list(wf_list)
+        self.Waveforms = util.series_from_tuple_list(wf_data)
 
         # %% Trial parameters.
 
@@ -127,13 +127,14 @@ class Unit:
             self.TrialParams['Answ'] = ((same_dir & corr_ans) |
                                         (~same_dir & ~corr_ans))
 
-        # Start and end times of each trials.
+        # Add start time, end time and length of each trials.
         tstamps = TPLCell.Timestamps
         tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
                              in TPLCell.Info.successfull_trials_indices]) * s
-        self.TrialParams['TrialStart'] = tr_times[:, 0]
-        self.TrialParams['TrialStop'] = tr_times[:, 1]
-        self.TrialParams['TrialLength'] = tr_times[:, 1] - tr_times[:, 0]
+        for colname, col in [('TrialStart', tr_times[:, 0]),
+                             ('TrialStop', tr_times[:, 1]),
+                             ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
+            util.add_quant_col(self.TrialParams, col, colname)
 
         # %% Trial events.
 

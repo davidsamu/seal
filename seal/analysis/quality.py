@@ -42,7 +42,7 @@ def get_base_data(u):
     wavetime = u.Waveforms['WaveformTime']
     spike_dur = u.Waveforms['SpikeDuration']
     spike_times = u.Waveforms['SpikeTimes']
-    sampl_per = u.Waveforms['SamplPer']
+    sampl_per = u.SessParams['sampl_prd']
 
     return waveforms, wavetime, spike_dur, spike_times, sampl_per
 
@@ -76,7 +76,7 @@ def waveform_stats(wfs, wtime):
     # SNR: std of mean waveform divided by std of residual waveform (noise).
     wf_mean = np.mean(wfs, 0)
     wf_std = wfs - wf_mean
-    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else 10 # single spike
+    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else 10  # single spike
 
     # Indices of minimum and maximum times.
     # imin = np.argmin(wfs, 1)  # actual minimum of waveform
@@ -203,9 +203,9 @@ def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
     prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
     tr_inc = util.indices_in_window(np.array(range(len(tr_starts))),
                                     first_tr_inc, last_tr_inc)
-    sp_inc = util.indices_in_window(spike_times, t1, t2)
+    spk_inc = util.indices_in_window(spike_times, t1, t2)
 
-    return t1, t2, prd_inc, tr_inc, sp_inc
+    return t1, t2, prd_inc, tr_inc, spk_inc
 
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
@@ -236,22 +236,22 @@ def test_qm(u, do_trial_rejection=True, ffig_template=None):
     tr_starts = u.TrialParams.TrialStart
     test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts,
                           spike_times, do_trial_rejection)
-    t1_inc, t2_inc, prd_inc, tr_inc, sp_inc = test_res
+    t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
 
     # Waveform statistics of included spikes only.
-    snr, wf_amp, wf_dur = waveform_stats(waveforms[sp_inc], wavetime)
+    snr, wf_amp, wf_dur = waveform_stats(waveforms[spk_inc], wavetime)
 
     # Firing rate.
-    mean_rate = float(np.sum(sp_inc) / (t2_inc - t1_inc))
+    mean_rate = float(np.sum(spk_inc) / (t2_inc - t1_inc))
 
     # ISI statistics.
-    true_spikes, ISI_vr = isi_stats(spike_times[sp_inc])
+    true_spikes, ISI_vr = isi_stats(spike_times[spk_inc])
     unit_type = classify_unit(snr, true_spikes)
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur[sp_inc]).rescale(us)
+    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur[spk_inc]).rescale(us)
     u.QualityMetrics['MeanFiringRate'] = mean_rate
     u.QualityMetrics['ISIviolation'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -264,12 +264,12 @@ def test_qm(u, do_trial_rejection=True, ffig_template=None):
     u.QualityMetrics['NTrialsExcluded'] = np.sum(tr_exc)
     u.QualityMetrics['IncludedTrials'] = Trials(tr_inc, 'included trials')
     u.QualityMetrics['ExcludedTrials'] = Trials(tr_exc, 'excluded trials')
-    u.QualityMetrics['IncludedSpikes'] = sp_inc
+    u.QualityMetrics['IncludedSpikes'] = spk_inc
 
     # Plot quality metric results.
     if ffig_template is not None:
         plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
-                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, sp_inc,
+                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                 ffig_template)
 
     return u
@@ -314,7 +314,7 @@ def test_rejection(u):
 # %% Plot quality metrics.
 
 def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
-            snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, sp_inc,
+            snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
             ffig_template):
     """Plot quality metrics related figures."""
 
@@ -322,8 +322,8 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     waveforms, wavetime, spike_dur, spike_times, sampl_per = get_base_data(u)
 
     # Get waveform stats of included and excluded spikes.
-    wf_inc = waveforms[sp_inc]
-    wf_exc = waveforms[np.invert(sp_inc)]
+    wf_inc = waveforms[spk_inc]
+    wf_exc = waveforms[np.invert(spk_inc)]
     snr_all, wf_amp_all, wf_dur_all = waveform_stats(waveforms, wavetime)
     snr_inc, wf_amp_inc, wf_dur_inc = waveform_stats(wf_inc, wavetime)
     snr_exc, wf_amp_exc, wf_dur_exc = waveform_stats(wf_exc, wavetime)
@@ -336,9 +336,9 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Init plotting.
     fig, gsp, sbp = plot.get_gs_subplots(nrow=3, ncol=3, subw=4, subh=4)
-    ax_wf_inc, ax_wf_exc, ax_filler1 = sp[0, 0], sp[1, 0], sp[2, 0]
-    ax_wf_amp, ax_wf_dur, ax_amp_dur = sp[0, 1], sp[1, 1], sp[2, 1]
-    ax_snr, ax_rate, ax_filler2 = sp[0, 2], sp[1, 2], sp[2, 2]
+    ax_wf_inc, ax_wf_exc, ax_filler1 = sbp[0, 0], sbp[1, 0], sbp[2, 0]
+    ax_wf_amp, ax_wf_dur, ax_amp_dur = sbp[0, 1], sbp[1, 1], sbp[2, 1]
+    ax_snr, ax_rate, ax_filler2 = sbp[0, 2], sbp[1, 2], sbp[2, 2]
 
     ax_filler1.axis('off')
     ax_filler2.axis('off')
@@ -349,14 +349,14 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     tr_markers = {tr_i+1: tr_t for tr_i, tr_t in zip(trms.index, trms)}
 
     # Common variables, limits and labels.
-    sp_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
-    sp_t = sp_i * sampl_per
+    spk_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
+    spk_t = spk_i * sampl_per
     ses_t_lim = [min(spike_times.t_start, trial_starts.iloc[0]),
                  max(spike_times.t_stop, trial_starts.iloc[-1])]
     ss = 1.0  # marker size on scatter plot
     sa = .80  # marker alpha on scatter plot
     glim = [gmin, gmax]  # gain axes limit
-    wf_t_lim = [min(sp_t), max(sp_t)]
+    wf_t_lim = [min(spk_t), max(spk_t)]
     dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
     amp_lim = [0, gmax-gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
 
@@ -364,15 +364,15 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Color spikes by their occurance over session time.
     my_cmap = plot.get_colormap('jet')
-    sp_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
-    if not np.all(np.invert(sp_inc)):  # check if there is any spike included
-        sp_t_inc = np.array(spike_times[sp_inc])
-        sp_t_inc_shifted = sp_t_inc - sp_t_inc.min()
-        sp_cols[sp_inc, :] = my_cmap(sp_t_inc_shifted/sp_t_inc_shifted.max())
+    spk_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
+    if not np.all(np.invert(spk_inc)):  # check if there is any spike included
+        spk_t_inc = np.array(spike_times[spk_inc])
+        spk_t_inc_shifted = spk_t_inc - spk_t_inc.min()
+        spk_cols[spk_inc, :] = my_cmap(spk_t_inc_shifted/spk_t_inc_shifted.max())
     # Put excluded trials to the front, and randomise order of included trials
     # so later spikes don't cover earlier ones.
-    sp_order = np.hstack((np.where(np.invert(sp_inc))[0],
-                          np.random.permutation(np.where(sp_inc)[0])))
+    sp_order = np.hstack((np.where(np.invert(spk_inc))[0],
+                          np.random.permutation(np.where(spk_inc)[0])))
 
     # Common labels for plots
     wf_t_lab = 'Waveform time ($\mu$s)'
@@ -387,11 +387,11 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # Color included by occurance in session time to help detect drifts.
     wfs = np.transpose(waveforms)
     for i in sp_order:
-        ax = ax_wf_inc if sp_inc[i] else ax_wf_exc
-        ax.plot(sp_t, wfs[:, i], color=sp_cols[i, :], alpha=0.05)
+        ax = ax_wf_inc if spk_inc[i] else ax_wf_exc
+        ax.plot(spk_t, wfs[:, i], color=spk_cols[i, :], alpha=0.05)
 
     # Format waveform plots
-    n_sp_inc, n_sp_exc = sum(sp_inc), sum(np.invert(sp_inc))
+    n_sp_inc, n_sp_exc = sum(spk_inc), sum(np.invert(spk_inc))
     n_tr_inc, n_tr_exc = sum(tr_inc), sum(np.invert(tr_inc))
     for ax, st, n_sp, n_tr in [(ax_wf_inc, 'Included', n_sp_inc, n_tr_inc),
                                (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
@@ -403,32 +403,25 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # %% Waveform summary metrics.
 
-    # Function to return colors of spikes / waveforms
-    # based on whether they are included / excluded.
-    def get_color(col_incld, col_bckgrnd='grey'):
-        cols = np.array(len(sp_inc) * [col_bckgrnd])
-        cols[sp_inc] = col_incld
-        return cols
-
     # Waveform amplitude across session time.
     m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
     title = 'Waveform amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
-    plot.scatter(spike_times, wf_amp_all, c=get_color('m'), s=ss,
+    plot.scatter(spike_times, wf_amp_all, c=plot.get_cmat(spk_inc, 'm'), s=ss,
                  xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
     wf_dur_all = spike_dur.rescale(us)  # to use TPLCell's waveform duration
-    wf_dur_inc = wf_dur_all[sp_inc]
+    wf_dur_inc = wf_dur_all[spk_inc]
     mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
     title = 'Waveform duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
-    plot.scatter(spike_times, wf_dur_all, c=get_color('c'), s=ss,
+    plot.scatter(spike_times, wf_dur_all, c=plot.get_cmat(spk_inc, 'c'), s=ss,
                  xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_wf_dur)
 
     # Waveform duration against amplitude.
     title = 'Waveform duration - amplitude'
-    plot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=sp_cols[sp_order],
+    plot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=spk_cols[sp_order],
                  s=ss, xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
                  edgecolors='none', alpha=sa, title=title, ax=ax_amp_dur)
 

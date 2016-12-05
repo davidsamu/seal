@@ -16,23 +16,100 @@ from seal.object import unit
 from seal.util import plot, util
 
 
-# TODO: add more common reporting functions here, e.g. dir. select., mean FR, etc.
-
 class UnitArray:
     """
     Generic class to store a 2D array of units (neurons or groups of neurons),
-    by channel (rows) and task (columns).
+    by channel/unit index (rows) and task (columns).
     """
 
     # %% Constructor.
     def __init__(self, name):
-        """Create UnitArray empty instance. Use 'add_task' method to fill it."""
+        """
+        Create UnitArray empty instance. Use 'add_task' method to fill it
+        with recording data (list of Unit objects).
+        """
 
         # Init instance.
         self.Name = name
         self.Units = pd.DataFrame()
 
     # %% Utility methods.
+
+    def init_task_ch_unit(self, tasks=None, ch_unit_idxs=None):
+        """Init tasks and channels/units to query."""
+
+        # Default tasks and units: all tasks/units.
+        if tasks is None:
+            tasks = self.tasks()
+        if ch_unit_idxs is None:
+            ch_unit_idxs = self.rec_ch_unit_indices()
+
+        return tasks, ch_unit_idxs
+
+    # %% Iterator methods.
+
+    # Usage: e.g. [u for u in UnitArray.iter_throu(kwargs)]
+
+    def iter_thru(self, tasks=None, ch_units=None, ret_empty=False):
+        """Custom iterator init to select task(s) and channel/unit(s)."""
+
+        # Init list of tasks and channel/units to iterate over.
+        self._iter_tasks, self._iter_ch_units = self.init_task_ch_unit(tasks, ch_units)
+        self._iter_empty = ret_empty
+
+        return self
+
+    def __iter__(self):
+        """Init iterator required to implement iterator class."""
+
+        # Init task and channel/unit indices of current Unit returned.
+        self._itask, self._ichun = 0, 0
+
+        return self
+
+    def __next__(self):
+        """Return next Unit."""
+
+        # Increment index variables.
+        self._ichun += 1
+        if self._ichun >= len(self._iter_ch_units):  # switch to next task
+            self._ichun = 0
+            self._itask += 1
+
+        # Terminate iteration if we have run out of units.
+        if self._itask >= len(self._iter_tasks):
+            raise StopIteration
+
+        # Get unit.
+        task = self._iter_tasks[self._itask]
+        chun = self._iter_ch_units[self._ichun]
+        u = self.Units.loc[chun, task]
+
+        # Let's not return empty unit if not requested.
+        if u.is_empty() and not self._iter_empty:
+            return self.__next__()
+
+        return u
+
+    # %% Other methods to query units.
+
+    def unit_list(self, tasks=None, ch_unit_idxs=None, return_empty=False):
+        """Return units in a list."""
+
+        tasks, ch_unit_idxs = self.init_task_ch_unit(tasks, ch_unit_idxs)
+
+        # Put selected units from selected tasks into a list.
+        unit_list = [u for row in self.Units[tasks].itertuples()
+                     for u in row[1:]
+                     if row[0] in ch_unit_idxs]
+
+        # Exclude empty units.
+        if not return_empty:
+            unit_list = [u for u in unit_list if not u.is_empty()]
+
+        return unit_list
+
+    # %% Reporting methods.
 
     def tasks(self):
         """Return task names."""
@@ -96,17 +173,6 @@ class UnitArray:
         n_recordings = len(self.recordings())
         return n_recordings
 
-    def init_task_ch_unit(self, tasks=None, ch_unit_idxs=None):
-        """Init tasks and channels/units to query."""
-
-        # Default tasks and units: all tasks/units.
-        if tasks is None:
-            tasks = self.tasks()
-        if ch_unit_idxs is None:
-            ch_unit_idxs = self.rec_ch_unit_indices()
-
-        return tasks, ch_unit_idxs
-
     # %% Methods to add units.
 
     def add_task(self, task_name, task_units):
@@ -124,26 +190,7 @@ class UnitArray:
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
 
-    # %% Methods to query units.
-
-    def unit_list(self, tasks=None, ch_unit_idxs=None, return_empty=False):
-        """Return units in a list."""
-
-        tasks, ch_unit_idxs = self.init_task_ch_unit(tasks, ch_unit_idxs)
-        ch_unit_set = set(ch_unit_idxs)
-
-        # Put selected units from selected tasks into a list.
-        unit_list = [r for row in self.Units[tasks].itertuples()
-                     for r in row[1:]
-                     if row[0] in ch_unit_set]
-
-        # Exclude empty units.
-        if not return_empty:
-            unit_list = [u for u in unit_list if not u.is_empty()]
-
-        return unit_list
-
-    # %% Exporting and reporting methods.
+    # %% Exporting methods.
 
     def unit_params(self):
         """Return unit parameters in DataFrame."""

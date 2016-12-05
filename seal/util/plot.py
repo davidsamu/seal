@@ -28,6 +28,7 @@ from seal.object import constants
 
 
 # %% Matplotlib setup
+
 plt.style.use('classic')
 # set_seaborn_style_context('whitegrid', 'poster')
 
@@ -46,6 +47,8 @@ savefig_dpi = 150
 
 # To restore matplotlib default settings
 # matplotlib.rcdefaults()
+
+ColConv = mpl.colors.ColorConverter()
 
 
 # TODO: change everything to Seaborn API? :-)
@@ -955,6 +958,31 @@ def get_colors(from_mpl_cycle=False, as_cycle=True):
     return cols
 
 
+def convert_to_rgb(cname):
+    """Return RGB tuple of color name (e.g. 'red', 'r', etc)."""
+
+    rgb = ColConv.to_rgb(cname)
+    return rgb
+
+
+def get_cmat(to_color, foregrnd_col='blue', bckgrnd_col='grey'):
+    """Return foreground/background RGB color matrix for array of points."""
+
+    to_color = np.array(to_color, dtype=bool)
+
+    # Init foreground and background color.
+    if isinstance(foregrnd_col, str):
+        foregrnd_col = convert_to_rgb(foregrnd_col)
+    if isinstance(bckgrnd_col, str):
+        bckgrnd_col = convert_to_rgb(bckgrnd_col)
+
+    # Create color matrix of points.
+    col_mat = np.array(len(to_color) * [bckgrnd_col])
+    col_mat[to_color, :] = foregrnd_col
+
+    return col_mat
+
+
 def get_proxy_artist(label, color, artist_type='patch', **kwargs):
     """Return proxy artist. Useful for creating custom legends."""
 
@@ -1000,7 +1028,7 @@ def format_plot(xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
-# TODO: add side histograms to scatter plot using seaborn!
+# TODO: add side histograms to scatter plot using Seaborn!
 # http://seaborn.pydata.org/generated/seaborn.jointplot.html#seaborn.jointplot
 
 def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
@@ -1010,13 +1038,20 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
     """Plot two vectors on scatter plot."""
 
     # Fill significant points.
-    colors = len(x) * [c]
-    if is_sign is not None:
-        colors = [c if sign else 'w' for sign in is_sign]
+    if isinstance(c, str):
+        to_color = np.ones(len(x), dtype=bool)
+        if is_sign is not None:
+            to_color[np.logical_not(is_sign)] = False
+        colors = get_cmat(to_color, c, 'w')
+    else:
+        colors = c
+
+    if 'edgecolors' not in kwargs:
+        kwargs['edgecolors'] = c
 
     # Plot scatter plot.
     ax = axes(ax)
-    ax.scatter(x, y, edgecolors=c, colors=colors, **kwargs)
+    ax.scatter(x, y, c=colors, **kwargs)
     format_plot(xlim, ylim, xlab, ylab,
                 title, ytitle, ax)
 

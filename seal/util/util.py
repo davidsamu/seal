@@ -435,12 +435,19 @@ def dim_series_to_array(qser):
     return qarr
 
 
-def add_quant(df, row, col, qel):
+def add_quant_elem(df, row, col, qel):
     """Add quantity element to DataFrame object."""
 
     df.loc[row, col] = qel  # this creates the column if not in DF yet
     df[col] = df[col].astype(object)
     df.loc[row, col] = qel
+
+
+def add_quant_col(df, col, colname):
+    """Add quantity column to DataFrame object."""
+
+    df[colname] = col
+    df[colname] = add_dim_to_series(df[colname], col.units)
 
 
 # %% Function for analysing directions.
