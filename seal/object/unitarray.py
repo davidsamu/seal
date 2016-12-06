@@ -19,14 +19,15 @@ from seal.util import plot, util
 class UnitArray:
     """
     Generic class to store a 2D array of units (neurons or groups of neurons),
-    by channel/unit index (rows) and task (columns).
+    by recording/channel/unit index (rows) and task (columns).
     """
 
     # %% Constructor.
     def __init__(self, name):
         """
-        Create UnitArray empty instance. Use 'add_task' method to fill it
-        with recording data (list of Unit objects).
+        Create UnitArray empty instance.
+
+        To fill it with data, use add_task and add_recording methods.
         """
 
         # Init instance.
@@ -35,35 +36,34 @@ class UnitArray:
 
     # %% Utility methods.
 
-    def init_task_ch_unit(self, tasks=None, ch_unit_idxs=None):
-        """Init tasks and channels/units to query."""
+    def init_tasks_uids(self, tasks=None, uids=None):
+        """Init tasks and recordings/channels/units to query."""
 
         # Default tasks and units: all tasks/units.
         if tasks is None:
             tasks = self.tasks()
-        if ch_unit_idxs is None:
-            ch_unit_idxs = self.rec_ch_unit_indices()
+        if uids is None:
+            uids = self.uids()
 
-        return tasks, ch_unit_idxs
+        return tasks, uids
 
     # %% Iterator methods.
 
     # Usage: e.g. [u for u in UnitArray.iter_throu(kwargs)]
 
-    def iter_thru(self, tasks=None, ch_units=None, ret_empty=False):
-        """Custom iterator init to select task(s) and channel/unit(s)."""
+    def iter_thru(self, tasks=None, uids=None, ret_empty=False):
+        """Custom iterator init over selected tasks and units."""
 
-        # Init list of tasks and channel/units to iterate over.
-        self._iter_tasks, self._iter_ch_units = self.init_task_ch_unit(tasks, ch_units)
+        self._iter_tasks, self._iter_uids = self.init_tasks_uids(tasks, uids)
         self._iter_empty = ret_empty
 
         return self
 
     def __iter__(self):
-        """Init iterator required to implement iterator class."""
+        """Init iterator. Required to implement iterator class."""
 
-        # Init task and channel/unit indices of current Unit returned.
-        self._itask, self._ichun = 0, 0
+        # Init task and unit IDs to point to current Unit returned.
+        self._itask, self._iuid = 0, 0
 
         return self
 
@@ -71,9 +71,9 @@ class UnitArray:
         """Return next Unit."""
 
         # Increment index variables.
-        self._ichun += 1
-        if self._ichun >= len(self._iter_ch_units):  # switch to next task
-            self._ichun = 0
+        self._iuid += 1
+        if self._iuid >= len(self._iter_uids):  # switch to next task
+            self._iuid = 0
             self._itask += 1
 
         # Terminate iteration if we have run out of units.
@@ -82,8 +82,8 @@ class UnitArray:
 
         # Get unit.
         task = self._iter_tasks[self._itask]
-        chun = self._iter_ch_units[self._ichun]
-        u = self.Units.loc[chun, task]
+        uid = self._iter_ch_units[self._iuid]
+        u = self.Units.loc[uid, task]
 
         # Let's not return empty unit if not requested.
         if u.is_empty() and not self._iter_empty:
@@ -93,15 +93,14 @@ class UnitArray:
 
     # %% Other methods to query units.
 
-    def unit_list(self, tasks=None, ch_unit_idxs=None, return_empty=False):
+    def unit_list(self, tasks=None, uids=None, return_empty=False):
         """Return units in a list."""
 
-        tasks, ch_unit_idxs = self.init_task_ch_unit(tasks, ch_unit_idxs)
+        tasks, uids = self.init_task_uids(tasks, uids)
 
         # Put selected units from selected tasks into a list.
         unit_list = [u for row in self.Units[tasks].itertuples()
-                     for u in row[1:]
-                     if row[0] in ch_unit_idxs]
+                     for u in row[1:] if row[0] in uids]
 
         # Exclude empty units.
         if not return_empty:
@@ -123,47 +122,47 @@ class UnitArray:
         nsess = len(self.tasks())
         return nsess
 
-    def rec_ch_unit_indices(self, req_tasks=None):
+    def uids(self, req_tasks=None):
         """
-        Return (recording, channel #, unit #) index triples of units
-        with data available across required tasks (optional).
+        Return unit IDs [(recording, channel #, unit #) index triples]
+        for units with data available across all required tasks (optional).
         """
 
-        ch_unit_idxs = self.Units.index.to_series()
+        uids = self.Units.index.to_series()
 
         # Select only channel unit indices with all required tasks available.
         if req_tasks is not None:
             idx = [len(self.unit_list(req_tasks, [cui])) == len(req_tasks)
-                   for cui in ch_unit_idxs]
-            ch_unit_idxs = ch_unit_idxs[idx]
+                   for cui in uids]
+            uids = uids[idx]
 
-        return ch_unit_idxs
+        return uids
 
-    def rec_ch_unit_task_indices(self, req_tasks=None):
+    def utids(self, req_tasks=None):
         """
-        Return (recording, channel #, unit #, task) index quadruples of units
-        with data available across required tasks (optional).
+        Return unit&task IDs [(rec, channel #, unit #, task) index quadruples]
+        for units with data available across required tasks (optional).
         """
 
-        ch_un_idxs = self.rec_ch_unit_indices(req_tasks)
-        uidxs = [u.get_rec_ch_un_task_index() for cu in ch_un_idxs
-                 for u in self.unit_list(req_tasks, [cu])]
+        uids = self.uids(req_tasks)
+        utids = [u.get_utid() for uid in uids
+                 for u in self.unit_list(req_tasks, [uid])]
         names = ['rec', 'ch', 'unit', 'task']
-        uidxs = pd.MultiIndex.from_tuples(uidxs, names=names).to_series()
+        utids = pd.MultiIndex.from_tuples(utids, names=names).to_series()
 
-        return uidxs
+        return utids
 
     def n_units(self):
-        """Return number of units (number of rows of UnitArray)."""
+        """Return number of units (# of rows of UnitArray)."""
 
-        nunits = len(self.rec_ch_unit_indices())
+        nunits = len(self.uids())
         return nunits
 
     def recordings(self):
-        """Return list of recordings in Pandas Index object."""
+        """Return list of recordings."""
 
-        ch_units = self.rec_ch_unit_indices()
-        recordings = ch_units.index.get_level_values('rec')
+        uids = self.uids()
+        recordings = uids.index.get_level_values('rec')
         unique_recordings = list(OrdDict.fromkeys(recordings))
         return unique_recordings
 
@@ -181,21 +180,38 @@ class UnitArray:
         # Concatenate new task as last column.
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
-        idxs = [(u.get_recording_name(), u.SessParams['channel #'], u.SessParams['unit #'])
-                for u in task_units]
-        multi_idx = pd.MultiIndex.from_tuples(idxs, names=['rec', 'ch', 'unit'])
-        task_df = pd.DataFrame(task_units, columns=[task_name], index=multi_idx)
+        uids = [u.get_uid() for u in task_units]
+        midx = pd.MultiIndex.from_tuples(uids, names=['rec', 'ch', 'unit'])
+        task_df = pd.DataFrame(task_units, columns=[task_name], index=midx)
         self.Units = pd.concat([self.Units, task_df], axis=1, join='outer')
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
+
+    def add_recording(self, UA):
+        """Add Units from new recording UA to UnitArray as extra rows."""
+
+        self.Units = pd.concat([self.Units, UA.Units], axis=0, join='outer')
+
+    # %% Methods to manipulate units.
+
+    def index_units(self):
+        """Add index to Units in UnitArray per each task."""
+
+        # Warning: this can only be called once as it currently stands,
+        # otherwise unit name fields will be multiplied!
+        for task in self.tasks():
+            for i, u in enumerate(self.iter_thru(tasks=[task], ret_empty=True)):
+                # skip empty units to keep consistency of indexing across tasks
+                if not u.is_empty():
+                    u.Name = 'Unit {:0>3}  '.format(i+1) + u.Name
 
     # %% Exporting methods.
 
     def unit_params(self):
         """Return unit parameters in DataFrame."""
 
-        unit_params = [u.get_unit_params() for u in self.unit_list()]
+        unit_params = [u.get_unit_params() for u in self.iter_thru()]
         unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
         return unit_params
 

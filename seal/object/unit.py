@@ -63,6 +63,7 @@ class Unit:
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
                  else p for p in TPLCell.PInfo]
         sess_date = dt.date(dt.strptime(date, '%m%d%y'))
+        recording = monkey+ '_' + util.date_to_str(sess_date)
 
         # Name unit.
         self.Name = (' '.join([task, monkey, date, probe]) +
@@ -73,6 +74,7 @@ class Unit:
                    ('task_idx', task_idx),
                    ('monkey', monkey),
                    ('date', sess_date),
+                   ('recording', recording),
                    ('probe', probe),
                    ('channel #', chan),
                    ('unit #', un),
@@ -179,22 +181,17 @@ class Unit:
         fname = util.format_to_fname(self.Name)
         return fname
 
-    def get_recording_name(self):
-        """Return name of recording ([monkey_date])."""
+    def get_uid(self):
+        """Return (recording, channel #, unit #) index triple."""
 
-        date_str = util.date_to_str(self.SessParams['date'])
-        rec_str = self.SessParams['monkey'] + '_' + date_str
-        return rec_str
+        uid = self.SessParams[['recording', 'channel #', 'unit #']]
+        return uid
 
-    def get_rec_ch_un_task_index(self):
+    def get_utid(self):
         """Return (recording, channel #, unit #, task) index quadruple."""
 
-        rec = self.get_recording_name()
-        task, ich, iunit = [self.SessParams[p]
-                            for p in ('task', 'channel #', 'unit #')]
-        uidx = (rec, ich, iunit, task)
-
-        return uidx
+        utid = self.SessParams[['recording', 'channel #', 'unit #', 'task']]
+        return utid
 
     def get_unit_params(self, rem_dims=True):
         """Return main unit parameters."""
