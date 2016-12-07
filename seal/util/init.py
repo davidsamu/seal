@@ -73,7 +73,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
-def run_preprocessing(data_dir, ua_name, fname, do_plot=True):
+def run_preprocessing(data_dir, ua_name, fname, do_plot=True, rej_trials=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, FR drift, ISI, etc)
@@ -108,22 +108,19 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True):
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
         print('Testing unit quality...')
-        ffig_templ = qc_dir + 'quality_metrics/{}.png' if do_plot else None
+        ftempl = qc_dir + 'quality_metrics/{}.png' if do_plot else None
         for u in recUA.iter_thru():
-            quality.test_qm(u, do_trial_rejection=False,
-                            ffig_template=ffig_templ)
+            quality.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
 
         # Test stimulus response to all directions.
-        ftempl = qc_dir + '/direction_response/{}.png'
-        # TODO: where to pass these params below and others?
-        quality.direction_response_test(recUA, ftempl=ftempl,
-                                        match_FR_scale_across_tasks=False)
+        ftempl = qc_dir + 'direction_response/{}.png' if do_plot else None
+        quality.direction_response_test(recUA, ftempl=ftempl, match_scale=False)
 
         # Test direction selectivity by tuning.
         print('Testing direction selectivity...')
-        ffig_templ = qc_dir + 'direction/{}.png'
+        ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in recUA.iter_thru():
-            u.test_DS(do_plot=do_plot, ffig_tmpl=ffig_templ)
+            u.test_DS(do_plot=do_plot, ftempl=ftempl)
 
         UA.add_recording(recUA)
 

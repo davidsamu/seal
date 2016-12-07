@@ -537,7 +537,7 @@ class Unit:
         wDS, wPD, cwPD = util.deg_w_mean(dirs, meanFR, constants.all_dirs)
         wAD, cwAD = [util.deg_mod(d+180*deg) for d in (wPD, cwPD)]
 
-        wPDres = pd.Series([wPD, wAD, cwPD, cwAD], pd_idx)
+        wPDres = pd.Series([wPD, cwPD, wAD, cwAD], pd_idx)
 
         # Calculate parameters of Gaussian tuning curve.
         # Start by centering stimulus - response.
@@ -552,7 +552,7 @@ class Unit:
         ctPD = util.coarse_dir(tPD, constants.all_dirs)
         tAD, ctAD = [util.deg_mod(d+180*deg) for d in (tPD, ctPD)]
 
-        tPDres = pd.Series([tPD, tAD, ctPD, ctAD], pd_idx)
+        tPDres = pd.Series([tPD, ctPD, tAD, ctAD], pd_idx)
 
         PD = pd.concat([mPDres, wPDres, tPDres], axis=1,
                        keys=('max', 'weighted', 'tuned'))
@@ -567,7 +567,7 @@ class Unit:
         return res
 
     def test_DS(self, stims=['S1', 'S2'], no_labels=False, do_plot=True,
-                ffig_tmpl=None, **kwargs):
+                ftempl=None, **kwargs):
         """
         Test DS of unit by calculating
           - DS index and PD, and
@@ -619,8 +619,8 @@ class Unit:
                 kwargs['polar_legend'] = True
                 kwargs['tuning_legend'] = False
 
-            ffig = (None if ffig_tmpl is None
-                    else ffig_tmpl.format(self.name_to_fname()))
+            ffig = (None if ftempl is None
+                    else ftempl.format(self.name_to_fname()))
             plot.direction_selectivity(DSres_plot, title=title,
                                        ffig=ffig, **kwargs)
 
@@ -706,3 +706,11 @@ class Unit:
         fig, raster_axs, rate_ax = res
 
         return fig, raster_axs, rate_ax
+
+
+    def plot_dir_resp(self):
+        """Plot response to all directions + polar plot in center."""
+
+        # TODO: to be moved here from quality.
+        pass
+

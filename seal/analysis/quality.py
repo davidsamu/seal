@@ -76,7 +76,10 @@ def waveform_stats(wfs, wtime):
     # SNR: std of mean waveform divided by std of residual waveform (noise).
     wf_mean = np.mean(wfs, 0)
     wf_std = wfs - wf_mean
-    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else 10  # single spike
+    if wfs.shape[0] > 1:
+        snr = np.std(wf_mean) / np.std(wf_std)
+    else:
+        snr = 10  # extreme case of only a single spike in Unit.
 
     # Indices of minimum and maximum times.
     # imin = np.argmin(wfs, 1)  # actual minimum of waveform
@@ -139,11 +142,11 @@ def classify_unit(snr, true_spikes):
     return unit_type
 
 
-def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
+def test_drift(t, v, tbins, tr_starts, spike_times, rej_trials):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
     # Return full task length if not rejecting trials.
-    if not do_trial_rejection:
+    if not rej_trials:
         t1 = spike_times[0]
         t2 = spike_times[-1]
         first_tr_inc = 0
@@ -210,7 +213,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times, do_trial_rejection):
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
-def test_qm(u, do_trial_rejection=True, ffig_template=None):
+def test_qm(u, rej_trials=True, ftempl=None):
     """
     Test ISI, SNR and stationarity of spikes and spike waveforms.
     Optionally find and reject trials with unacceptable
@@ -235,7 +238,7 @@ def test_qm(u, do_trial_rejection=True, ffig_template=None):
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
     test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts,
-                          spike_times, do_trial_rejection)
+                          spike_times, rej_trials)
     t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
 
     # Waveform statistics of included spikes only.
@@ -267,10 +270,9 @@ def test_qm(u, do_trial_rejection=True, ffig_template=None):
     u.QualityMetrics['IncludedSpikes'] = spk_inc
 
     # Plot quality metric results.
-    if ffig_template is not None:
+    if ftempl is not None:
         plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
-                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
-                ffig_template)
+                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc, ftempl)
 
     return u
 
@@ -314,8 +316,7 @@ def test_rejection(u):
 # %% Plot quality metrics.
 
 def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
-            snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
-            ffig_template):
+            snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc, ftempl):
     """Plot quality metrics related figures."""
 
     # Init values.
@@ -469,25 +470,21 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
             plot.plot_segments(incl_segment, t_unit=s, alpha=0.2,
                                color='grey', ymax=0.96, ax=ax)
 
-    # %% Save figure and metrics
+    # %% Save figure and metrics.
 
     # Create title
     title = ('{}: "{}"'.format(u.Name, unit_type) +
              # '\n\nSNR: {:.2f}%'.format(snr_inc) +
              ',   ISI vr: {:.2f}%'.format(ISI_vr) +
              ',   Tr Sp: {:.1f}%'.format(true_spikes))
-    fname = ffig_template.format(u.name_to_fname())
+    fname = ftempl.format(u.name_to_fname())
     plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
 
 
 # %% Quality tests across tasks.
 
-# TODO: change sectors to lines, add max FR labels, add S2 response to polar?
-# Separate S2 axes with for trials grouped by S2Dir!
-# Add S2 to polar plot!
-# Check if y-axes are really matched!
 def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
-                            match_FR_scale_across_tasks=True):
+                            match_scale=True):
     """Plot responses to 8 directions and polar plot in the center."""
 
     # Init data.
@@ -496,18 +493,14 @@ def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
     uids = UA.uids()
     ntask = len(tasks)
 
-    # Set time period to plot.
-    t1 = constants.t_start + 500*ms
-    t2 = constants.t_stop - 500*ms
-
-    # Set stimulus periods to use.
-    stim_prds = constants.del_stim_prds
-    S1_start, S1_end = stim_prds.prds.loc['S1']
-    S2_start, S2_end = stim_prds.prds.loc['S2']
-
-    # TODO: this should be done in plot.raster&rate automatically.
-    xticks = np.arange(-1000, 5000+1, 1000)
-    xtck = xticks[np.logical_and(xticks > t1, xticks < t2+1*ms)]
+    # Set up stimulus parameters (time period to plot, color, etc).
+    prds = constants.ext_stim_prds.prds
+    s1_start, s1_stop = prds.loc['S1', 'start'] + 500*ms, prds.loc['S1', 'end']
+    s2_start, s2_stop = prds.loc['S2', 'start'], prds.loc['S2', 'end']
+    stims = pd.DataFrame([(s1_start, s1_stop, 'b'), (s2_start, s2_stop, 'g')],
+                         index=['S1', 'S2'], columns=['start', 'stop', 'color'])
+    stims['len'] = [float(stims.loc[s, 'stop'] - stims.loc[s, 'start'])
+                    for s in stims.index]
 
     # Reorder directions to match with order of axes.
     rr_order = [3, 2, 1, 4, 0, 5, 6, 7]
@@ -526,21 +519,23 @@ def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
         gsp_u_list = zip(gsp, UA.iter_thru(tasks, [uid], ret_empty=True))
         for itask, (sps, u) in enumerate(gsp_u_list):
 
-            unit_gsp = plot.embed_gsp(sps, 3, 3)
+            task_gsp = plot.embed_gsp(sps, 3, 3)
 
-            for i, u_gsp in enumerate(unit_gsp):
-
+            for i, u_gsp in enumerate(task_gsp):
                 # Polar plot.
                 if i == 4:
                     ax_polar = fig.add_subplot(u_gsp, polar=True)
                     if u.is_empty():
                         ax_polar.axis('off')
                     else:
-                        dres = u.calc_dir_response('S1', S1_start, S1_end)
-                        dirs, resp = np.array(dres.index)*deg, dres['mean']
-                        plot.polar_direction_response(dirs, resp, color='b',
-                                                      ax=ax_polar)
-
+                        # For each stimulus.
+                        for stim in stims.index:
+                            dres = u.calc_dir_response(stim)
+                            dirs = np.array(dres.index)*deg
+                            resp = util.dim_series_to_array(dres['mean'])
+                            c = stims.loc[stim, 'color']
+                            plot.polar_direction_response(dirs, resp, color=c,
+                                                          ax=ax_polar)
                         # Remove y-axis ticklabels.
                         plot.hide_ticks(ax_polar, 'y')
 
@@ -548,46 +543,57 @@ def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
 
                 # Raster-rate plot.
                 else:
+                    # For each stimulus.
+                    stim_rr_gsp = plot.embed_gsp(u_gsp, 1, stims.shape[0],
+                                                 width_ratios=stims.len,
+                                                 wspace=0)
+                    gsp_stime_list = zip(stims.index, stim_rr_gsp)
+                    for stim, stim_rr_gsp in gsp_stime_list:
 
-                    # Prepare plotting.
-                    rr_gsp = plot.embed_gsp(u_gsp, 2, 1)
-                    if u.is_empty():
-                        raster_axs, rate_ax = plot.empty_raster_rate(fig, rr_gsp, 1)
+                        # Prepare plotting.
+                        st1, st2, c = stims.loc[stim, ['start', 'stop', 'color']]
+                        rr_gsp = plot.embed_gsp(stim_rr_gsp, 2, 1)
 
-                    # Plot raster&rate plot.
-                    else:
-                        stim_dir = dir_order[i]
-                        dd_trs = u.trials_by_param_values('S1Dir', [stim_dir])
-                        nrate = u.init_nrate(nrate)
-                        res = u.plot_raster_rate(nrate, dd_trs, t1, t2,
-                                                 no_labels=True, legend=False,
-                                                 fig=fig, outer_gsp=rr_gsp)
-                        _, raster_axs, rate_ax = res
-
-                        # Remove y-axis ticklabels from raster plot.
-                        [plot.hide_ticks(ax) for ax in raster_axs]
-
-                        # Remove axis ticks from rate plot (except first one).
-                        if i == 0:
-                            plot.set_tick_labels(rate_ax, 'x', pos=xtck, lbls=xtck)
+                        if u.is_empty():
+                            rr_res = plot.empty_raster_rate(fig, rr_gsp, 1)
+                            raster_axs, rate_ax = rr_res
+                        # Plot raster&rate plot.
                         else:
-                            plot.hide_ticks(rate_ax)
+                            dd_trs = u.trials_by_param_values(stim + 'Dir',
+                                                              [dir_order[i]])
+                            nrate = u.init_nrate(nrate)
+                            res = u.plot_raster_rate(nrate, dd_trs, st1, st2,
+                                                     colors=[c], legend=False,
+                                                     no_labels=True, fig=fig,
+                                                     outer_gsp=rr_gsp)
+                            _, raster_axs, rate_ax = res
+                            # Remove y-axis ticklabels from raster plot.
+                            [plot.hide_ticks(ax) for ax in raster_axs]
 
-                        rate_axs.append(rate_ax)
+                            # Remove axis spines and ticks.
+                            show_xticks = (i == 0)
+                            show_yticks = (i == 0) & (stim == stims.index[0])
+                            plot.hide_ticks(rate_ax, show_xticks, show_yticks)
+                            left_spine = (stim == stims.index[0])
+                            plot.show_spines(bottom=True, left=left_spine,
+                                             ax=rate_ax)
 
-                    # Add task name as title (to 2nd axes).
-                    if i == 1:
-                        title = tasks[itask]
-                        plot.set_labels(title=title, ytitle=1.10,
-                                        ax=raster_axs[0])
+                            rate_axs.append(rate_ax)
 
-                    # Match scale of y axes, only within task.
-                    if not match_FR_scale_across_tasks:
-                        plot.sync_axes(rate_axs, sync_y=True)
-                        rate_axs = []
+                        # Add task name as title (to 2nd axes).
+                        if i == 1 and stim == stims.index[0]:
+                            title = tasks[itask]
+                            plot.set_labels(title=title, ytitle=1.10,
+                                            title_kwargs={'loc': 'right'},
+                                            ax=raster_axs[0])
+
+            # Match scale of y axes, only within task.
+            if not match_scale:
+                plot.sync_axes(rate_axs, sync_y=True)
+                rate_axs = []
 
         # Match scale of y axes across tasks.
-        if match_FR_scale_across_tasks:
+        if match_scale:
             plot.sync_axes(rate_axs, sync_y=True)
             plot.sync_axes(polar_axs, sync_y=True)
 
@@ -600,7 +606,7 @@ def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
                                  rect_height=0.92, w_pad=5)
 
 
-# TODO: update, simplify, refactor, and plot 1 figure per unit over tasks.
+# TODO: update, simplify, refactor, and plot one figure per unit over tasks.
 def within_trial_unit_test(UA, nrate, fname, plot_info=True,
                            plot_rr=True, plot_ds=True, plot_dd_rr=True):
     """Test unit responses within trails."""
@@ -687,8 +693,8 @@ def within_trial_unit_test(UA, nrate, fname, plot_info=True,
                     plot.empty_raster_rate(fig, dd_rr_gsp, 2)
                 else:
                     dd_trs = u.dir_pref_anti_trials(stim=stim,
-                                                       pname=[row.dir],
-                                                       comb_values=True)
+                                                    pname=[row.dir],
+                                                    comb_values=True)
                     res = u.plot_raster_rate(nrate, trials=dd_trs,
                                              t1=row.start, t2=row.end,
                                              pvals=[0.05], test='t-test',

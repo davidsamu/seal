@@ -54,6 +54,7 @@ class UnitArray:
     def iter_thru(self, tasks=None, uids=None, ret_empty=False):
         """Custom iterator init over selected tasks and units."""
 
+        # List of tasks and uids to iterate over.
         self._iter_tasks, self._iter_uids = self.init_tasks_uids(tasks, uids)
         self._iter_empty = ret_empty
 
@@ -62,7 +63,7 @@ class UnitArray:
     def __iter__(self):
         """Init iterator. Required to implement iterator class."""
 
-        # Init task and unit IDs to point to current Unit returned.
+        # Init task and unit IDs to point to first unit to be returned.
         self._itask, self._iuid = 0, 0
 
         return self
@@ -70,20 +71,20 @@ class UnitArray:
     def __next__(self):
         """Return next Unit."""
 
-        # Increment index variables.
-        self._iuid += 1
-        if self._iuid >= len(self._iter_uids):  # switch to next task
-            self._iuid = 0
-            self._itask += 1
-
         # Terminate iteration if we have run out of units.
         if self._itask >= len(self._iter_tasks):
             raise StopIteration
 
-        # Get unit.
+        # Get current unit.
         task = self._iter_tasks[self._itask]
         uid = self._iter_uids[self._iuid]
         u = self.Units.loc[uid, task]
+
+        # Update (increment) index variables to point to next unit.
+        self._iuid += 1
+        if self._iuid >= len(self._iter_uids):  # switch to next task
+            self._itask += 1
+            self._iuid = 0
 
         # Let's not return empty unit if not requested.
         if u.is_empty() and not self._iter_empty:

@@ -50,6 +50,9 @@ savefig_dpi = 150
 
 ColConv = mpl.colors.ColorConverter()
 
+# Plotting constants.
+t_ticks = np.arange(-1000, 5000+1, 1000)
+
 
 # TODO: change everything to Seaborn API? :-)
 
@@ -294,10 +297,15 @@ def rate(rates_list, time, t1=None, t2=None, names=None, mean=True, t_unit=ms,
             lgn_patches.append(get_proxy_artist(lbl, col, artist_type='line'))
 
     # Format plot.
+    # Set ticks and tick labels.
+    xtck = t_ticks[np.logical_and(t_ticks > t1, t_ticks < t2+1*ms)]
+    set_tick_labels(ax, 'x', pos=xtck, lbls=xtck)
     set_max_n_ticks(max_n_ticks=7, axis='y', ax=ax)
     xlim = None
     if t1 is not None and t2 is not None and t_unit is not None:
         xlim = [t1.rescale(t_unit), t2.rescale(t_unit)]
+    if ylim is None:
+        ylim = (0,None)
     set_limits(xlim, ylim, ax=ax)
     set_ticks_side(xtick_pos='bottom', ytick_pos='left', ax=ax)
     show_spines(True, True, False, False, ax=ax)
@@ -340,7 +348,6 @@ def empty_direction_selectivity(fig, outer_gsp):
     return mock_polar_ax, mock_tuning_ax
 
 
-# TODO: add R-sqared to tuning plot as label.
 def direction_selectivity(DSres, title=None, labels=True,
                           polar_legend=True, tuning_legend=True,
                           ffig=None, fig=None, outer_gsp=None):
@@ -384,13 +391,15 @@ def direction_selectivity(DSres, title=None, labels=True,
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(get_proxy_artist(lgd_lbl, color))
 
-        # TODO: add new parameters! FWHM (instead of sigma?), R2, RSME(?)
-        # Collect parameters of tuning curve fit.
+        # Collect parameters tuning curve fit.
         a, b, x0, sigma = DSr.fit_params.loc['fit']
-        s_a, s_b, s_x0, s_sigma = [str(float(round(p, 1)))
-                                   for p in (a, b, x0, sigma)]
+        FWHM, R2, RMSE = DSr.fit_res
+        s_a, s_b, s_x0, s_sigma, s_FWHM = [str(float(round(p, 1)))
+                                           for p in (a, b, x0, sigma, FWHM)]
+        s_R2 = format(R2, '.2f')
         lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(name, 5 * ' ', s_a, 5 * ' ', s_b)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
+        lgd_lbl += '{}{:>6}{}{:>6}'.format(8 * ' ', s_FWHM, 8 * ' ', s_R2)
         tuning_patches.append(get_proxy_artist(lgd_lbl, color))
 
     # Add zero reference line to tuning curve.
@@ -418,7 +427,8 @@ def direction_selectivity(DSres, title=None, labels=True,
                           ('prop', {'family': 'monospace'})])
     polar_lgn_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
     tuning_lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
-                      'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15))
+                      'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15) +
+                      'FWHM (deg)'.rjust(15) + 'R-squared'.rjust(15))
 
     lgn_params = [(polar_legend, polar_lgn_ttl, polar_patches, ax_polar),
                   (tuning_legend, tuning_lgd_ttl, tuning_patches, ax_tuning)]
@@ -438,28 +448,43 @@ def direction_selectivity(DSres, title=None, labels=True,
     save_fig(fig, ffig)
 
 
-# TODO: add option to change bars to lines and symbols!
-
-def polar_direction_response(dirs, FR, DSI=None, PD=None,
-                             color='g', title=None, ffig=None, ax=None):
+def polar_direction_response(dirs, resp, DSI=None, PD=None, plot_type='line',
+                             complete_missing_dirs=False, color='g',
+                             title=None, ffig=None, ax=None):
     """
     Plot response to each directions on polar plot, with direction selectivity
-    vector.
+    vector. Use plot_type to change between sector ('bar') and
+    connected ('line') plot types.
     """
 
     # Plot response to each directions on polar plot.
+
+    # Prepare data.
+    # Complete missing directions with 0 response.
+    if complete_missing_dirs:
+        for i, d in enumerate(constants.all_dirs):
+            if d not in dirs:
+                dirs = np.insert(dirs, i, d) * dirs.units
+                resp = np.insert(resp, i, 0) * Hz
+
     rad_dirs = np.array([d.rescale(rad) for d in dirs])
-    ndirs = constants.all_dirs.size  # rad_dirs.size
-    left_rad_dirs = rad_dirs - np.pi/ndirs
-    w = 2*np.pi / ndirs
-    ax = bars(left_rad_dirs, FR, polar=True, width=w, alpha=0.50,
-              color=color, edgecolor='w', linewidth=1, title=title,
-              ytitle=1.08, ax=ax)
+
+    if plot_type == 'bar':  # sector plot
+        ndirs = constants.all_dirs.size
+        left_rad_dirs = rad_dirs - np.pi/ndirs
+        w = 2*np.pi / ndirs
+        ax = bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color, lw=1,
+                  edgecolor='w', title=title, ytitle=1.08, polar=True, ax=ax)
+    else:  # line plot
+        rad_dirs, resp = [np.append(v, [v[0]]) for v in (rad_dirs, resp)]
+        ax = lines(rad_dirs, resp, color=color,  marker='o', lw=1, ms=4, mew=0,
+                   title=title, ytitle=1.08, polar=True, ax=ax)
+        ax.fill(rad_dirs, resp, color=color, alpha=0.15)
 
     # Add arrow representing preferred direction and
     # direction selectivity index (DSI).
     if DSI is not None and PD is not None:
-        rho = np.max(FR) * DSI
+        rho = np.max(resp) * DSI
         xy = (float(PD.rescale(rad)), rho)
         ax.annotate('', xy, xytext=(0, 0),
                     arrowprops=dict(facecolor=color, edgecolor='k',

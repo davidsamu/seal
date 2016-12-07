@@ -25,17 +25,17 @@ tr_params = dict(markS1Dir=('S1Dir', deg), markS2Dir=('S2Dir', deg),
 
 # Trial start and stop times.
 t_start = -1000*ms
-t_stop = 4000*ms
+t_stop = 3500*ms
 
 
 # %% Constants related to different trial periods.
 
-tr_prds = Periods([('Whole trial', [-1000*ms, 4000*ms]),
+tr_prds = Periods([('Whole trial', [-1000*ms, 3500*ms]),
                    ('Fixation',    [-1000*ms,    0*ms]),
                    ('S1',          [    0*ms,  500*ms]),
                    ('Delay',       [  500*ms, 2000*ms]),
                    ('S2',          [ 2000*ms, 2500*ms]),
-                   ('Post-S2',     [ 2500*ms, 4000*ms])])
+                   ('Post-S2',     [ 2500*ms, 3500*ms])])
 
 # Stimulus periods.
 stim_prds = Periods(tr_prds.periods(['S1', 'S2']))
