@@ -82,7 +82,7 @@ class UnitArray:
 
         # Get unit.
         task = self._iter_tasks[self._itask]
-        uid = self._iter_ch_units[self._iuid]
+        uid = self._iter_uids[self._iuid]
         u = self.Units.loc[uid, task]
 
         # Let's not return empty unit if not requested.
@@ -96,7 +96,7 @@ class UnitArray:
     def unit_list(self, tasks=None, uids=None, return_empty=False):
         """Return units in a list."""
 
-        tasks, uids = self.init_task_uids(tasks, uids)
+        tasks, uids = self.init_tasks_uids(tasks, uids)
 
         # Put selected units from selected tasks into a list.
         unit_list = [u for row in self.Units[tasks].itertuples()
@@ -198,13 +198,12 @@ class UnitArray:
     def index_units(self):
         """Add index to Units in UnitArray per each task."""
 
-        # Warning: this can only be called once as it currently stands,
-        # otherwise unit name fields will be multiplied!
         for task in self.tasks():
-            for i, u in enumerate(self.iter_thru(tasks=[task], ret_empty=True)):
+            for i, u in enumerate(self.iter_thru(tasks=[task],
+                                                 ret_empty=True)):
                 # skip empty units to keep consistency of indexing across tasks
                 if not u.is_empty():
-                    u.Name = 'Unit {:0>3}  '.format(i+1) + u.Name
+                    u.add_index_to_name(i+1)
 
     # %% Exporting methods.
 

@@ -88,7 +88,8 @@ class Rate:
         if t2 is not None:
             t2 = t2.rescale(self.tdim)
 
-        sample_times = util.values_in_window(self.rates.columns, t1, t2)
+        tvec = np.array(self.rates.columns) * self.tdim
+        sample_times = util.values_in_window(tvec, t1, t2)
 
         return sample_times
 

@@ -12,6 +12,7 @@ import os
 
 import numpy as np
 
+from seal.analysis import quality
 from seal.util import util, plot
 from seal.object import constants, unit, unitarray
 
@@ -72,7 +73,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
-def run_preprocessing(data_dir, ua_name, do_plot=True):
+def run_preprocessing(data_dir, ua_name, fname, do_plot=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, FR drift, ISI, etc)
@@ -98,18 +99,11 @@ def run_preprocessing(data_dir, ua_name, do_plot=True):
         # Init folders.
         rec_dir = data_dir + recording
         bfr_qc_dir = rec_dir + '/before_qc/'
-        qc_dir = rec_dir + '/qc/'
-        aft_qc_dir = rec_dir + '/after_qc/'
+        qc_dir = rec_dir + '/qc_res/'
 
         # Read in Units.
         f_data_bfr_qc = bfr_qc_dir + recording + '.data'
         recUA = util.read_objects(f_data_bfr_qc, 'UnitArr')
-        rec_tasks = recUA.tasks()
-
-        # Check direction response over trial time.
-    #    ftemp = qc_dir + '/direction_response/{}.png'
-    #    quality.direction_response_test(recUA, 'R100', ftemp, tasks=['dd', 'ddX'],
-    #                                    match_FR_scale_across_tasks=False)
 
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
@@ -119,7 +113,13 @@ def run_preprocessing(data_dir, ua_name, do_plot=True):
             quality.test_qm(u, do_trial_rejection=False,
                             ffig_template=ffig_templ)
 
-        # Test direction selectivity.
+        # Test stimulus response to all directions.
+        ftempl = qc_dir + '/direction_response/{}.png'
+        # TODO: where to pass these params below and others?
+        quality.direction_response_test(recUA, ftempl=ftempl,
+                                        match_FR_scale_across_tasks=False)
+
+        # Test direction selectivity by tuning.
         print('Testing direction selectivity...')
         ffig_templ = qc_dir + 'direction/{}.png'
         for u in recUA.iter_thru():
@@ -127,15 +127,15 @@ def run_preprocessing(data_dir, ua_name, do_plot=True):
 
         UA.add_recording(recUA)
 
-
     # Add unit's index to unit name.
     UA.index_units()
 
     # Save selected Units with quality metrics and direction selectivity.
     ts = util.timestamp()
     n_units = UA.n_units()
-    data_dir = 'data/Units_qc_combined/ChingChi_inactivation_n{}_{}/'.format(n_units, ts)
-    util.write_objects({'UnitArr': UA}, data_dir + 'units_combined.data')
+    fname = util.format_to_fname(ua_name)
+    data_dir = 'data/Units_qc_combined/{}_n{}_{}/'.format(fname, n_units, ts)
+    util.write_objects({'UnitArr': UA}, data_dir + fname + '.data')
 
     # Write out unit list and save parameter plot.
     UA.save_params_table(data_dir + 'unit_list.xlsx')

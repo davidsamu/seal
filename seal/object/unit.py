@@ -24,7 +24,6 @@ from seal.object.trials import Trials
 from seal.analysis import tuning
 
 # TODO: add receptive field coverage information!
-# TODO: put stuff into Series/DFs, especially composite return values!
 
 
 class Unit:
@@ -181,6 +180,17 @@ class Unit:
         fname = util.format_to_fname(self.Name)
         return fname
 
+    def add_index_to_name(self, i):
+        """Add index to unit's name."""
+
+        idx_str = 'Unit {:0>3}  '.format(i)
+
+        # Remove previous index, if present.
+        if self.Name[:5] == 'Unit ':
+            self.Name = self.Name[len(idx_str):]
+
+        self.Name = idx_str + self.Name
+
     def get_uid(self):
         """Return (recording, channel #, unit #) index triple."""
 
@@ -246,6 +256,14 @@ class Unit:
 
         adir = self.DS['PD'].loc[(stim, method), pd_type]
         return adir
+
+    def init_nrate(self, nrate=None):
+        """Initialize rate name."""
+
+        if nrate is None:
+            nrate = 'R100' if 'R100' in self.Rates else self.Rates.index[0]
+
+        return nrate
 
     # %% Generic methods to get various set of trials.
 
@@ -623,7 +641,7 @@ class Unit:
         if nrate is not None:
             rates = [self.Rates[nrate].get_rates(tr.trials, t1, t2)
                      for tr in trs]
-            times = self.Rates[nrate].get_times(t1, t2)
+            times = self.Rates[nrate].get_sample_times(t1, t2)
 
         return trs, t1, t2, spikes, rates, times, names
 
