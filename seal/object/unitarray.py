@@ -51,12 +51,13 @@ class UnitArray:
 
     # Usage: e.g. [u for u in UnitArray.iter_throu(kwargs)]
 
-    def iter_thru(self, tasks=None, uids=None, ret_empty=False):
+    def iter_thru(self, tasks=None, uids=None, ret_empty=False,
+                  ret_excl=False):
         """Custom iterator init over selected tasks and units."""
 
         # List of tasks and uids to iterate over.
         self._iter_tasks, self._iter_uids = self.init_tasks_uids(tasks, uids)
-        self._iter_empty = ret_empty
+        self._iter_empty, self._iter_excl = ret_empty, ret_excl
 
         return self
 
@@ -86,8 +87,9 @@ class UnitArray:
             self._itask += 1
             self._iuid = 0
 
-        # Let's not return empty unit if not requested.
-        if u.is_empty() and not self._iter_empty:
+        # Let's not return empty and/or excluded unit if not requested.
+        if ((u.is_empty() and not self._iter_empty) or
+            (u.is_excluded() and not self._iter_excl)):
             return self.__next__()
 
         return u

@@ -300,15 +300,8 @@ def test_rejection(u):
     exclude = exclude or qm['NTrialsIncluded'] / qm['NTrialsTotal'] < 0.5
 
     # Insufficient direction selectivity: DSI < 0.1 during both stimulus.
-    # DSI is low during remote sample!!!
-    ds = u.Selectivity['DirSelectivity'].values()
+    ds = u.DS.loc['DSI'].wDS
     exclude = exclude or np.all([dsi < 0.1 for dsi in ds])
-
-    # Preferred direction is not one (with some wide margin)
-    # with most activity for either of the stimuli.
-    # TODO
-
-    u.QualityMetrics['ExcludeUnit'] = exclude
 
     return exclude
 
@@ -516,7 +509,8 @@ def direction_response_test(UA, tasks=None, nrate=None, ftempl=None,
         rate_axs, polar_axs = [], []
 
         # Plot direction response of unit in each task.
-        gsp_u_list = zip(gsp, UA.iter_thru(tasks, [uid], ret_empty=True))
+        gsp_u_list = zip(gsp, UA.iter_thru(tasks, [uid], ret_empty=True,
+                                           ret_excl=True))
         for itask, (sps, u) in enumerate(gsp_u_list):
 
             task_gsp = plot.embed_gsp(sps, 3, 3)

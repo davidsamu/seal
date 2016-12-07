@@ -73,10 +73,11 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
-def run_preprocessing(data_dir, ua_name, fname, do_plot=True, rej_trials=True):
+def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
+                      rej_trials=True, exc_units=False):
     """
     Run preprocessing on Units and UnitArrays, including
-      - standard quality control of each unit (SNR, FR drift, ISI, etc)
+      - standard quality control of each unit (SNR, rate drift, ISI, etc)
       - stimulus selectivity (DS)
       - stability of recording(s)
     """
@@ -107,24 +108,57 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True, rej_trials=True):
 
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
-        print('Testing unit quality...')
+        print('  Testing unit quality...')
         ftempl = qc_dir + 'quality_metrics/{}.png' if do_plot else None
         for u in recUA.iter_thru():
             quality.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
 
         # Test stimulus response to all directions.
-        ftempl = qc_dir + 'direction_response/{}.png' if do_plot else None
-        quality.direction_response_test(recUA, ftempl=ftempl, match_scale=False)
+        if do_plot:
+            print('  Plotting direction response...')
+            ftempl = qc_dir + 'direction_response/{}.png'
+            quality.direction_response_test(recUA, ftempl=ftempl,
+                                            match_scale=False)
 
         # Test direction selectivity by tuning.
-        print('Testing direction selectivity...')
+        print('  Testing direction selectivity...')
         ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in recUA.iter_thru():
             u.test_DS(do_plot=do_plot, ftempl=ftempl)
 
+
+        # TODO: finish!
+#        # Check within trial responses.
+#        fname_wt_bfr = qc_dir + recording + '_within_trial_test_before_qc.png'
+#        # quality.within_trial_unit_test(UnitArr_bfr_qc, 'R100', fname_wt_bfr)
+#        fname_wt_aft = qc_dir + recording + '_within_trial_test_after_qc.png'
+#        # quality.within_trial_unit_test(UnitArr_aft_qc, 'R100', fname_wt_aft)
+#
+#        # Test stability of recording session across tasks for selected units only.
+#        fname_stability = qc_dir + recording + '_recording_stability.png'
+#        quality.check_recording_stability(UnitArr_aft_qc, fname_stability)
+
+
+        # Exclude units of low quality or no direction selectivity.
+        if exc_units:
+            print('  Excluding units...')
+            exclude = []
+            for u in recUA.iter_thru():
+                to_excl = quality.test_rejection(u)
+                u.set_excluded(to_excl)
+                exclude.append(to_excl)
+
+            # Report unit exclusion results.
+            n_tot = len(exclude)
+            n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
+            perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
+            rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
+            print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
+            print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
+
         UA.add_recording(recUA)
 
-    # Add unit's index to unit name.
+    # Add index to unit names.
     UA.index_units()
 
     # Save selected Units with quality metrics and direction selectivity.

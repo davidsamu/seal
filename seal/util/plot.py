@@ -72,9 +72,11 @@ my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 def group_params(unit_params, rec_name, ffig=None):
     """Plot histogram of parameter values across units."""
 
+    # TODO: add this to constants!
+
     # Init parameters to plot.
     to_skip = ['task_idx', 'filepath', 'filename', 'monkey', 'date', 'probe'
-               'SamplPer']
+               'sampl_prd', 'DS', 'DSI', 'PD', 'TP']
     params = [p for p in unit_params.columns if p not in to_skip]
 
     # Init figure.

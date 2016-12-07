@@ -23,8 +23,8 @@ from seal.object.spikes import Spikes
 from seal.object.trials import Trials
 from seal.analysis import tuning
 
-# TODO: add receptive field coverage information!
 
+# TODO: add receptive field coverage information!
 
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
@@ -44,6 +44,9 @@ class Unit:
         self.Rates = pd.Series()
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
+
+        self.im_empty = True
+        self.im_excluded = True
 
         self.t_start = t_start
         self.t_stop = t_stop
@@ -166,13 +169,27 @@ class Unit:
                      for name, kernel in kernels.items()]
         self.Rates = pd.Series(rate_list, index=kernels.keys())
 
+        self.im_empty = False
+        self.im_excluded = False
+
     # %% Utility methods.
 
     def is_empty(self):
-        """Checks if unit is empty."""
+        """Check if unit is empty."""
 
-        im_empty = self.Name == ''
+        im_empty = self.im_empty
         return im_empty
+
+    def is_excluded(self):
+        """Check if unit is excluded from analysis."""
+
+        im_excluded = self.im_excluded
+        return im_excluded
+
+    def set_excluded(self, to_excl):
+        """Set unit's exclude flag."""
+
+        self.is_excluded = to_excl
 
     def name_to_fname(self):
         """Return filename compatible name string."""
@@ -208,7 +225,11 @@ class Unit:
 
         upars = pd.Series()
 
-        # Recording parameters.
+        # Basic params.
+        upars['Name'] = self.Name
+        upars['excluded'] = self.is_excluded()
+
+        # Recording params.
         upars['Session information'] = ''
         upars = upars.append(util.get_scalar_vals(self.SessParams, rem_dims))
 
