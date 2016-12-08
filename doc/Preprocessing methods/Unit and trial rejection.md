@@ -17,15 +17,17 @@ Trials outside of this period are excluded. Quality metrics are calculated only 
 
 ## Unit rejection
 
-The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality data (e.g. strong, inseparable multi-unit activity), and therefore may be considered as a necesary quality assurance step, rather then cherrypicking the nice neurons.
+The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality data (e.g. strong drifts in firing rate or inseparable, noisy multi-unit activity), and therefore may be considered as a necesary quality assurance step, rather then cherrypicking the nice neurons.
 
-The metrics referred below are calculated for the duration of the entire session. Temporal changes in them are check during trial rejection below.
+The metrics referred below are calculated for the duration of the entire task. Temporal changes in them are checked during trial rejection above.
 
-Criteria:
+Every unit has to meet all the following criteria:
 
-1. Extremely low waveform consistency: SNR < 1.
-2. Extremely low unit activity: Firing rate < 2 spikes / second.
-3. Extremely high ISI violation: ISI v.r. > 1%.
-4. Insufficient number of trials: # trials (after trial rejection) < 50% of total # of trials.
-5. Insufficient coverage of receptive field: **To be added.**
-6. Insufficient stimulus response: DSI < 0.1 for both stimuli.
+1. Waveform consistency: SNR > 1.
+2. Unit activity: Firing rate > 1 spikes / second.
+3. ISI violation ratio: ISI v.r. < 1%.
+4. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
+5. Coverage of receptive field: **To be added.**
+6. Stimulus response: DSI > 0.1 for both stimuli.
+
+The specific threshold values for each criterion can be changed in the "Constants" section on the top of seal/quality/test_sorting.py.
