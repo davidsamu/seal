@@ -74,6 +74,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
+
 def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
                       rej_trials=True, exc_units=False):
     """

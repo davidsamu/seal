@@ -39,7 +39,6 @@ def run_logreg(X, y, Cs=10, ncv=5):
     return perf, weights, C
 
 
-# TODO: extend with error trial analysis.
 def run_logreg_across_time(FRdf, target_vec, corr_trs=None, Cs=10, ncv=5):
     """Run logistic regression analysis across trial time."""
 

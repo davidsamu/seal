@@ -24,8 +24,6 @@ from collections import OrderedDict as OrdDict
 from quantities import Quantity, deg, rad, ms
 from elephant.kernels import GaussianKernel, RectangularKernel
 
-# TODO: to be split into submodules!
-
 
 # %% Input / output and object manipulation functions.
 
@@ -636,7 +634,6 @@ def lin_regress(x, y):
     return sp.stats.linregress(x, y)
 
 
-# TODO: add non-parametric AND non-paired test!
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.

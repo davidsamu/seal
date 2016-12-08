@@ -27,8 +27,6 @@ from seal.object.trials import Trials
 from seal.analysis import tuning
 
 
-# TODO: add receptive field coverage information!
-
 class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
@@ -313,7 +311,6 @@ class Unit:
         filtered_trials = Trials(tr_idxs, trs.value, trs.name)
         return filtered_trials
 
-    # TODO: distinguish between list and object of trials!
     def ftrials(self, trs, value=None, name=None, filtered=True):
         """
         Create and return trial object from list of trial indices
@@ -637,7 +634,6 @@ class Unit:
         self.DS['PD'] = PD
         self.DS['TP'] = TP
 
-        # TODO: separate plotting from calculation!
         # Plot direction selectivity results.
         if do_plot:
             DSres_plot = pd.DataFrame(DSres_plot).T

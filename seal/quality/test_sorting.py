@@ -21,9 +21,6 @@ from seal.object.trials import Trials
 from seal.object.periods import Periods
 
 
-# TODO: calculate waveform duration in a way that deals with truncated WFs!
-
-
 # %% Constants.
 
 # Recording constants.
@@ -39,7 +36,7 @@ MIN_BIN_LEN = 120 * s  # minimum window length for firing binned statistics
 
 
 # Constants related to unit exclusion.
-min_RF_coverage = 0.5  # min. receptive field coverage, TODO: add!
+min_RF_coverage = 0.5  # min. receptive field coverage
 min_SNR = 1.0          # min. SNR
 min_FR = 1.0           # min. firing rate (sp/s)
 max_ISIvr = 1.0        # max. ISI violation ratio (%)
@@ -299,7 +296,6 @@ def test_rejection(u):
     test_passed = pd.Series()
 
     # Insufficient receptive field coverage.
-    # TODO: add receptive field coverage information!
     # th_passed.append(qm['RC_coverage'] < min_RF_coverage)
 
     # Extremely low waveform consistency (SNR).

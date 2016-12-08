@@ -28,8 +28,6 @@ def gaus(x, a=0, b=1, x0=0, sigma=1):
     return g
 
 
-# TODO: optionally, provide bounds and init values for fit?
-# TODO: check if bounds and init values are consistent, change them otherwise!
 def fit_gaus_curve(x, y, y_err=None):
     """
     Fit Gaussian curve to stimulus - response values. Returns best estimate on
@@ -157,7 +155,6 @@ def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):
     return xfit, yfit
 
 
-# TODO: calculate R2 and RMSE on all samples (rather than means to direction?)
 def calc_R2_RMSE(x, y, f, **f_kwargs):
     """Calculate root mean squared error and R-squared value of fit."""
 

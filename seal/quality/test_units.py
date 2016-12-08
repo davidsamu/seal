@@ -24,8 +24,6 @@ from seal.object import constants
 
 # %% Quality tests across tasks.
 
-# TODO: move unit-specific inner part of this into Unit!
-
 def direction_response_test(UA, nrate=None, ftempl=None,
                             match_scale=False):
     """Plot responses to 8 directions and polar plot in the center."""
@@ -147,9 +145,6 @@ def direction_response_test(UA, nrate=None, ftempl=None,
                                  rect_height=0.92, w_pad=5)
 
 
-# TODO: Move core plotting of this into Unit.
-# TODO: add option to show excluded units? maybe highlighted in some way?
-# TODO: tuning plots to be matched after refactoring DS plotting in Unit.
 def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
     """Test unit responses within trails."""
 
@@ -221,8 +216,6 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
                         plot.empty_direction_selectivity(fig, ds_gsp)
                     else:
                         u.test_DS(no_labels=True, fig=fig, outer_gsp=ds_gsp)
-                        # TODO: refactor DS plotting in Unit and
-                        # add polar and tuning axes here to match scale
                         # tuning_axs.extend([ax_polar, ax_tuning]) ....
 
                 # Raster & rate in pref & anti trials.
@@ -277,7 +270,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
         plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
 
 
-# TODO: check task order! UA order is not recording order!
+
 def check_recording_stability(UA, fname):
     """Check stability of recording session across tasks."""
 

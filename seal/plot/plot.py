@@ -29,9 +29,6 @@ from seal.object import constants
 
 # %% Matplotlib setup
 
-# TODO: to be split into submodules!
-# TODO: Move these into plot.constants.py!
-# TODO: introduce easy plot styling!
 
 plt.style.use('classic')
 # set_seaborn_style_context('whitegrid', 'poster')
@@ -58,11 +55,6 @@ ColConv = mpl.colors.ColorConverter()
 t_ticks = np.arange(-1000, 5000+1, 1000)
 
 
-# TODO: change everything to Seaborn API? :-)
-
-# TODO: add diagonal distribution to id scatter (after converting it to seaborn)
-
-
 # %% Some plotting constants.
 
 t_lbl = 'Time since S1 onset (ms)'
@@ -75,8 +67,6 @@ my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 
 def group_params(unit_params, rec_name, ffig=None):
     """Plot histogram of parameter values across units."""
-
-    # TODO: add this to constants!
 
     # Init parameters to plot.
     to_skip = ['task_idx', 'filepath', 'filename', 'monkey', 'date', 'probe'
@@ -187,8 +177,6 @@ def raster_rate(spikes_list, rates, time, t1, t2, names, t_unit=ms, skip=1,
     return fig, raster_axs, rate_ax
 
 
-# TODO: add some light background to raster?
-# TODO: remove tick labels?
 def raster(spikes, t1, t2, t_unit=ms, segments=None, markersize=1.5,
            color=None, title=None, xlab=t_lbl, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
@@ -532,7 +520,6 @@ def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
         title = 'Mean tuning curve (paired, Wilcoxon p < {})'.format(pvals[0])
 
     # Plot tuning curves as "rates".
-    # TODO: rates to be refactored!
     ax = rate(tcs, x, names=names, mean=mean, t_unit=None, pvals=pvals,
               test=test, ylim=ylim, colors=colors, title=title,
               xlab=xlab, ylab=ylab, legend=legend, lgn_lbl=lgn_lbl, ax=ax)
@@ -1056,9 +1043,6 @@ def format_plot(xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
-# TODO: add side histograms to scatter plot using Seaborn!
-# http://seaborn.pydata.org/generated/seaborn.jointplot.html#seaborn.jointplot
-
 def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
             title=None, ytitle=None, add_id_line=False, add_zero_lines=True,
             equal_xy=False, match_xy_apsect=False, c='cyan', ffig=None,
@@ -1100,7 +1084,6 @@ def scatter(x, y, is_sign=None, xlim=None, ylim=None, xlab=None, ylab=None,
     return ax
 
 
-# TODO: Add option to plot 45degrees histogram of difference.
 def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines=True,
                add_id_line=True, equal_xy=True, match_xy_apsect=True,
                xtext=0.80, ytext=0.02, ha_text='left', va_text='bottom',
@@ -1138,7 +1121,6 @@ def id_scatter(x, y, is_sign=None, sign_test=None, report_N=True, add_zero_lines
     return ax
 
 
-# TODO: Report and test significant values separately.
 def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_lines=True,
                  equal_xy=False, match_xy_apsect=False, add_lin_fit=True,
                  xtext=0.05, ytext=0.95, ha_text='left', va_text='top',
@@ -1151,7 +1133,6 @@ def corr_scatter(x, y, is_sign=None, report_N=True, add_id_line=False, add_zero_
                  ax=ax, **kwargs)
 
     # Add linear fit.
-    # TODO: add confidence interval using seaborn!
     if add_lin_fit:
         slope, intercept, r, p, stderr = util.lin_regress(x, y)
         ax.plot(x, slope*x + intercept, '-', c='grey')
