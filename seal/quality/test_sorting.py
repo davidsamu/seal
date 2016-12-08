@@ -28,8 +28,8 @@ from seal.object.periods import Periods
 
 # Recording constants.
 REC_GAIN = 4100                # gain of recording
-CENSORED_PRD_LEN = 0.675 * ms  # width of censored period
-WF_T_START = 9                 # start INDEX of spiked (aligned by Plexon)
+CENSORED_PRD_LEN = 0.675 * ms  # length of censored period
+WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 
 # Constants related to quality metrics calculation.
@@ -39,12 +39,12 @@ MIN_BIN_LEN = 120 * s  # minimum window length for firing binned statistics
 
 
 # Constants related to unit exclusion.
-min_RF_coverage = 0.5  # minimum receptive field coverage, TODO: add!
-min_SNR = 1.0          # minimum SNR
-min_FR = 1.0           # minimum firing rate
-max_ISIvr = 1.0        # maximum ISI violation ratio
-min_inc_trs_rat = 0.5  # minimum ratio of included trials out of all recorded
-min_DSI = 0.1          # minimum direction selectivity index (8-dir weighted)
+min_RF_coverage = 0.5  # min. receptive field coverage, TODO: add!
+min_SNR = 1.0          # min. SNR
+min_FR = 1.0           # min. firing rate (sp/s)
+max_ISIvr = 1.0        # max. ISI violation ratio (%)
+min_inc_trs_rat = 50   # min. ratio of included trials out of all recorded (%)
+min_DSI = 0.1          # min. direction selectivity index (8-dir weighted)
 
 
 # %% Utility functions.
@@ -312,7 +312,7 @@ def test_rejection(u):
     test_passed['ISI'] = qm['ISIviolation'] < max_ISIvr
 
     # Insufficient number of trials (ratio of included trials).
-    inc_trs_ratio = qm['NTrialsIncluded'] / qm['NTrialsTotal']
+    inc_trs_ratio = 100 * qm['NTrialsIncluded'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
 
     # Insufficient direction selectivity (DSI).

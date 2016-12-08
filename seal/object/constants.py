@@ -81,6 +81,9 @@ lngR_kernels = util.kernel_set(['R100', 'R200', 'R500'])
 
 step = 10*ms
 
+# Default rate name (to be used/preferred when rate type is specified).
+def_nrate = 'R100'
+
 
 # %% Direction related constants.
 

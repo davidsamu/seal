@@ -16,7 +16,8 @@ from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.linear_model import LogisticRegression
 
-from seal.util import plot, util
+from seal.util import util
+from seal.plot import plot
 from seal.object import constants
 
 

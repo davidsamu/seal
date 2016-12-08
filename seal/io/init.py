@@ -84,8 +84,9 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
     """
 
     # Init plotting theme and style.
-    rc_args = {'font.family': u'Arial'}
-    plot.set_seaborn_style_context('white', 'notebook', rc_args)
+    rc = {'font.family': 'sans-serif', 'font.sans-serif': 'Helvetica',
+          'font.style': u'normal'}
+    plot.set_style(context='notebook', style='white', rc=rc)
     plot.inline_off()  # turn it off to flush plotted figures out of memory!
 
     # Init data structures.
@@ -104,8 +105,8 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         qc_dir = rec_dir + '/qc_res/'
 
         # Read in Units.
-        f_data_bfr_qc = bfr_qc_dir + recording + '.data'
-        recUA = util.read_objects(f_data_bfr_qc, 'UnitArr')
+        f_data = bfr_qc_dir + recording + '.data'
+        recUA = util.read_objects(f_data, 'UnitArr')
 
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
@@ -127,14 +128,14 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         for u in recUA.iter_thru():
             u.test_DS(do_plot=do_plot, ftempl=ftempl)
 
-        # TODO: finish!
-        # Check within trial responses.
-        fname_wt_bfr = qc_dir + recording + '_within_trial_test_before_qc.png'
-        test_units.within_trial_unit_test(recUA, 'R100', fname_wt_bfr)
+        # Plot trial rate and direction selectivity summary plots.
+        print('  Plotting summary figures (rates and DS)...')
+        ftempl = qc_dir + 'rate_DS_summary/{}.png'
+        test_units.rate_DS_summary(recUA, ftempl=ftempl)
 
         # Test stability of recording session across tasks for selected units only.
         fname_stability = qc_dir + recording + '_recording_stability.png'
-        test_units.check_recording_stability(UnitArr_aft_qc, fname_stability)
+        test_units.check_recording_stability(recUA, fname_stability)
 
 
         # Exclude units of low quality or no direction selectivity.
@@ -142,7 +143,7 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
             print('  Excluding units...')
             exclude = []
             for u in recUA.iter_thru():
-                to_excl = quality.test_rejection(u)
+                to_excl = test_sorting.test_rejection(u)
                 u.set_excluded(to_excl)
                 exclude.append(to_excl)
 
@@ -163,7 +164,7 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
     ts = util.timestamp()
     n_units = UA.n_units()
     fname = util.format_to_fname(ua_name)
-    data_dir = 'data/Units_qc_combined/{}_n{}_{}/'.format(fname, n_units, ts)
+    data_dir = 'data/combined_recordings/{}_n{}_{}/'.format(fname, n_units, ts)
     util.write_objects({'UnitArr': UA}, data_dir + fname + '.data')
 
     # Write out unit list and save parameter plot.

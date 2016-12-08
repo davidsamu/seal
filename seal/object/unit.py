@@ -7,6 +7,8 @@ Class representing a (spike sorted) unit (single or multi).
 @author: David Samu
 """
 
+import warnings
+
 from datetime import datetime as dt
 from itertools import product
 from collections import OrderedDict as OrdDict
@@ -282,8 +284,14 @@ class Unit:
     def init_nrate(self, nrate=None):
         """Initialize rate name."""
 
+        def_nrate = constants.def_nrate
+
         if nrate is None:
-            nrate = 'R100' if 'R100' in self.Rates else self.Rates.index[0]
+            nrate = def_nrate if def_nrate in self.Rates else self.Rates.index[0]
+
+        elif nrate not in self.Rates:
+            warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
+            self.init_nrate()  # return default rate name
 
         return nrate
 
@@ -629,6 +637,7 @@ class Unit:
         self.DS['PD'] = PD
         self.DS['TP'] = TP
 
+        # TODO: separate plotting from calculation!
         # Plot direction selectivity results.
         if do_plot:
             DSres_plot = pd.DataFrame(DSres_plot).T
@@ -648,7 +657,7 @@ class Unit:
 
     # %% Plotting methods.
 
-    def prep_plot_params(self, trs, t1, t2, nrate=None):
+    def prep_plot_params(self, nrate, trs, t1, t2):
         """Prepare plotting parameters."""
 
         # Get trial params.
@@ -659,22 +668,23 @@ class Unit:
         spikes = [self.Spikes.get_spikes(tr, t1, t2) for tr in trs]
 
         # Get rates and rate times.
-        rates, times = None, None
+        nrate = self.init_nrate(nrate)
+        rates, time = None, None
         if nrate is not None:
             rates = [self.Rates[nrate].get_rates(tr.trials, t1, t2)
                      for tr in trs]
-            times = self.Rates[nrate].get_sample_times(t1, t2)
+            time = self.Rates[nrate].get_sample_times(t1, t2)
 
-        return trs, t1, t2, spikes, rates, times, names
+        return trs, t1, t2, spikes, rates, time, names
 
-    def plot_raster(self, trs=None, t1=None, t2=None, **kwargs):
+    def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trs, t1, t2, nrate=None)
+        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
         trs, t1, t2, spikes, rates, times, names = plot_params
         spikes = spikes[0]
         names = names[0]
@@ -685,23 +695,23 @@ class Unit:
                          title=self.Name, **kwargs)
         return ax
 
-    def plot_rate(self, nrate, trs=None, t1=None, t2=None, **kwargs):
+    def plot_rate(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trs, t1, t2, nrate)
-        trs, t1, t2, spikes, rates, times, names = plot_params
+        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
+        trs, t1, t2, spikes, rates, time, names = plot_params
 
         # Plot rate.
-        ax = plot.rate(rates, times, t1, t2, names,
+        ax = plot.rate(rates, time, t1, t2, names,
                        segments=constants.stim_prds,
                        title=self.Name, **kwargs)
         return ax
 
-    def plot_raster_rate(self, nrate, trs=None, t1=None, t2=None,
+    def plot_raster_rate(self, nrate=None, trs=None, t1=None, t2=None,
                          no_labels=False, **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
@@ -709,8 +719,8 @@ class Unit:
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(trs, t1, t2, nrate)
-        trs, t1, t2, spikes, rates, times, names = plot_params
+        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
+        trs, t1, t2, spikes, rates, time, names = plot_params
 
         title = self.Name
 
@@ -722,7 +732,7 @@ class Unit:
             kwargs['add_ylab_raster'] = False
 
         # Plot raster and rate.
-        res = plot.raster_rate(spikes, rates, times, t1, t2, names,
+        res = plot.raster_rate(spikes, rates, time, t1, t2, names,
                                segments=constants.stim_prds,
                                title=title, **kwargs)
         fig, raster_axs, rate_ax = res
@@ -733,6 +743,5 @@ class Unit:
     def plot_dir_resp(self):
         """Plot response to all directions + polar plot in center."""
 
-        # TODO: to be moved here from quality.
+        # TODO: to be moved here from quality. Along with RR/DS summary plot!
         pass
-

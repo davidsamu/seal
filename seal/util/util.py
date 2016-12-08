@@ -24,6 +24,8 @@ from collections import OrderedDict as OrdDict
 from quantities import Quantity, deg, rad, ms
 from elephant.kernels import GaussianKernel, RectangularKernel
 
+# TODO: to be split into submodules!
+
 
 # %% Input / output and object manipulation functions.
 

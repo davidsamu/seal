@@ -29,12 +29,16 @@ from seal.object import constants
 
 # %% Matplotlib setup
 
+# TODO: to be split into submodules!
+# TODO: Move these into plot.constants.py!
+# TODO: introduce easy plot styling!
+
 plt.style.use('classic')
 # set_seaborn_style_context('whitegrid', 'poster')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
-mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Ariel'], 'style': 'italic'})  # Helvetica
+mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Ariel'], 'style': 'italic'})  # Helvetica?
 mpl.rc('legend', fontsize='small')
 mpl.rc(('xtick', 'ytick'), labelsize='small')
 mpl.rc('axes', labelsize='medium', titlesize='x-large')
@@ -119,9 +123,7 @@ def unit_info(u, fs='large', ax=None):
         ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
 
     # Set title.
-    title = 'ch {} / {}  --  {}'.format(uparams['channel #'],
-                                        uparams['unit #'],
-                                        uparams['task'])
+    title = uparams['task']
     set_labels(title=title, ytitle=.30, ax=ax)
 
     return ax
@@ -141,7 +143,7 @@ def empty_raster_rate(fig, outer_gsp, nraster):
     return mock_raster_axs, mock_rate_ax
 
 # TODO: skip param of rate() should be provided and default to NOne!
-def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
+def raster_rate(spikes_list, rates, time, t1, t2, names, t_unit=ms, skip=1,
                 segments=None, pvals=None, test=None, test_kwargs={},
                 colors=None, ylim=None, title=None, xlab=t_lbl, ylab_rate=FR_lbl,
                 lgn_lbl_rate='trs', add_ylab_raster=True,  markersize=1.5,
@@ -175,7 +177,7 @@ def raster_rate(spikes_list, rates, times, t1, t2, names, t_unit=ms, skip=1,
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rates, times, t1, t2, names, True, t_unit, skip, segments, pvals, test,
+    rate(rates, time, t1, t2, names, True, t_unit, skip, segments, pvals, test,
          test_kwargs, None, ylim, colors, None, xlab, ylab_rate, None, legend,
          lgn_lbl_rate, legend_kwargs, ax=rate_ax)
     rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
@@ -769,7 +771,7 @@ def hide_ticks(ax=None, show_x_ticks=False, show_y_ticks=False):
         ax.get_yaxis().set_ticks([])
 
 
-def hide_axes(ax=None, show_x=False, show_y=False):
+def hide_axes(ax=None, show_x=False, show_y=False, show_polar=False):
     """Hide all ticks, labels and spines of either or both axes."""
 
     # Hide axis ticks and labels.
@@ -777,13 +779,17 @@ def hide_axes(ax=None, show_x=False, show_y=False):
     ax.xaxis.set_visible(show_x)
     ax.yaxis.set_visible(show_y)
 
-    # Hide spines of axes to hide. (Don't change the others!)
-    if not show_x:
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-    if not show_y:
-        ax.spines['left'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+    # Hide requested spines of axes. (Don't change the others!)
+    if 'polar' in ax.spines:  # polar plot
+        if not show_polar:
+            ax.spines['polar'].set_visible(False)
+    else:
+        if not show_x:
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+        if not show_y:
+            ax.spines['left'].set_visible(False)
+            ax.spines['right'].set_visible(False)
 
 
 # See bottom of this for better colorbar handling!
@@ -1024,20 +1030,15 @@ def get_proxy_artist(label, color, artist_type='patch', **kwargs):
 
 # %% Seaborn related functions.
 
-def set_seaborn_style_context(style=None, context=None, rc_args=None):
-    """Set Seaborn style, context and/or provide optional custom parameters."""
+def set_style(context='notebook', style='darkgrid', palette='deep',
+              color_codes=True, rc=None):
+    """Set Seaborn style, context and other matplotlib style parameters."""
 
-    # Available styles: darkgrid, whitegrid, dark, white or ticks.
-    if style is not None:
-        sns.set_style(style)
+    # 'style': 'darkgrid', 'whitegrid', 'dark', 'white' or 'ticks'.
+    # 'context': 'notebook', 'paper', 'poster' or 'talk'.
 
-    # Available contexts: notebook, paper, poster or talk.
-    if context is not None:
-        sns.set_context(context)
-
-    # Overrride parameters that are part of the style definition.
-    if rc_args is not None:
-        sns.axes_style(rc=rc_args)
+    sns.set(context=context, style=style, palette=palette,
+            color_codes=color_codes, rc=rc)
 
 
 # %% General purpose plotting functions.
