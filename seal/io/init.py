@@ -12,8 +12,9 @@ import os
 
 import numpy as np
 
-from seal.analysis import quality
-from seal.util import util, plot
+from seal.util import util
+from seal.plot import plot
+from seal.quality import test_sorting, test_units
 from seal.object import constants, unit, unitarray
 
 
@@ -111,14 +112,14 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         print('  Testing unit quality...')
         ftempl = qc_dir + 'quality_metrics/{}.png' if do_plot else None
         for u in recUA.iter_thru():
-            quality.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
+            test_sorting.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
 
         # Test stimulus response to all directions.
         if do_plot:
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
-            quality.direction_response_test(recUA, ftempl=ftempl,
-                                            match_scale=False)
+            test_units.direction_response_test(recUA, ftempl=ftempl,
+                                               match_scale=False)
 
         # Test direction selectivity by tuning.
         print('  Testing direction selectivity...')
@@ -126,17 +127,14 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         for u in recUA.iter_thru():
             u.test_DS(do_plot=do_plot, ftempl=ftempl)
 
-
         # TODO: finish!
-#        # Check within trial responses.
-#        fname_wt_bfr = qc_dir + recording + '_within_trial_test_before_qc.png'
-#        # quality.within_trial_unit_test(UnitArr_bfr_qc, 'R100', fname_wt_bfr)
-#        fname_wt_aft = qc_dir + recording + '_within_trial_test_after_qc.png'
-#        # quality.within_trial_unit_test(UnitArr_aft_qc, 'R100', fname_wt_aft)
-#
-#        # Test stability of recording session across tasks for selected units only.
-#        fname_stability = qc_dir + recording + '_recording_stability.png'
-#        quality.check_recording_stability(UnitArr_aft_qc, fname_stability)
+        # Check within trial responses.
+        fname_wt_bfr = qc_dir + recording + '_within_trial_test_before_qc.png'
+        test_units.within_trial_unit_test(recUA, 'R100', fname_wt_bfr)
+
+        # Test stability of recording session across tasks for selected units only.
+        fname_stability = qc_dir + recording + '_recording_stability.png'
+        test_units.check_recording_stability(UnitArr_aft_qc, fname_stability)
 
 
         # Exclude units of low quality or no direction selectivity.

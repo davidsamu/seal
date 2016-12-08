@@ -109,7 +109,7 @@ def unit_info(u, fs='large', ax=None):
     uparams = u.get_unit_params()
     lbl_dict = OrdDict([('SNR', '{:.2f}'.format(uparams['SNR'])),
                         ('WfDur', '{:.0f} $\mu$s'.format(uparams['MeanWfAmplitude'])),
-                        ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate (sp/s)']))])
+                        ('FR', '{:.1f} sp/s'.format(uparams['MeanFiringRate']))])
 
     # Plot each label.
     yloc = .0

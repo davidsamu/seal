@@ -667,9 +667,12 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
 
 def sign_diff(ts1, ts2, p, test, test_kwargs):
     """
-    Return times of significant difference
-    between two sets of time series.
+    Return times of significant difference between two sets of time series.
     """
+
+    # To make sure we can use standard Numpy indexing.
+    ts1 = np.array(ts1)
+    ts2 = np.array(ts2)
 
     lr1 = ts1.shape[1]
     lr2 = ts2.shape[1]

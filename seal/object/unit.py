@@ -16,7 +16,8 @@ import pandas as pd
 from quantities import s, ms, us, deg, Hz
 from neo import SpikeTrain
 
-from seal.util import plot, util
+from seal.util import util
+from seal.plot import plot
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes

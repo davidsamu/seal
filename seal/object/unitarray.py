@@ -13,7 +13,8 @@ import pandas as pd
 from collections import OrderedDict as OrdDict
 
 from seal.object import unit
-from seal.util import plot, util
+from seal.util import util
+from seal.plot import plot
 
 
 class UnitArray:
