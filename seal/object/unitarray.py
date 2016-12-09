@@ -52,13 +52,12 @@ class UnitArray:
 
     # Usage: e.g. [u for u in UnitArray.iter_throu(kwargs)]
 
-    def iter_thru(self, tasks=None, uids=None, ret_empty=False,
-                  ret_excl=False):
+    def iter_thru(self, tasks=None, uids=None, miss=False, excl=False):
         """Custom iterator init over selected tasks and units."""
 
         # List of tasks and uids to iterate over.
         self._iter_tasks, self._iter_uids = self.init_tasks_uids(tasks, uids)
-        self._iter_empty, self._iter_excl = ret_empty, ret_excl
+        self._iter_missing, self._iter_excl = miss, excl
 
         return self
 
@@ -89,7 +88,7 @@ class UnitArray:
             self._iuid = 0
 
         # Let's not return empty and/or excluded unit if not requested.
-        if ((u.is_empty and not self._iter_empty) or
+        if ((u.is_empty and not self._iter_missing) or
             (u.is_excluded and not self._iter_excl)):
             return self.__next__()
 
@@ -97,7 +96,7 @@ class UnitArray:
 
     # %% Other methods to query units.
 
-    def unit_list(self, tasks=None, uids=None, return_empty=False):
+    def unit_list(self, tasks=None, uids=None, miss=False, excl=False):
         """Return units in a list."""
 
         tasks, uids = self.init_tasks_uids(tasks, uids)
@@ -106,9 +105,11 @@ class UnitArray:
         unit_list = [u for row in self.Units[tasks].itertuples()
                      for u in row[1:] if row[0] in uids]
 
-        # Exclude empty units.
-        if not return_empty:
+        # Exclude missing and excluded units.
+        if not miss:
             unit_list = [u for u in unit_list if not u.is_empty]
+        if not excl:
+            unit_list = [u for u in unit_list if not u.is_excluded]
 
         return unit_list
 
@@ -213,9 +214,10 @@ class UnitArray:
         """Add index to Units in UnitArray per each task."""
 
         for task in self.tasks():
-            for i, u in enumerate(self.iter_thru(tasks=[task],
-                                                 ret_empty=True)):
-                # skip empty units to keep consistency of indexing across tasks
+            for i, u in enumerate(self.iter_thru(tasks=[task], miss=True,
+                                                 excl=True)):
+                # Skip missing units here to keep consistency
+                # of indexing across tasks.
                 if not u.is_empty:
                     u.add_index_to_name(i+1)
 

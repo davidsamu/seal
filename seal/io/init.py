@@ -86,7 +86,7 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
 
     # Init plotting theme and style.
     rc = {'font.style': 'normal'}
-    plot.set_style(context='notebook', style='white', rc=rc)
+    plot.set_style(context='notebook', style='ticks', rc=rc)
     plot.inline_off()  # turn it off to flush plotted figures out of memory!
 
     # Init data structures.

@@ -55,8 +55,8 @@ def direction_response_test(UA, nrate=None, ftempl=None,
         rate_axs, polar_axs = [], []
 
         # Plot direction response of unit in each task.
-        task_gsp_u = zip(tasks, gsp, UA.iter_thru(tasks, [uid], ret_empty=True,
-                                                  ret_excl=True))
+        task_gsp_u = zip(tasks, gsp, UA.iter_thru(tasks, [uid], miss=True,
+                                                  excl=True))
         for task, sps, u in task_gsp_u:
 
             task_gsp = plot.embed_gsp(sps, 3, 3)
@@ -174,17 +174,19 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
 
         # Init figure.
         fig, gsp, _ = plot.get_gs_subplots(nrow=1, ncol=ntask,
-                                           subw=7, subh=14,
+                                           subw=6, subh=11,
                                            create_axes=False)
         rate_axs, tuning_axs = [], []
 
         # Plot direction response of unit in each task.
-        task_gsp_u = zip(tasks, gsp, UA.iter_thru(tasks, [uid], ret_empty=True,
-                                                  ret_excl=True))
+        task_gsp_u = zip(tasks, gsp, UA.iter_thru(tasks, [uid], miss=True,
+                                                  excl=True))
         for task, sps, u in task_gsp_u:
 
             subplots = ['info', 'rr_all_trs', 'DS_tuning', 'rr_pref_anti']
-            task_gsp = plot.embed_gsp(sps, len(subplots), 1)
+            height_ratios = [0.2, 1, 1, 1]
+            task_gsp = plot.embed_gsp(sps, len(subplots), 1,
+                                      height_ratios=height_ratios)
 
             for subplot, u_gsp in zip(subplots, task_gsp):
 
@@ -306,7 +308,7 @@ def check_recording_stability(UA, fname):
             # ones for color cycle consistency).
             FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2)
                           for u in UA.iter_thru(rec_tasks, [uid],
-                                                ret_empty=True, ret_excl=True)]
+                                                miss=True, excl=True)]
 
             # Plot each rate in each task.
             colors = plot.get_colors()

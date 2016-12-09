@@ -32,12 +32,14 @@ class Periods:
     def names(self):
         """Return stored period names."""
 
-        return self.prds.index
+        names = self.prds.index
+        return names
 
     def n_prds(self):
         """Return number of periods."""
 
-        return len(self.names())
+        nprds = len(self.names())
+        return nprds
 
     def periods(self, names=None):
         """Return start times."""
@@ -45,7 +47,8 @@ class Periods:
         if names is None:
             names = self.names()
 
-        return self.prds.loc[names]
+        prds = self.prds.loc[names]
+        return prds
 
     def start(self, names=None):
         """Return start times."""
@@ -62,7 +65,8 @@ class Periods:
     def dur(self, names=None):
         """Return durations."""
 
-        return self.end(names) - self.start(names)
+        dur = self.end(names) - self.start(names)
+        return dur
 
     def prd_info_str(self, names=None, sep=' '):
         """Return formatted period information string in dictionary."""

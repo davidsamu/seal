@@ -113,7 +113,8 @@ def unit_info(u, fs='large', ax=None):
 
     # Set title.
     title = uparams['task']
-    set_labels(title=title, ytitle=.30, ax=ax)
+    title_kwargs = {'fontsize': 'x-large'}
+    set_labels(title=title, ytitle=.50, title_kwargs=title_kwargs, ax=ax)
 
     return ax
 
@@ -423,6 +424,7 @@ def direction_selectivity(DSres, title=None, labels=True,
 
     lgn_params = [(polar_legend, polar_lgn_ttl, polar_patches, ax_polar),
                   (tuning_legend, tuning_lgd_ttl, tuning_patches, ax_tuning)]
+
     for (plot_legend, lgd_ttl, patches, ax) in lgn_params:
         if not plot_legend:
             continue
