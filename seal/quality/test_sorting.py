@@ -286,8 +286,6 @@ def test_qm(u, rej_trials=True, ftempl=None):
         plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                 snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc, ftempl)
 
-    return u
-
 
 def test_rejection(u):
     """Check whether unit is to be rejected from analysis."""

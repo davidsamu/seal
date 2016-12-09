@@ -74,8 +74,9 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
-def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
-                      rej_trials=True, exc_units=False):
+def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
+                      plot_QM=True, plot_SR=True, plot_DS=True, plot_sum=True,
+                      plot_stab=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),
@@ -84,8 +85,7 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
     """
 
     # Init plotting theme and style.
-    rc = {'font.family': 'sans-serif', 'font.sans-serif': 'Helvetica',
-          'font.style': 'normal'}
+    rc = {'font.style': 'normal'}
     plot.set_style(context='notebook', style='white', rc=rc)
     plot.inline_off()  # turn it off to flush plotted figures out of memory!
 
@@ -111,12 +111,12 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
         print('  Testing unit quality...')
-        ftempl = qc_dir + 'quality_metrics/{}.png' if do_plot else None
+        ftempl = qc_dir + 'quality_metrics/{}.png' if plot_QM else None
         for u in recUA.iter_thru():
             test_sorting.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
 
         # Test stimulus response to all directions.
-        if do_plot:
+        if plot_SR:
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
             test_units.direction_response_test(recUA, ftempl=ftempl,
@@ -126,17 +126,18 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         print('  Testing direction selectivity...')
         ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in recUA.iter_thru():
-            u.test_DS(do_plot=do_plot, ftempl=ftempl)
+            u.test_DS(do_plot=plot_DS, ftempl=ftempl)
 
         # Plot trial rate and direction selectivity summary plots.
-        print('  Plotting summary figures (rates and DS)...')
-        ftempl = qc_dir + 'rate_DS_summary/{}.png'
-        test_units.rate_DS_summary(recUA, ftempl=ftempl)
+        if plot_sum:
+            print('  Plotting summary figures (rates and DS)...')
+            ftempl = qc_dir + 'rate_DS_summary/{}.png'
+            test_units.rate_DS_summary(recUA, ftempl=ftempl)
 
         # Test stability of recording session across tasks for selected units only.
-        fname = qc_dir + 'recording_stability.png'
-        test_units.check_recording_stability(recUA, fname)
-
+        if plot_stab:
+            fname = qc_dir + 'recording_stability.png'
+            test_units.check_recording_stability(recUA, fname)
 
         # Exclude units of low quality or no direction selectivity.
         if exc_units:

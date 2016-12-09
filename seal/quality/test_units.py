@@ -26,7 +26,7 @@ from seal.object import constants
 
 def direction_response_test(UA, nrate=None, ftempl=None,
                             match_scale=False):
-    """Plot responses to 8 directions and polar plot in the center."""
+    """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init data
     tasks, uids = UA.tasks(), UA.uids()
@@ -62,6 +62,7 @@ def direction_response_test(UA, nrate=None, ftempl=None,
             task_gsp = plot.embed_gsp(sps, 3, 3)
 
             for i, u_gsp in enumerate(task_gsp):
+
                 # Polar plot.
                 if i == 4:
                     ax_polar = fig.add_subplot(u_gsp, polar=True)
@@ -101,6 +102,10 @@ def direction_response_test(UA, nrate=None, ftempl=None,
                         else:
                             dd_trs = u.trials_by_param_values(stim + 'Dir',
                                                               [dir_order[i]])
+                            # Leave axes empty if there's not trial recorded.
+                            if not dd_trs[0].num_trials():
+                                continue
+
                             res = u.plot_raster_rate(nrate, dd_trs, st1, st2,
                                                      colors=[c], legend=False,
                                                      no_labels=True, fig=fig,
@@ -333,18 +338,19 @@ def check_recording_stability(UA, fname):
             # Init.
             tr_idxs = (all_FR.index > task_start) & (all_FR.index <= task_stop)
             meanFR_tr = all_FR.loc[tr_idxs].mean(1)
-            task_lbl = '{}\nn = {} units'.format(task, n_unit)
+            task_lbl = '{}\n{} units'.format(task, n_unit)
 
             # Add grand mean FR.
             meanFR = meanFR_tr.mean()
-            task_lbl += '\nmean FR = {:.1f} sp/s'.format(meanFR)
+            task_lbl += '\nFR: {:.1f} sp/s'.format(meanFR)
 
             # Calculate linear trend to test gradual drift.
             t, fr = meanFR_tr.index, meanFR_tr
             slope, _, r_value, p_value, _ = sp.stats.linregress(t, fr)
             slope = 3600*slope  # convert to change in spike per hour
             pval = util.format_pvalue(p_value, max_digit=3)
-            task_lbl += '\n$\delta$FR = {:.1f} sp/hour ({})'.format(slope, pval)
+            task_lbl += '\n$\delta$FR: {:.1f} sp/h'.format(slope)
+            task_lbl += '\n{}'.format(pval)
 
             prd_task_stats[task_lbl] = task_start
 
@@ -355,8 +361,8 @@ def check_recording_stability(UA, fname):
         # Set limits and add labels to plot.
         plot.set_limits(xlim=[None, max(tr_time)], ax=ax)
         plot.set_labels(title=prd_name, xlab='Recording time (s)',
-                        ylab=plot.FR_lbl, ax=ax)
+                        ylab=plot.FR_lbl, ytitle=1.1, ax=ax)
 
     # Format and save figure.
     title = 'Recording stability of ' + UA.Name
-    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
+    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)

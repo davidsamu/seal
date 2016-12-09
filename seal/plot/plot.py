@@ -35,7 +35,6 @@ plt.style.use('classic')
 
 # Some para settings.
 mpl.rc('font', size=8)  # default text size
-mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Ariel'], 'style': 'italic'})  # Helvetica?
 mpl.rc('legend', fontsize='small')
 mpl.rc(('xtick', 'ytick'), labelsize='small')
 mpl.rc('axes', labelsize='medium', titlesize='x-large')
@@ -705,9 +704,11 @@ def set_labels(title=None, xlab=None, ylab=None, ytitle=None, ax=None,
                title_kwargs=dict(), xlab_kwargs=dict(), ylab_kwargs=dict()):
     """Generic function to set title, labels and ticks on axes."""
 
+    if ytitle is None:
+        ytitle = 1.04
+
     ax = axes(ax)
     if title is not None:
-        ytitle = ytitle if ytitle is not None else 1.04  # None may be passed by caller functions. :-(
         ax.set_title(title, y=ytitle, **title_kwargs)
     if xlab is not None:
         ax.set_xlabel(xlab, **xlab_kwargs)
