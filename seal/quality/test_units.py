@@ -66,7 +66,7 @@ def direction_response_test(UA, nrate=None, ftempl=None,
                 # Polar plot.
                 if i == 4:
                     ax_polar = fig.add_subplot(u_gsp, polar=True)
-                    if u.is_empty():
+                    if u.is_empty:
                         ax_polar.axis('off')
                     else:
                         # For each stimulus.
@@ -95,7 +95,7 @@ def direction_response_test(UA, nrate=None, ftempl=None,
                         st1, st2, c = stims.loc[stim, ['start', 'stop', 'color']]
                         rr_gsp = plot.embed_gsp(stim_rr_gsp, 2, 1)
 
-                        if u.is_empty():
+                        if u.is_empty:
                             rr_res = plot.empty_raster_rate(fig, rr_gsp, 1)
                             raster_axs, rate_ax = rr_res
                         # Plot raster&rate plot.
@@ -192,7 +192,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
                 if subplot == 'info':
 
                     gsp_info = plot.embed_gsp(u_gsp, 1, 1)
-                    if u.is_empty():  # add mock subplot
+                    if u.is_empty:
                         plot.add_mock_axes(fig, gsp_info[0, 0])
                     else:
                         ax = fig.add_subplot(gsp_info[0, 0])
@@ -202,7 +202,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
                 if subplot == 'rr_all_trs':
 
                     rr_gsp = plot.embed_gsp(u_gsp, 2, 1)
-                    if u.is_empty():  # add mock subplot
+                    if u.is_empty:
                         plot.empty_raster_rate(fig, rr_gsp, 1)
                     else:
                         t1, t2 = stims.start.min(), stims.stop.max()
@@ -217,7 +217,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
                 if subplot == 'DS_tuning':
 
                     ds_gsp = plot.embed_gsp(u_gsp, 1, 2)
-                    if u.is_empty():  # add mock subplot
+                    if u.is_empty:
                         plot.empty_direction_selectivity(fig, ds_gsp)
                     else:
                         u.test_DS(no_labels=True, fig=fig, outer_gsp=ds_gsp)
@@ -232,7 +232,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
 
                     for i, (stim, row) in enumerate(stims.iterrows()):
                         dd_rr_gsp = plot.embed_gsp(stim_rr_gsp[0, i], 2, 1)
-                        if u.is_empty():  # add mock subplot
+                        if u.is_empty:
                             plot.empty_raster_rate(fig, dd_rr_gsp, 2)
                         else:
                             pname, t1, t2 = [stim+'Dir'], row.start, row.stop

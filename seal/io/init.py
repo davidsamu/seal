@@ -134,12 +134,13 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
             ftempl = qc_dir + 'rate_DS_summary/{}.png'
             test_units.rate_DS_summary(recUA, ftempl=ftempl)
 
-        # Test stability of recording session across tasks for selected units only.
+        # Test stability of recording session across tasks.
         if plot_stab:
+            print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
             test_units.check_recording_stability(recUA, fname)
 
-        # Exclude units of low quality or no direction selectivity.
+        # Exclude units with low quality or no direction selectivity.
         if exc_units:
             print('  Excluding units...')
             exclude = []
@@ -162,6 +163,7 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
     UA.index_units()
 
     # Save selected Units with quality metrics and direction selectivity.
+    print('\nExporting combined UnitArray...')
     ts = util.timestamp()
     n_units = UA.n_units()
     fname = util.format_to_fname(ua_name)
@@ -169,5 +171,6 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
     util.write_objects({'UnitArr': UA}, data_dir + fname + '.data')
 
     # Write out unit list and save parameter plot.
+    print('\nExporting combined unit list and parameter plot...')
     UA.save_params_table(data_dir + 'unit_list.xlsx')
     UA.plot_params(data_dir + 'unit_params.png')

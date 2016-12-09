@@ -89,8 +89,8 @@ class UnitArray:
             self._iuid = 0
 
         # Let's not return empty and/or excluded unit if not requested.
-        if ((u.is_empty() and not self._iter_empty) or
-            (u.is_excluded() and not self._iter_excl)):
+        if ((u.is_empty and not self._iter_empty) or
+            (u.is_excluded and not self._iter_excl)):
             return self.__next__()
 
         return u
@@ -108,7 +108,7 @@ class UnitArray:
 
         # Exclude empty units.
         if not return_empty:
-            unit_list = [u for u in unit_list if not u.is_empty()]
+            unit_list = [u for u in unit_list if not u.is_empty]
 
         return unit_list
 
@@ -216,7 +216,7 @@ class UnitArray:
             for i, u in enumerate(self.iter_thru(tasks=[task],
                                                  ret_empty=True)):
                 # skip empty units to keep consistency of indexing across tasks
-                if not u.is_empty():
+                if not u.is_empty:
                     u.add_index_to_name(i+1)
 
     # %% Exporting methods.

@@ -46,8 +46,8 @@ class Unit:
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
 
-        self.im_empty = True
-        self.im_excluded = True
+        self.is_empty = True
+        self.is_excluded = True
 
         self.t_start = t_start
         self.t_stop = t_stop
@@ -170,22 +170,10 @@ class Unit:
                      for name, kernel in kernels.items()]
         self.Rates = pd.Series(rate_list, index=kernels.keys())
 
-        self.im_empty = False
-        self.im_excluded = False
+        self.is_empty = False
+        self.is_excluded = False
 
     # %% Utility methods.
-
-    def is_empty(self):
-        """Check if unit is empty."""
-
-        im_empty = self.im_empty
-        return im_empty
-
-    def is_excluded(self):
-        """Check if unit is excluded from analysis."""
-
-        im_excluded = self.im_excluded
-        return im_excluded
 
     def set_excluded(self, to_excl):
         """Set unit's exclude flag."""
