@@ -216,7 +216,7 @@ class Unit:
 
         # Basic params.
         upars['Name'] = self.Name
-        upars['excluded'] = self.is_excluded()
+        upars['excluded'] = self.is_excluded
 
         # Recording params.
         upars['Session information'] = ''
@@ -394,7 +394,7 @@ class Unit:
     def get_rates_by_trial(self, trs=None, t1=None, t2=None):
         """Return spike statistics of time interval in given trials."""
 
-        if self.is_empty():
+        if self.is_empty:
             return None
 
         # Init trials.
@@ -664,7 +664,7 @@ class Unit:
     def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
-        if self.is_empty():
+        if self.is_empty:
             return
 
         # Set up params.
@@ -682,7 +682,7 @@ class Unit:
     def plot_rate(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
-        if self.is_empty():
+        if self.is_empty:
             return
 
         # Set up params.
@@ -699,7 +699,7 @@ class Unit:
                          no_labels=False, **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
-        if self.is_empty():
+        if self.is_empty:
             return
 
         # Set up params.
