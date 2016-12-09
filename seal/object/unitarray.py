@@ -126,6 +126,16 @@ class UnitArray:
         nsess = len(self.tasks())
         return nsess
 
+    def rec_task_order(self):
+        """Return original recording task order."""
+
+        tasks = pd.Series(self.tasks())
+        task_idxs = [[u.SessParams.loc['task_idx'] - 1
+                      for u in self.iter_thru([task])][0] for task in tasks]
+
+        rec_task_ord = tasks[task_idxs]
+        return rec_task_ord
+
     def uids(self, req_tasks=None):
         """
         Return unit IDs [(recording, channel #, unit #) index triples]

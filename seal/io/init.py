@@ -74,19 +74,18 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
             UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
 
-
 def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
                       rej_trials=True, exc_units=False):
     """
     Run preprocessing on Units and UnitArrays, including
-      - standard quality control of each unit (SNR, rate drift, ISI, etc)
-      - stimulus selectivity (DS)
-      - stability of recording(s)
+      - standard quality control of each unit (SNR, rate drift, ISI, etc),
+      - stimulus selectivity (DS) test,
+      - recording stability test.
     """
 
     # Init plotting theme and style.
     rc = {'font.family': 'sans-serif', 'font.sans-serif': 'Helvetica',
-          'font.style': u'normal'}
+          'font.style': 'normal'}
     plot.set_style(context='notebook', style='white', rc=rc)
     plot.inline_off()  # turn it off to flush plotted figures out of memory!
 
@@ -135,8 +134,8 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
         test_units.rate_DS_summary(recUA, ftempl=ftempl)
 
         # Test stability of recording session across tasks for selected units only.
-        fname_stability = qc_dir + recording + '_recording_stability.png'
-        test_units.check_recording_stability(recUA, fname_stability)
+        fname = qc_dir + 'recording_stability.png'
+        test_units.check_recording_stability(recUA, fname)
 
 
         # Exclude units of low quality or no direction selectivity.
@@ -171,10 +170,3 @@ def run_preprocessing(data_dir, ua_name, fname, do_plot=True,
     # Write out unit list and save parameter plot.
     UA.save_params_table(data_dir + 'unit_list.xlsx')
     UA.plot_params(data_dir + 'unit_params.png')
-
-
-
-## Test
-#TPLCell = TPLCells[0]
-#u = unit.Unit(TPLCell, constants.t_start, constants.t_stop,
-#              kernels, constants.step, constants.tr_params)

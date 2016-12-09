@@ -270,7 +270,6 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=False):
         plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
 
 
-
 def check_recording_stability(UA, fname):
     """Check stability of recording session across tasks."""
 
@@ -278,60 +277,58 @@ def check_recording_stability(UA, fname):
     periods = constants.tr_prds
 
     # Init figure.
-    fig, gsp, ax_list = plot.get_gs_subplots(nrow=periods.index.size, ncol=1,
+    fig, gsp, ax_list = plot.get_gs_subplots(nrow=periods.n_prds(), ncol=1,
                                              subw=10, subh=2.5, as_array=False)
 
-    # Init task info dict.
-    tasks = UA.tasks()
-    task_stats = OrdDict()
-    for task in tasks:
+    # Init task info.
+    rec_tasks = UA.rec_task_order()
+    task_stats = pd.DataFrame(columns=['nunits', 'start', 'stop'])
+    for task in rec_tasks:
         unit_list = UA.unit_list(tasks=[task])
-        task_start = unit_list[0].TrialParams['TrialStart'].iloc[0]
-        task_stop = unit_list[0].TrialParams['TrialStop'].iloc[-1]
-        task_stats[task] = (len(unit_list), task_start, task_stop)
+        task_stats.loc[task, 'nunits'] = len(unit_list)
+        tparams = unit_list[0].TrialParams
+        task_stats.loc[task, 'start'] = tparams['TrialStart'].iloc[0]
+        task_stats.loc[task, 'stop'] = tparams['TrialStop'].iloc[-1]
 
-    unit_ids = UA.rec_ch_unit_indices()
-    for (prd_name, (t1, t2)), ax in zip(periods.iterrows(), ax_list):
-        # Calculate and plot firing rate during given period within each trial
+    for (prd_name, (t1, t2)), ax in zip(periods.prds.iterrows(), ax_list):
+
+        # Calculate and plot firing rate during given period in each trial
         # across session for all units.
-        all_FR_prd = []
-        for unit_id in unit_ids:
+        all_FR_prd = OrdDict()
+        for uid in UA.uids():
 
-            # Get all units (including empty ones for color cycle consistency).
-            unit_list = UA.unit_list(ch_unit_idxs=[unit_id],
-                                     return_empty=True)
+            # Get unit activity in all tasks (including empty and rejected
+            # ones for color cycle consistency).
             FR_tr_list = [u.get_rates_by_trial(t1=t1, t2=t2)
-                          for u in unit_list]
+                          for u in UA.iter_thru(rec_tasks, [uid],
+                                                ret_empty=True, ret_excl=True)]
 
-            # Plot each FRs per task discontinuously.
+            # Plot each rate in each task.
             colors = plot.get_colors()
             for FR_tr in FR_tr_list:
-                color = next(colors)
-                if FR_tr is None:  # for color consistency
-                    continue
-                # For (across-task) continuous plot,
-                # need to concatenate across tasks first (see below).
-                plot.lines(FR_tr.index, FR_tr, ax=ax, zorder=1,
-                           alpha=0.5, color=color)
+                color = next(colors)  # for color consistency
+                if FR_tr is not None:
+                    plot.lines(FR_tr.index, FR_tr, zorder=1, alpha=0.5,
+                               color=color, ax=ax)
 
             # Save FRs for summary plots and stats.
-            FR_tr = pd.concat([FR_tr for FR_tr in FR_tr_list])
-            all_FR_prd.append(FR_tr)
+            FR_tr = pd.concat(FR_tr_list)
+            FR_tr.index = util.remove_dim_from_array(FR_tr.index)
+            all_FR_prd[uid] = FR_tr
 
         # Add mean +- std FR.
         all_FR = pd.concat(all_FR_prd, axis=1)
         tr_time = all_FR.index
-        mean_FR = all_FR.mean(axis=1)
-        std_FR = all_FR.std(axis=1)
+        mean_FR, std_FR = all_FR.mean(axis=1), all_FR.std(axis=1)
         lower, upper = mean_FR-std_FR, mean_FR+std_FR
-        lower[lower < 0] = 0
+        lower[lower < 0] = 0  # remove negative values
         ax.fill_between(tr_time, lower, upper, zorder=2,
-                        alpha=.75, facecolor='grey', edgecolor='grey')
-        plot.lines(tr_time, mean_FR, ax=ax, lw=2, color='k')
+                        alpha=.5, facecolor='grey', edgecolor='grey')
+        plot.lines(tr_time, mean_FR, lw=2, color='k', ax=ax)
 
         # Add task start marker lines.
         prd_task_stats = OrdDict()
-        for task, (n_unit, task_start, task_stop) in task_stats.items():
+        for task, (n_unit, task_start, task_stop) in task_stats.iterrows():
 
             # Init.
             tr_idxs = (all_FR.index > task_start) & (all_FR.index <= task_stop)
@@ -347,8 +344,7 @@ def check_recording_stability(UA, fname):
             slope, _, r_value, p_value, _ = sp.stats.linregress(t, fr)
             slope = 3600*slope  # convert to change in spike per hour
             pval = util.format_pvalue(p_value, max_digit=3)
-            task_lbl += '\n$\delta$FR = {:.1f} sp/hour ({})'.format(slope,
-                                                                    pval)
+            task_lbl += '\n$\delta$FR = {:.1f} sp/hour ({})'.format(slope, pval)
 
             prd_task_stats[task_lbl] = task_start
 

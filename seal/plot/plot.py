@@ -838,8 +838,13 @@ def save_fig(fig=None, ffig=None, close=True, bbox_extra_artists=None,
         fig = plt.gcf()
 
     util.create_dir(ffig)
-    fig.savefig(ffig, bbox_extra_artists=bbox_extra_artists,
-                dpi=dpi, bbox_inches='tight')
+
+    # Suppress warning about axes being incompatible to tight layout.
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=UserWarning)
+
+        fig.savefig(ffig, bbox_extra_artists=bbox_extra_artists,
+                    dpi=dpi, bbox_inches='tight')
 
     if close:
         plt.close(fig)
