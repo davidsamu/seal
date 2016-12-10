@@ -8,11 +8,6 @@ TODO list of Seal project
 - calculate waveform duration in a way that deals with truncated WFs!
 
 
-periods
--------
-  - implement iterator methods
-
-
 trials
 ------
   - make named Series of fields
@@ -21,7 +16,6 @@ trials
 
 unit
 ----
-  - rename 'empty' units to 'missing' units
   - add RF coverage information
   - seprate DS calculation from plotting (add plotting params as fields to Unit?)
 
@@ -29,7 +23,6 @@ unit
 test_sorting
 ------------
   - add RF coverage to unit selection(?)
-  - add quality test results to unit for dynamic unit inclusion
 
 
 test_units
@@ -37,7 +30,6 @@ test_units
   - refactor DR_test and DS_summary by moving inner plotting into Unit
   - to all function: add option to show excluded units?
   - tuning plot scales to be matched after DS plotting separated in Unit
-  - check_recording_stability: check task order, UA order is not recording order! 
   - check_recording_stability: add grand total slope
 
 
@@ -48,21 +40,17 @@ init
 
 plot
 ----
-  - split into submodules (constants, raster&rate, DS, basic plots, different formatting, etc)
-  - add functions to easily change plot style
-  - consider changing each plot to seaborn API? Rate (FR DF)?
-  - refactor group_params plotting
-  - refactor rate, raster_rate, 
+  - refactor group_params plotting, and get_gs_subplots in the process!
   - rewrite mean_tuning curve(?)
-  - option to add background color to raster
+  - update colors and other theme elements after upgrading to matplotlib 2.0
+  - move group params and unit info plots from putil
+  - finish categorical plots
 
 
 plot.scatter
 ------------
   - add diagonal distribution to scatter
-  - add side histogram to scatter (# http://seaborn.pydata.org/generated/seaborn.jointplot.html#seaborn.jointplot)
   - report and test significant values separately
-  - add confidence interval to linear fit using seaborn (other seaborn API functionality?)
 
 util
 ----

@@ -172,13 +172,13 @@ def format_offsets(offsets):
     return offsets_str
 
 
-def format_rec_ch_idx(rec_ch_idx):
-    """Format (recording, channel, unit idx) triple as string."""
+def format_uid(uid):
+    """Format unit ID (recording, channel, unit idx) triple as string."""
 
-    rec, ch, idx = rec_ch_idx
-    rec_ch_idx_str = '{}_Ch{}_{}'.format(rec, ch, idx)
+    rec, ch, idx = uid
+    uid_str = '{}_Ch{}_{}'.format(rec, ch, idx)
 
-    return rec_ch_idx_str
+    return uid_str
 
 
 # %% System-related functions.
@@ -450,7 +450,7 @@ def add_quant_col(df, col, colname):
     df[colname] = add_dim_to_series(df[colname], col.units)
 
 
-# %% Function for analysing directions.
+# %% Function for analyzing directions.
 
 def deg2rad(v_deg):
     """Convert degrees to radians."""
@@ -551,8 +551,10 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
     return rho, phi_deg, phi_deg_c
 
 
+# %% General statistics and analysis functions.
+
 def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
-    """Returns values in timeseries v within given period around maximum."""
+    """Returns values in timeseries within given period around maximum."""
 
     if t_start is None:
         t_start = ts.index[0]
@@ -565,8 +567,6 @@ def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
 
     return t1, t2
 
-
-# %% General statistics and analysis functions.
 
 def SNR(v):
     """Returns signal to noise ratio of values."""

@@ -75,8 +75,8 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, sub_dirs=[''],
 
 
 def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
-                      plot_QM=True, plot_SR=True, plot_DS=True, plot_sum=True,
-                      plot_stab=True):
+                      use_users=True, plot_QM=True, plot_SR=True, plot_DS=True,
+                      plot_sum=True, plot_stab=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),

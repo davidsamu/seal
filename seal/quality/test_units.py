@@ -340,7 +340,7 @@ def check_recording_stability(UA, fname):
             # Init.
             tr_idxs = (all_FR.index > task_start) & (all_FR.index <= task_stop)
             meanFR_tr = all_FR.loc[tr_idxs].mean(1)
-            task_lbl = '{}\n{} units'.format(task, n_unit)
+            task_lbl = '{}, {} units'.format(task, n_unit)
 
             # Add grand mean FR.
             meanFR = meanFR_tr.mean()
@@ -362,8 +362,8 @@ def check_recording_stability(UA, fname):
 
         # Set limits and add labels to plot.
         plot.set_limits(xlim=[None, max(tr_time)], ax=ax)
-        plot.set_labels(title=prd_name, xlab='Recording time (s)',
-                        ylab=plot.FR_lbl, ytitle=1.1, ax=ax)
+        xlab = 'Recording time (s)' if prd_name == periods.names()[-1] else None
+        plot.set_labels(xlab=xlab, ylab=prd_name, ax=ax)
 
     # Format and save figure.
     title = 'Recording stability of ' + UA.Name
