@@ -50,10 +50,10 @@ def get_base_data(u):
     """Return base data of unit for quality metrics calculation."""
 
     # Init values.
-    waveforms = u.Waveforms['SpikeWaveforms']
-    wavetime = u.Waveforms['WaveformTime']
-    spike_dur = u.Waveforms['SpikeDuration']
-    spike_times = u.Waveforms['SpikeTimes']
+    waveforms = u.Waveforms['WF']
+    wavetime = u.Waveforms['tWF']
+    spike_dur = u.Waveforms['SpkDur']
+    spike_times = u.Waveforms['tSpk']
     sampl_per = u.SessParams['sampl_prd']
 
     return waveforms, wavetime, spike_dur, spike_times, sampl_per

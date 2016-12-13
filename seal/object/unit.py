@@ -94,18 +94,18 @@ class Unit:
         wfs = TPLCell.Waves
         if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
-        wf_time = range(wfs.shape[1]) * self.SessParams['sampl_prd']
+        wf_sampl_t = range(wfs.shape[1]) * self.SessParams['sampl_prd']
 
         t_min = np.min(TPLCell.Spikes)
         t_max = np.max(TPLCell.Spikes)
         sp_times = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
 
         # Assign waveform data.
-        wf_data = [('WaveformTime', wf_time),
-                   ('SpikeWaveforms', wfs),
-                   ('SpikeDuration', util.fill_dim(TPLCell.Spikes_dur * s)),
-                   ('MeanSpikeDur', TPLCell.MeanSpikeDur * s),
-                   ('SpikeTimes', util.fill_dim(sp_times))]
+        wf_data = [('tWF', wf_sampl_t),
+                   ('WF', wfs),
+                   ('SpkDur', util.fill_dim(TPLCell.Spikes_dur * s)),
+                   ('mSpkDur', TPLCell.MeanSpikeDur * s),
+                   ('tSpk', util.fill_dim(sp_times))]
         self.Waveforms = util.series_from_tuple_list(wf_data)
 
         # %% Trial parameters.
