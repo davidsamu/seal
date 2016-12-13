@@ -37,6 +37,7 @@ test_units
 init
 ----
   - add option to exclude trials/units using user's excel file
+  - finish exporting cell list table and params plot
 
 
 plot

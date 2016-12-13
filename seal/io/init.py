@@ -165,6 +165,6 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
     util.write_objects({'UnitArr': UA}, data_dir + fname + '.data')
 
     # Write out unit list and save parameter plot.
-    print('\nExporting combined unit list and parameter plot...')
-    UA.save_params_table(data_dir + 'unit_list.xlsx')
-    UA.plot_params(data_dir + 'unit_params.png')
+#    print('\nExporting combined unit list and parameter plot...')
+#    UA.save_params_table(data_dir + 'unit_list.xlsx')
+#    UA.plot_params(data_dir + 'unit_params.png')

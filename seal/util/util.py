@@ -354,7 +354,7 @@ def series_from_tuple_list(tuple_list):
 
 def get_scalar_vals(series, remove_dimensions=False):
     """
-    Function to extract all non-iterator type value from Series.
+    Function to extract all non-iterator, non-class type value from Series.
     Optionally, remove dimension from quantity values.
     """
 
