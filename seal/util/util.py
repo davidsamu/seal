@@ -141,8 +141,10 @@ def format_pvalue(pval, max_digit=4):
         pstr = 'p < 0.001'
     elif pval < 0.01 and max_digit >= 3:
         pstr = 'p = {:.3f}'.format(pval)
-    else:
+    elif pval < 0.10:
         pstr = 'p = {:.2f}'.format(pval)
+    else:
+        pstr = 'p > 0.10'
 
     return pstr
 

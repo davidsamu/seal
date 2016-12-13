@@ -16,7 +16,7 @@ from quantities import s, ms, us
 from elephant import statistics
 
 from seal.util import util
-from seal.plot import plot
+from seal.plot import putil, pplot
 from seal.object.trials import Trials
 from seal.object.periods import Periods
 
@@ -266,7 +266,7 @@ def test_qm(u, rej_trials=True, ftempl=None):
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDuration'] = np.mean(spike_dur[spk_inc]).rescale(us)
+    u.QualityMetrics['MeanWfDur'] = np.mean(spike_dur[spk_inc]).rescale(us)
     u.QualityMetrics['MeanFiringRate'] = mean_rate
     u.QualityMetrics['ISIviolation'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -341,8 +341,11 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # %% Init plots.
 
-    # Init plotting.
-    fig, gsp, sbp = plot.get_gs_subplots(nrow=3, ncol=3, subw=4, subh=4)
+    # Init plotting theme.
+    putil.set_style('notebook', 'ticks')
+
+    # Init plotting objects.
+    fig, gsp, sbp = putil.get_gs_subplots(nrow=3, ncol=3, subw=4, subh=4)
     ax_wf_inc, ax_wf_exc, ax_filler1 = sbp[0, 0], sbp[1, 0], sbp[2, 0]
     ax_wf_amp, ax_wf_dur, ax_amp_dur = sbp[0, 1], sbp[1, 1], sbp[2, 1]
     ax_snr, ax_rate, ax_filler2 = sbp[0, 2], sbp[1, 2], sbp[2, 2]
@@ -367,10 +370,8 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
     amp_lim = [0, gmax-gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
 
-    tr_alpha = 0.25  # alpha of trial event lines
-
     # Color spikes by their occurance over session time.
-    my_cmap = plot.get_colormap('jet')
+    my_cmap = putil.get_cmap('jet')
     spk_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
     if not np.all(np.invert(spk_inc)):  # check if there is any spike included
         spk_t_inc = np.array(spike_times[spk_inc])
@@ -383,9 +384,9 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                           np.random.permutation(np.where(spk_inc)[0])))
 
     # Common labels for plots
-    wf_t_lab = 'Waveform time ($\mu$s)'
+    wf_t_lab = 'WF time ($\mu$s)'
     ses_t_lab = 'Recording time (s)'
-    volt_lab = 'Voltage (normalized)'
+    volt_lab = 'Voltage'
     amp_lab = 'Amplitude'
     dur_lab = 'Duration ($\mu$s)'
 
@@ -403,39 +404,36 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     n_tr_inc, n_tr_exc = sum(tr_inc), sum(np.invert(tr_inc))
     for ax, st, n_sp, n_tr in [(ax_wf_inc, 'Included', n_sp_inc, n_tr_inc),
                                (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
-        title = '{} waveforms, {} spikes, {} trials'.format(st, n_sp, n_tr)
-        plot.set_limits(xlim=wf_t_lim, ylim=glim, ax=ax)
-        plot.set_ticks_side(xtick_pos='none', ytick_pos='none', ax=ax)
-        plot.show_spines(True, False, False, False, ax=ax)
-        plot.set_labels(title=title, xlab=wf_t_lab, ylab=volt_lab, ax=ax)
+        title = '{} WFs, {} spikes, {} trials'.format(st, n_sp, n_tr)
+        putil.format_plot(ax, wf_t_lim, glim, wf_t_lab, volt_lab, title)
 
     # %% Waveform summary metrics.
 
     # Waveform amplitude across session time.
     m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
-    title = 'Waveform amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
-    plot.scatter(spike_times, wf_amp_all, c=plot.get_cmat(spk_inc, 'm'), s=ss,
-                 xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
-                 edgecolors='none', alpha=sa, title=title, ax=ax_wf_amp)
+    title = 'WF amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
+    pplot.scatter(spike_times, wf_amp_all, spk_inc, c='m', bc='grey', s=ss,
+                  xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
+                  edgecolors='', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
     wf_dur_all = spike_dur.rescale(us)  # to use TPLCell's waveform duration
     wf_dur_inc = wf_dur_all[spk_inc]
     mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
-    title = 'Waveform duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
-    plot.scatter(spike_times, wf_dur_all, c=plot.get_cmat(spk_inc, 'c'), s=ss,
-                 xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
-                 edgecolors='none', alpha=sa, title=title, ax=ax_wf_dur)
+    title = 'WF duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
+    pplot.scatter(spike_times, wf_dur_all, spk_inc, c='c', bc='grey', s=ss,
+                  xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
+                  edgecolors='', alpha=sa, title=title, ax=ax_wf_dur)
 
     # Waveform duration against amplitude.
-    title = 'Waveform duration - amplitude'
-    plot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=spk_cols[sp_order],
-                 s=ss, xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
-                 edgecolors='none', alpha=sa, title=title, ax=ax_amp_dur)
+    title = 'WF duration - amplitude'
+    pplot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=spk_cols[sp_order],
+                  s=ss, xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
+                  edgecolors='', alpha=sa, title=title, ax=ax_amp_dur)
 
     # %% SNR, firing rate and spike timing.
 
-    # Color segments depending on wether they are included / excluded.
+    # Color segments depending on whether they are included / excluded.
     def plot_periods(v, color, ax):
         # Plot line segments.
         for i in range(len(prd_inc[:-1])):
@@ -453,29 +451,27 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     title = 'SNR: {:.2f}'.format(snr_inc)
     ylim = [0, 1.1*np.max(snr_t)]
     plot_periods(snr_t, 'y', ax_snr)
-    plot.lines([], [], c='y', xlim=ses_t_lim, ylim=ylim,
-               title=title, xlab=ses_t_lab, ylab='SNR', ax=ax_snr)
+    pplot.lines([], [], c='y', xlim=ses_t_lim, ylim=ylim, title=title,
+                xlab=ses_t_lab, ylab='SNR', ax=ax_snr)
 
     # Firing rate over session time.
     title = 'Firing rate: {:.1f} spike/s'.format(mean_rate)
     ylim = [0, 1.1*np.max(rate_t.magnitude)]
     plot_periods(rate_t, 'b', ax_rate)
-    plot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim,
-               title=title, xlab=ses_t_lab, ylab=plot.FR_lbl,
-               ax=ax_rate)
+    pplot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim, title=title,
+                xlab=ses_t_lab, ylab=putil.FR_lbl, ax=ax_rate)
 
     # Add trial markers and highlight included period in each plot.
     for ax in [ax_snr, ax_rate]:
 
         # Trial markers.
-        plot.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--',
-                         alpha=tr_alpha, ax=ax)
+        putil.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=0.35,
+                          ax=ax)
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials
             incl_segment = Periods([('selected', [t1_inc, t2_inc])])
-            plot.plot_segments(incl_segment, t_unit=s, alpha=0.2,
-                               color='grey', ymax=0.96, ax=ax)
+            putil.plot_periods(incl_segment, t_unit=s, ymax=0.96, ax=ax)
 
     # %% Save figure and metrics.
 
@@ -485,4 +481,4 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
              ',   ISI vr: {:.2f}%'.format(ISI_vr) +
              ',   Tr Sp: {:.1f}%'.format(true_spikes))
     fname = ftempl.format(u.name_to_fname())
-    plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
+    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)

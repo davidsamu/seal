@@ -23,6 +23,7 @@ unit
 test_sorting
 ------------
   - add RF coverage to unit selection(?)
+  - WF shape plotting: could for loop be vectorized for speed?
 
 
 test_units

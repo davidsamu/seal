@@ -17,7 +17,7 @@ from sklearn.cross_validation import ShuffleSplit
 from sklearn.linear_model import LogisticRegression
 
 from seal.util import util
-from seal.plot import plot
+from seal.plot import putil, pplot
 from seal.object import constants
 
 
@@ -223,18 +223,17 @@ def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
     colors = ['b', 'r']
     for i, u in enumerate(Units):
 
-        fig, gsp, axs = plot.get_gs_subplots(nrow=2, ncol=1,
-                                             subw=6, subh=3,
-                                             height_ratios=[2, 1],
-                                             create_axes=False)
+        fig, gsp, axs = putil.get_gs_subplots(nrow=2, ncol=1, subw=6, subh=3,
+                                              height_ratios=[2, 1],
+                                              create_axes=False)
 
         # Plot standard raster-rate plot
         trials = get_trials(u, **get_trials_kwargs)
 
-        rr_gsp = plot.embed_gsp(gsp[0, 0], 2, 1)
+        rr_gsp = putil.embed_gsp(gsp[0, 0], 2, 1)
         fig, raster_axs, rate_ax = u.plot_raster_rate(nrate, trials, t1, t2,
-                                                      colors=colors,
-                                                      outer_gsp=rr_gsp, fig=fig)
+                                                      colors=colors, fig=fig,
+                                                      outer_gsp=rr_gsp)
 
         # Remove x axis and label from rate plot
         rate_ax.get_xaxis().set_visible(False)
@@ -243,20 +242,20 @@ def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
         roc_ax = fig.add_subplot(gsp[1, 0])
 
         # Add chance line and grid lines
-        plot.add_chance_level_line(ax=roc_ax)
+        putil.add_chance_level(ax=roc_ax)
         for y in [0.25, 0.75]:
-            plot.add_chance_level_line(ylevel=y, ls=':', ax=roc_ax)
+            putil.add_chance_level(ylevel=y, ls=':', ax=roc_ax)
 
         # Plot AROC
-        plot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1], xlab=plot.t_lbl,
-                   ylab='AROC', ax=roc_ax, color='m')
-        plot.plot_segments(constants.stim_prds, t_unit=ms, ax=roc_ax)
+        pplot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1],
+                    xlab=putil.t_lbl, ylab='AROC', ax=roc_ax, color='m')
+        putil.plot_periods(constants.stim_prds, t_unit=ms, ax=roc_ax)
         roc_ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
-        plot.show_spines(True, True, True, True, roc_ax)
+        putil.show_spines(True, True, True, True, roc_ax)
 
         # Save plot
         ffig = fig_dir + u.name_to_fname() + '.png'
-        plot.save_fig(fig, ffig)
+        putil.save_fig(fig, ffig)
 
 
 # Analyse ROC results.

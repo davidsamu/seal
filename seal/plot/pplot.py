@@ -8,17 +8,48 @@ Collection of general purpose plotting functions.
 @author: David Samu
 """
 
-
 import seaborn as sns
 
 from seal.util import util
 from seal.plot import putil
 
 
-def scatter(x, y, is_sign, kind='reg', stat_func=util.pearson_r, c='b',
-            xlim=None, ylim=None, xlab=None, ylab=None,
-            title=None, ytitle=None, ffig=None):
-    """Plot two vectors on scatter plot."""
+def scatter(x, y, is_sign=None, c='b', bc='w', alpha=0.5, xlim=None,
+            ylim=None, xlab=None, ylab=None, title=None, ytitle=None,
+            polar=False, ffig=None, ax=None, **kwargs):
+    """
+    Plot paired data on scatter plot.
+    Color settings:
+        - c:  face color of foreground points (is_sign == True)
+        - bc: face color of background points (is_sign == False)
+    """
+
+    # Init.
+    ax = putil.axes(ax, polar=polar)
+    cols = c
+    if (is_sign is not None) and isinstance(c, str) and isinstance(bc, str):
+        cols = putil.get_cmat(is_sign, c, bc)  # get point-specific color array
+
+    ax.scatter(x, y, c=cols, alpha=alpha, **kwargs)  # plot colored points
+
+    # Format and save figure.
+    putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
+    putil.save_fig(ffig=ffig)
+
+    return ax
+
+
+def joint_scatter(x, y, is_sign=None, kind='reg', stat_func=util.pearson_r,
+                  c='b', xlim=None, ylim=None, xlab=None, ylab=None,
+                  title=None, ytitle=None, ffig=None, **kwargs):
+    """
+    Plot paired data on scatter plot with
+        - marginal distributions added to the side
+        - linear regression on center scatter
+        - N, r and p values reported
+
+    Additional parameters for scatter (e.g. size) can be passed as kwargs.
+    """
 
     # Create scatter plot and distribution plots on the side.
     g = sns.jointplot(x, y, color=c, kind=kind, stat_func=stat_func,
@@ -26,10 +57,9 @@ def scatter(x, y, is_sign, kind='reg', stat_func=util.pearson_r, c='b',
     ax = g.ax_joint  # scatter axes
 
     # Make non-significant points hollow (white face color).
-    if is_sign is not None:
+    if is_sign is not None or kwargs is not None:
         ax.collections[0].set_visible(False)    # hide scatter points
-        cols = putil.get_cmat(is_sign, c, 'w')  # point-specific color array
-        ax.scatter(x, y, c=cols, edgecolors=c)  # add colored scatter points
+        scatter(x, y, is_sign, c=c, ax=ax, **kwargs)
 
     # Add N to legend.
     leg_txt = g.ax_joint.get_legend().texts[0]

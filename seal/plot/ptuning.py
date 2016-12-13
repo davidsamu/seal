@@ -51,7 +51,8 @@ def direction_selectivity(DSres, title=None, labels=True,
         cPD = DSr.PD.loc['cPD', 'weighted']
 
         # Plot direction selectivity on polar plot.
-        polar_dir_resp(DSr.dirs, DSr.meanFR, DSI, PD, title='Tuning curve',
+        ttl = 'Direction response' if labels else None
+        polar_dir_resp(DSr.dirs, DSr.meanFR, DSI, PD, title=ttl,
                        color=color, ax=ax_polar)
 
         # Collect parameters of polar plot (stimulus - response).
@@ -67,9 +68,9 @@ def direction_selectivity(DSres, title=None, labels=True,
         xticks = [-180, -90, 0, 90, 180]
         xlim = [-180-5, 180+5]  # degrees
         ylim = [0, None]
-        title = 'Tuning curve'
+        ttl = 'Tuning curve' if labels else None
         tuning_curve(DSr.xfit, DSr.yfit, DSr.dirs_cntr, DSr.meanFR_cntr,
-                     DSr.semFR_cntr, xticks, xlim, ylim, color, title,
+                     DSr.semFR_cntr, xticks, xlim, ylim, color, ttl,
                      xlab, ylab, ax=ax_tuning)
 
         # Collect parameters tuning curve fit.
@@ -91,7 +92,7 @@ def direction_selectivity(DSres, title=None, labels=True,
         fig.suptitle(title, y=0.98, fontsize='xx-large')
 
     # Set legends.
-    ylegend = -0.30 if labels else -0.20
+    ylegend = -0.38 if labels else -0.15
     fr_on = False if labels else True
     lgd_kws = dict([('fancybox', True), ('shadow', False), ('frameon', fr_on),
                     ('framealpha', 1.0), ('loc', 'lower center'),
@@ -161,6 +162,10 @@ def polar_dir_resp(dirs, resp, DSI=None, PD=None, plot_type='line',
         xy = (float(PD.rescale(rad)), rho)
         arr_props = dict(facecolor=color, edgecolor='k', shrink=0.0, alpha=0.5)
         ax.annotate('', xy, xytext=(0, 0), arrowprops=arr_props)
+
+
+    # Remove spines.
+    putil.set_spines(ax, False, False)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

@@ -21,6 +21,7 @@ def empty_raster_rate(fig, outer_gsp, nraster):
     mock_gsp_rasters = putil.embed_gsp(outer_gsp[0], nraster, 1, hspace=.15)
     mock_raster_axs = [putil.add_mock_axes(fig, mock_gsp_rasters[i, 0])
                        for i in range(nraster)]
+
     mock_gsp_rate = putil.embed_gsp(outer_gsp[1], 1, 1)
     mock_rate_ax = putil.add_mock_axes(fig, mock_gsp_rate[0, 0])
 
@@ -38,7 +39,6 @@ def raster_rate(spk_list, rate_list, tvec, names, t1=None, t2=None, prds=None,
     gsp = putil.gridspec(2, 1, gsp, height_ratios=[1, 1])
     gsp_raster = putil.embed_gsp(gsp[0], n_sets, 1, hspace=.15)
     gsp_rate = putil.embed_gsp(gsp[1], 1, 1)
-    ylab_posx = -0.05
 
     # Init colors.
     if cols is None:
@@ -51,13 +51,12 @@ def raster_rate(spk_list, rate_list, tvec, names, t1=None, t2=None, prds=None,
         ylab = names[i] if rs_ylab else None
         raster(spk_trs, t1, t2, prds=prds, c=cols[i], ylab=ylab, ax=ax)
         putil.hide_axes(ax)
-        #TODO: check if this is needed! ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
-    putil.set_labels(raster_axs[0], title=title) # add title to top raster
+    putil.set_labels(raster_axs[0], title=title)  # add title to top raster
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rate_list, tvec, names, t1, t2, prds, cols=cols, ax=rate_ax)
-    #TODO: check if this is needed! rate_ax.get_yaxis().set_label_coords(ylab_posx, 0.5)
+    rate(rate_list, tvec, names, t1, t2, prds=prds, cols=cols, **rate_kws,
+         ax=rate_ax)
 
     # Save and return plot.
     putil.save_fig(fig, ffig)
@@ -96,9 +95,9 @@ def raster(spk_trains, t1=None, t2=None, t_unit=ms, prds=None, size=1.5, c='b',
 
 
 def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
-         pval=None, test=None, test_kws={}, xlim=None, ylim=None, cols=None,
-         title=None, xlab=putil.t_lbl, ylab=putil.FR_lbl, add_lgn=True,
-         lgn_lbl='trs', ffig=None, ax=None):
+         pval=0.05, test='t-test', test_kws={}, xlim=None, ylim=None,
+         cols=None, title=None, xlab=putil.t_lbl, ylab=putil.FR_lbl,
+         add_lgn=True, lgn_lbl='trs', ffig=None, ax=None):
     """Plot firing rate."""
 
     # Init time vector and period to plot.
@@ -108,7 +107,7 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
 
     # Select requested time window.
     idxs = util.indices_in_window(tvec, t1, t2)
-    rate_list = [rts[:, idxs] for rts in rate_list]
+    rate_list = [np.array(rts)[:, idxs] for rts in rate_list]
     tvec = tvec[idxs]
 
     # Init axes and colors.
@@ -136,7 +135,7 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
     # Set ticks, labels and axis limits.
     if ylim is None:
         ylim = (0, None)
-    putil.format_plot([t1, t2], ylim, xlab, ylab, title, ax)
+    putil.format_plot(ax, [t1, t2], ylim, xlab, ylab, title)
     xtcks = util.values_in_window(putil.t_ticks, t1, t2)
     putil.set_xtick_labels(ax, xtcks)
     putil.set_max_n_ticks(ax, 7, 'y')

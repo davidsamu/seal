@@ -14,7 +14,7 @@ from collections import OrderedDict as OrdDict
 
 from seal.object import unit
 from seal.util import util
-from seal.plot import plot
+from seal.plot import putil
 
 
 class UnitArray:
@@ -241,4 +241,4 @@ class UnitArray:
         """Plot group level histogram of unit parameters."""
 
         unit_params = self.unit_params()
-        plot.group_params(unit_params, self.Name, ffig=ffig)
+        putil.group_params(unit_params, self.Name, ffig=ffig)

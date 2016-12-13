@@ -13,7 +13,6 @@ import os
 import numpy as np
 
 from seal.util import util
-from seal.plot import plot
 from seal.quality import test_sorting, test_units
 from seal.object import constants, unit, unitarray
 
@@ -83,11 +82,6 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
       - stimulus selectivity (DS) test,
       - recording stability test.
     """
-
-    # Init plotting theme and style.
-    rc = {'font.style': 'normal'}
-    plot.set_style(context='notebook', style='ticks', rc=rc)
-    plot.inline_off()  # turn it off to flush plotted figures out of memory!
 
     # Init data structures.
     UA = unitarray.UnitArray(ua_name)

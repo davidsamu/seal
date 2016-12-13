@@ -19,7 +19,7 @@ from quantities import s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import util
-from seal.plot import plot
+from seal.plot import prate, ptuning
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
@@ -273,7 +273,8 @@ class Unit:
         def_nrate = constants.def_nrate
 
         if nrate is None:
-            nrate = def_nrate if def_nrate in self.Rates else self.Rates.index[0]
+            nrate = (def_nrate if def_nrate in self.Rates
+                     else self.Rates.index[0])
 
         elif nrate not in self.Rates:
             warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
@@ -636,8 +637,8 @@ class Unit:
 
             ffig = (None if ftempl is None
                     else ftempl.format(self.name_to_fname()))
-            plot.direction_selectivity(DSres_plot, title=title,
-                                       ffig=ffig, **kwargs)
+            ptuning.direction_selectivity(DSres_plot, title=title,
+                                          ffig=ffig, **kwargs)
 
     # %% Plotting methods.
 
@@ -669,14 +670,14 @@ class Unit:
 
         # Set up params.
         plot_params = self.prep_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, times, names = plot_params
+        trs, t1, t2, spikes, rates, tvec, names = plot_params
         spikes = spikes[0]
         names = names[0]
 
         # Plot raster.
-        ax = plot.raster(spikes, t1, t2,
-                         segments=constants.stim_prds,
-                         title=self.Name, **kwargs)
+        ax = prate.raster(spikes, t1, t2, prds=constants.stim_prds,
+                          title=self.Name, **kwargs)
+
         return ax
 
     def plot_rate(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
@@ -687,16 +688,16 @@ class Unit:
 
         # Set up params.
         plot_params = self.prep_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, time, names = plot_params
+        trs, t1, t2, spikes, rates, tvec, names = plot_params
 
         # Plot rate.
-        ax = plot.rate(rates, time, t1, t2, names,
-                       segments=constants.stim_prds,
-                       title=self.Name, **kwargs)
+        ax = prate.rate(rates, tvec, names, t1, t2, prds=constants.stim_prds,
+                        title=self.Name, **kwargs)
+
         return ax
 
     def plot_raster_rate(self, nrate=None, trs=None, t1=None, t2=None,
-                         no_labels=False, **kwargs):
+                         no_labels=False, rate_kws=dict(), **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
         if self.is_empty:
@@ -704,25 +705,20 @@ class Unit:
 
         # Set up params.
         plot_params = self.prep_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, time, names = plot_params
+        trs, t1, t2, spikes, rates, tvec, names = plot_params
 
-        title = self.Name
-
-        # Minimise labels on plot.
+        # Set labels.
+        title = self.Name if not no_labels else None
         if no_labels:
-            title = None
-            kwargs['xlab'] = None
-            kwargs['ylab_rate'] = None
-            kwargs['add_ylab_raster'] = False
+            rate_kws.update({'xlab': None, 'ylab': None, 'add_lgn': False})
 
         # Plot raster and rate.
-        res = plot.raster_rate(spikes, rates, time, t1, t2, names,
-                               segments=constants.stim_prds,
-                               title=title, **kwargs)
+        res = prate.raster_rate(spikes, rates, tvec, names, t1, t2,
+                                prds=constants.stim_prds, title=title,
+                                rate_kws=rate_kws, **kwargs)
         fig, raster_axs, rate_ax = res
 
         return fig, raster_axs, rate_ax
-
 
     def plot_dir_resp(self):
         """Plot response to all directions + polar plot in center."""

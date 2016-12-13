@@ -75,9 +75,11 @@ def unit_info(u, fs='large', ax=None):
 
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
-    lbl_dict = OrdDict([('SNR', '{:.2f}'.format(upars['SNR'])),
-                        ('WfDur', '{:.0f} $\mu$s'.format(upars['MeanWfAmplitude'])),
-                        ('FR', '{:.1f} sp/s'.format(upars['MeanFiringRate']))])
+    SNR, mWFdur, mFR = [upars[meas] if meas in upars else None
+                        for meas in ('SNR', 'MeanSpikeDuration', 'MeanFiringRate')]
+    lbl_dict = OrdDict([('SNR', 'N/A' if SNR is None else '{:.2f}'.format(SNR)),
+                        ('WfDur', 'N/A' if mWFdur is None else '{:.0f} $\mu$s'.format(mWFdur)),
+                        ('FR', 'N/A' if mFR is None else '{:.1f} sp/s'.format(mFR))])
 
     # Plot each label.
     yloc = .0
@@ -87,7 +89,7 @@ def unit_info(u, fs='large', ax=None):
         ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
 
     # Set title.
-    set_labels(ax, title=upars['task'], ytitle=.50,
+    set_labels(ax, title=upars['task'], ytitle=.75,
                title_kws={'fontsize': 'x-large'})
 
     return ax
@@ -146,8 +148,8 @@ def plot_periods(prds, t_unit=ms, alpha=0.2, color='grey', ax=None, **kwargs):
         ax.axvspan(t_start, t_stop, alpha=alpha, color=color, **kwargs)
 
 
-def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
-                color='black', lw=1, lbl_rotation=90, lbl_height=0.98,
+def plot_events(events, t_unit=ms, add_names=True, color='black', alpha=1.0,
+                ls='--', lw=1, lbl_rotation=90, lbl_height=0.98,
                 lbl_ha='center', ax=None, **kwargs):
     """Plot all events of unit."""
 
@@ -158,7 +160,8 @@ def plot_events(events, t_unit=ms, add_names=True, alpha=1.0,
         if t_unit is not None:
             time = time.rescale(t_unit)
         ymax = lbl_height-0.02 if add_names else 1
-        ax.axvline(time, color=color, alpha=alpha, lw=lw, ymax=ymax, **kwargs)
+        ax.axvline(time, color=color, alpha=alpha, lw=lw, ls=ls,
+                   ymax=ymax, **kwargs)
 
         # Add event label if requested
         if add_names:
@@ -346,7 +349,7 @@ def hide_axes(ax=None, show_x=False, show_y=False, show_polar=False):
         if not show_x:
             to_hide.extend(['bottom', 'top'])
         if not show_y:
-            to_hide.extend(['left', 'top'])
+            to_hide.extend(['left', 'right'])
 
     [ax.spines[side].set_visible(False) for side in to_hide]
 
@@ -531,7 +534,7 @@ def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
 
 # %% Miscellanous plotting related functions.
 
-def get_colormap(cm_name='jet', **kwargs):
+def get_cmap(cm_name='jet', **kwargs):
     """Return colormap instance."""
 
     cmap = plt.get_cmap(cm_name, **kwargs)
