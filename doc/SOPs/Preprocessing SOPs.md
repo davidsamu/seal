@@ -1,15 +1,6 @@
 # Preprocessing Standard Operating Procedures
 
 
-**WARNING**: Sections from *Further preprocessing* and onwards are under development, and will change soon.
-
-## TODO:
-
-- Add lab’s file naming convention. Maybe put it into separate file?
-- Update Further preprocessing part once steps have been worked out and code is in place.
-- Add a figure about a few nice, acceptable and bad waveforms.
-
-
 ## Create spike sorted Plexon files.
 
 ### 1. Concatenate recording sessions using PlexUtil.
@@ -36,17 +27,14 @@
 
 ## Further preprocessing
 
-**WARNING**: This section is out of date and needs to be updated!
-
 ### 4. Generate TPLCell data structure.
 
-- Use Matlab script extractTPLcell.m
-- Use scan_task_files() to get task files from the selected folder.
-- Use Expand_cell() to extract and expand cell components.
-- Use mapD_load_trials_mixed() to fill trial-wise data fields.
+- Use Matlab script SimpleTPLCell.m for this.
+- Set paths to recordings and tasks to be processed.
 
 ### 5. Assess unit quality.
 
-- Run drop_trials() to detect drift in recording and decide which trials to drop (by setting RejectTrials fields). Make sure that consecutive low activity trials from drifting units are excluded!
-- Run plot_asssort() to see SNR and %true spike of each unit.
+- Use [preprocessing.py](https://github.com/davidsamu/seal/blob/master/examples/preprocessing.py) from [examples](https://github.com/davidsamu/seal/tree/master/examples).
+- Set paths to folders with recordings, as explained in the script's comments.
+- Depending on the plotting settings you choose ('plot_X') and the number of units and spikes to process, this may run for up to 15-20 mins per recording, and generate various quality metric and stimulus response figures.
 
