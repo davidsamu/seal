@@ -51,16 +51,8 @@ def direction_selectivity(DSres, title=None, labels=True,
         cPD = DSr.PD.loc['cPD', 'weighted']
 
         # Plot direction selectivity on polar plot.
-        polar_direction_response(DSr.dirs, DSr.meanFR, DSI, PD,
-                                 color=color, ax=ax_polar)
-
-        # Calculate and plot direction tuning curve.
-        xlab = 'Difference from preferred direction (deg)' if labels else None
-        ylab = putil.FR_lbl if labels else None
-        xticks = [-180, -90, 0, 90, 180]
-        tuning_curve_sample(DSr.dirs_cntr, DSr.meanFR_cntr, DSr.semFR_cntr,
-                            DSr.xfit, DSr.yfit, xticks, color, None,
-                            xlab, ylab, ax=ax_tuning)
+        polar_dir_resp(DSr.dirs, DSr.meanFR, DSI, PD, title='Tuning curve',
+                       color=color, ax=ax_polar)
 
         # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(PD, 1)))
@@ -68,6 +60,17 @@ def direction_selectivity(DSres, title=None, labels=True,
         lgd_lbl = '{}:   {:.3f}'.format(name, DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(putil.get_proxy_artist(lgd_lbl, color))
+
+        # Calculate and plot direction tuning curve.
+        xlab = 'Difference from preferred direction (deg)' if labels else None
+        ylab = putil.FR_lbl if labels else None
+        xticks = [-180, -90, 0, 90, 180]
+        xlim = [-180-5, 180+5]  # degrees
+        ylim = [0, None]
+        title = 'Tuning curve'
+        tuning_curve(DSr.xfit, DSr.yfit, DSr.dirs_cntr, DSr.meanFR_cntr,
+                     DSr.semFR_cntr, xticks, xlim, ylim, color, title,
+                     xlab, ylab, ax=ax_tuning)
 
         # Collect parameters tuning curve fit.
         a, b, x0, sigma = DSr.fit_params.loc['fit']
@@ -81,28 +84,19 @@ def direction_selectivity(DSres, title=None, labels=True,
         tuning_patches.append(putil.get_proxy_artist(lgd_lbl, color))
 
     # Add zero reference line to tuning curve.
-    ax_tuning.axvline(0, color='k', ls='--', alpha=0.2)
+    putil.add_zero_line('y', ax=ax_tuning)
 
-    # Set limits of tuning curve (after all curves have been plotted).
-    xlim = [-180-5, 180+5]
-    ylim = [0, None]
-    putil.set_limits(ax_tuning, xlim, ylim)
-
-    # Set labels.
-    if labels:
-        putil.set_labels(ax_polar, title='Polar plot', ytitle=1.08)
-        putil.set_labels(ax_tuning, title='Tuning curve', ytitle=1.08)
+    # Set super title.
     if title is not None:
         fig.suptitle(title, y=0.98, fontsize='xx-large')
 
     # Set legends.
     ylegend = -0.30 if labels else -0.20
     fr_on = False if labels else True
-    legend_kwargs = dict([('fancybox', True), ('shadow', False),
-                          ('frameon', fr_on), ('framealpha', 1.0),
-                          ('loc', 'lower center'),
-                          ('bbox_to_anchor', [0., ylegend, 1., .0]),
-                          ('prop', {'family': 'monospace'})])
+    lgd_kws = dict([('fancybox', True), ('shadow', False), ('frameon', fr_on),
+                    ('framealpha', 1.0), ('loc', 'lower center'),
+                    ('bbox_to_anchor', [0., ylegend, 1., .0]),
+                    ('prop', {'family': 'monospace'})])
     polar_lgn_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
     tuning_lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
                       'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15) +
@@ -116,9 +110,9 @@ def direction_selectivity(DSres, title=None, labels=True,
             continue
         if not labels:  # customisation for summary plot
             lgd_ttl = None
-        lgd = putil.set_legend(ax, handles=patches, title=lgd_ttl, **legend_kwargs)
+        lgd = putil.set_legend(ax, handles=patches, title=lgd_ttl, **lgd_kws)
         lgd.get_title().set_ha('left')
-        if legend_kwargs['frameon']:
+        if lgd_kws['frameon']:
             lgd.get_frame().set_linewidth(.5)
 
     # Save figure.
@@ -127,16 +121,15 @@ def direction_selectivity(DSres, title=None, labels=True,
     putil.save_fig(fig, ffig)
 
 
-def polar_direction_response(dirs, resp, DSI=None, PD=None, plot_type='line',
-                             complete_missing_dirs=False, color='g',
-                             title=None, ffig=None, ax=None):
+def polar_dir_resp(dirs, resp, DSI=None, PD=None, plot_type='line',
+                   complete_missing_dirs=False, color='b', title=None,
+                   ffig=None, ax=None):
     """
-    Plot response to each directions on polar plot, with direction selectivity
-    vector. Use plot_type to change between sector ('bar') and
-    connected ('line') plot types.
+    Plot response to each directions on polar plot, with a vector pointing to
+    preferred direction (PD) with length DSI.
+    Use plot_type to change between sector ('bar') and connected ('line') plot
+    types.
     """
-
-    # Plot response to each directions on polar plot.
 
     # Prepare data.
     # Complete missing directions with 0 response.
@@ -148,77 +141,50 @@ def polar_direction_response(dirs, resp, DSI=None, PD=None, plot_type='line',
 
     rad_dirs = np.array([d.rescale(rad) for d in dirs])
 
+    # Plot response to each directions on polar plot.
     if plot_type == 'bar':  # sector plot
         ndirs = constants.all_dirs.size
-        left_rad_dirs = rad_dirs - np.pi/ndirs
-        w = 2*np.pi / ndirs
-        ax = pplot.bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color, lw=1,
-                        edgecolor='w', title=title, ytitle=1.08, polar=True, ax=ax)
+        left_rad_dirs = rad_dirs - np.pi/ndirs  # no need for this in MPL 2.0?
+        w = 2*np.pi / ndirs                     # same with edgecolor and else?
+        ax = pplot.bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color,
+                        lw=1, edgecolor='w', title=title, ytitle=1.08,
+                        polar=True, ax=ax)
     else:  # line plot
         rad_dirs, resp = [np.append(v, [v[0]]) for v in (rad_dirs, resp)]
-        ax = pplot.lines(rad_dirs, resp, color=color,  marker='o', lw=1, ms=4, mew=0,
-                         title=title, ytitle=1.08, polar=True, ax=ax)
+        ax = pplot.lines(rad_dirs, resp, color=color,  marker='o', lw=1, ms=4,
+                         mew=0, title=title, ytitle=1.08, polar=True, ax=ax)
         ax.fill(rad_dirs, resp, color=color, alpha=0.15)
 
-    # Add arrow representing preferred direction and
-    # direction selectivity index (DSI).
+    # Add arrow representing PD and weighted DSI.
     if DSI is not None and PD is not None:
         rho = np.max(resp) * DSI
         xy = (float(PD.rescale(rad)), rho)
-        ax.annotate('', xy, xytext=(0, 0),
-                    arrowprops=dict(facecolor=color, edgecolor='k',
-                                    shrink=0.0, alpha=0.5))
-
-    # ax.RadialLocator.MAXTICKS = 3
+        arr_props = dict(facecolor=color, edgecolor='k', shrink=0.0, alpha=0.5)
+        ax.annotate('', xy, xytext=(0, 0), arrowprops=arr_props)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)
     return ax
 
 
-def tuning_curve_sample(val, meanFR, semFR, xfit, yfit, xticks=None, color='b',
-                        title=None, xlab=None, ylab=None, ffig=None, ax=None,
-                        **kwargs):
-    """Plot tuning curve (with data samples)."""
+def tuning_curve(xfit, yfit, v=None, meanr=None, semr=None, xticks=None,
+                 xlim=None, ylim=None, color='b', title=None,
+                 xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
+    """Plot tuning curve, optionally with data samples."""
 
-    # Add fitted curve.
+    # Plot fitted curve.
     ax = pplot.lines(xfit, yfit, color=color, ax=ax)
 
-    # Plot data samples of tuning curve.
-    pplot.errorbar(val, meanFR, yerr=semFR, fmt='o', color=color,
-                   title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
+    # Plot data samples.
+    if meanr is not None and semr is not None:
+        pplot.errorbar(v, meanr, yerr=semr, fmt='o', color=color,
+                       title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
 
+    # Set x axis ticks.
     if xticks is not None:
-        ax.get_xaxis().set_ticks(xticks)
-
-    # Save and return plot.
-    putil.save_fig(ffig=ffig)
-    return ax
-
-
-def mean_tuning_curves(x, yfits, mean=True, xlim=[-180, 180], ylim=[0, None],
-                       step=45, colors=None, pvals=[0.01], test='t-test',
-                       xlab='Degree', ylab=putil.FR_lbl, title='auto',
-                       legend=True, lgn_lbl='units', ax=None, ffig=None):
-    """Plot tuning curves (without data samples)."""
-
-    names, tcs = zip(*[(name, np.array(tc)) for name, tc in yfits.items()])
-    if title is 'auto':
-        title = 'Mean tuning curve (paired, Wilcoxon p < {})'.format(pvals[0])
-
-    # Plot tuning curves as "rates".
-    # Any nicer way to do this? other than calling rate?
-    ax = rate(tcs, x, names=names, mean=mean, t_unit=None, pvals=pvals,
-              test=test, ylim=ylim, colors=colors, title=title,
-              xlab=xlab, ylab=ylab, legend=legend, lgn_lbl=lgn_lbl, ax=ax)
-
-    # Add zero reference line to tuning curve.
-    putil.add_zero_line('y', 'k', alpha=0.5, ax=ax)
-
-    # Format x axis.
-    ctrd_dirs = np.arange(xlim[0], xlim[1]+step/2, step)
-    ax.get_xaxis().set_ticks(ctrd_dirs)
-    putil.set_limits(ax, xlim=xlim)
+        putil.set_xtick_labels(ax, xticks)
+    elif v is not None:
+        putil.set_xtick_labels(ax, v)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

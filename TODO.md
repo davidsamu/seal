@@ -41,7 +41,6 @@ init
 plot
 ----
   - refactor group_params plotting, and get_gs_subplots in the process!
-  - rewrite mean_tuning curve(?)
   - update colors and other theme elements after upgrading to matplotlib 2.0
   - move group params and unit info plots from putil
   - finish categorical plots

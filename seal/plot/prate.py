@@ -138,7 +138,7 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
         ylim = (0, None)
     putil.format_plot([t1, t2], ylim, xlab, ylab, title, ax)
     xtcks = util.values_in_window(putil.t_ticks, t1, t2)
-    putil.set_xtick_labels(ax, xtcks, xtcks)
+    putil.set_xtick_labels(ax, xtcks)
     putil.set_max_n_ticks(ax, 7, 'y')
 
     # Add legend.

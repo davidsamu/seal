@@ -356,7 +356,8 @@ def set_xtick_labels(ax=None, pos=None, lbls=None, **kwargs):
 
     ax = axes(ax)
     ax.set_xticks(pos)
-    ax.set_xticklabels(lbls, **kwargs)
+    if lbls is not None:
+        ax.set_xticklabels(lbls, **kwargs)
 
 
 def set_ytick_labels(ax=None, pos=None, lbls=None, **kwargs):
@@ -364,7 +365,8 @@ def set_ytick_labels(ax=None, pos=None, lbls=None, **kwargs):
 
     ax = axes(ax)
     ax.set_yticks(pos)
-    ax.set_yticklabels(lbls, **kwargs)
+    if lbls is not None:
+        ax.set_yticklabels(lbls, **kwargs)
 
 
 def rot_xtick_labels(ax=None, rot=45, ha='right'):

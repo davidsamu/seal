@@ -80,7 +80,7 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
 
     # Plot data.
     ax = putil.axes(ax, polar=polar)
-    ax.errorbar(x, y, **kwargs)
+    ax.errorbar(x, y, yerr, **kwargs)
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
