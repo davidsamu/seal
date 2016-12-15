@@ -49,5 +49,5 @@ In other words, just keeping the waveforms that look the best would be too subje
   - (TODO: add more shortcuts here!)
 - You can turn on the feature to show ISI violations on cluster view (View → Cluster View Options → Show Short ISI Lines) to help find regions/spikes to remove.
   - WARNING: DON’T OVERUSE THIS FEATURE! You can easily “overfit” the criterion of minimsing ISI v.r. by removing just the problematic spikes, but this would not result in a genuine removal of false positive spikes. ISI v.r. is just a statistical proxy metric we use to validate our selection of (peripheral) subregions to be removed from the cluster. Bottomline: do not rely ONLY on this feature, but use it as a guide in combination with other metrics (e.g. waveform shape and location on plane).
-- Use Short Summary page for a more precise ISI value (4 digits) than what is displayed in the cluster list (only 1 digit).
+- Use View -> Short Summary View for a more precise ISI value (4 digits) than what is displayed in the cluster list (only 1 digit).
 
