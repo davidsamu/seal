@@ -28,8 +28,9 @@
 
 ## 3. Split sorted recording using PlexUtil.
 
-- Open Plexon Utility, select sorted file, press split button in toolbar.
+- Open Plexon Utility, select sorted file, press 'Split' button in toolbar.
 - Select ‘Split into Multiple PLX Files’, then ‘All Channels’, then ‘By Frames’.
+- Delete '_mrg_0X' from end of offered file name, and click 'Finish'.
 - After finished with splitting, rename each output file according to [naming convention](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Naming%20conventions.md), i.e., restore task name, session index and add sorting index.
 
 
