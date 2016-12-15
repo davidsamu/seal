@@ -15,7 +15,7 @@
 - In right panel, arrange data files in order of recording time given by index following experiment name (see lab’s [file naming convention](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Naming%20conventions.md)), e.g. dd1, ddRem2, ddPas3. Use ‘Move Up’ and ‘Move Down’ buttons below panel.
 - Press 'Merge' button in toolbar.
 - For merge type, select second option: ‘Merge files consecutively in specified order (top to bottom)’.
-- Press Next.
+- Press 'Next'.
 - Set output file directory and name folder on next window. Keeping the directory of the unsorted recording, change the name of the merged output file to *SSS_MMDDYYee_mrg.plx*, e.g. 201_071516v1_mrg.plx (see [file naming convention](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Naming%20conventions.md)).
 - Press 'Next'.
 - Press 'Finish' to generate merged Plexon file (_mrg.plx).
