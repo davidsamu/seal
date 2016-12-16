@@ -81,8 +81,6 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
       - recording stability test.
     """
 
-    # Turn off inline plotting to prevent them accumulating in memory.
-    putil.inline_off()
 
     # Init data structures.
     UA = unitarray.UnitArray(ua_name)
@@ -108,32 +106,42 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
         print('  Testing unit quality...')
         ftempl = qc_dir + 'quality_metrics/{}.png' if plot_QM else None
         for u in recUA.iter_thru():
+            putil.inline_off()
             test_sorting.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
+        putil.inline_on()
 
         # Test stimulus response to all directions.
         if plot_SR:
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
+            putil.inline_off()
             test_units.direction_response_test(recUA, ftempl=ftempl,
                                                match_scale=False)
+            putil.inline_on()
 
         # Test direction selectivity by tuning.
         print('  Testing direction selectivity...')
         ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in recUA.iter_thru():
+            putil.inline_off()
             u.test_DS(do_plot=plot_DS, ftempl=ftempl)
+        putil.inline_on()
 
         # Plot trial rate and direction selectivity summary plots.
         if plot_sum:
             print('  Plotting summary figures (rates and DS)...')
             ftempl = qc_dir + 'rate_DS_summary/{}.png'
+            putil.inline_off()
             test_units.rate_DS_summary(recUA, ftempl=ftempl)
+            putil.inline_on()
 
         # Test stability of recording session across tasks.
         if plot_stab:
             print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
+            putil.inline_off()
             test_units.check_recording_stability(recUA, fname)
+            putil.inline_on()
 
         # Exclude units with low quality or no direction selectivity.
         if exc_units:
