@@ -16,7 +16,7 @@ from quantities import s, ms, us
 from elephant import statistics
 
 from seal.util import util
-from seal.plot import putil, pplot
+from seal.plot import putil, pplot, pwaveform
 from seal.object.trials import Trials
 from seal.object.periods import Periods
 
@@ -52,28 +52,28 @@ def get_base_data(u):
     # Init values.
     waveforms = u.Waveforms['WF']
     wavetime = u.Waveforms['tWF']
-    spike_dur = u.Waveforms['SpkDur']
-    spike_times = u.Waveforms['tSpk']
+    spk_dur = u.Waveforms['SpkDur']
+    spk_times = u.Waveforms['tSpk']
     sampl_per = u.SessParams['sampl_prd']
 
-    return waveforms, wavetime, spike_dur, spike_times, sampl_per
+    return waveforms, wavetime, spk_dur, spk_times, sampl_per
 
 
-def time_bin_data(spike_times, waveforms):
+def time_bin_data(spk_times, waveforms):
     """Return time binned data for statistics over session time."""
 
     # Time bins and binned waveforms and spike times.
-    t_start, t_stop = spike_times.t_start, spike_times.t_stop
+    t_start, t_stop = spk_times.t_start, spk_times.t_stop
     nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
     tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
     tbin_vmid = np.array([np.mean([t1, t2]) for t1, t2 in tbins])*s
-    sp_idx_binned = [util.indices_in_window(spike_times, t1, t2)
-                     for t1, t2 in tbins]
-    wf_binned = [waveforms[sp_idx] for sp_idx in sp_idx_binned]
-    sp_times_binned = [spike_times[sp_idx] for sp_idx in sp_idx_binned]
+    spk_idx_binned = [util.indices_in_window(spk_times, t1, t2)
+                      for t1, t2 in tbins]
+    wf_binned = [waveforms[spk_idx] for spk_idx in spk_idx_binned]
+    spk_times_binned = [spk_times[spk_idx] for spk_idx in spk_idx_binned]
 
-    return tbins, tbin_vmid, wf_binned, sp_times_binned
+    return tbins, tbin_vmid, wf_binned, spk_times_binned
 
 
 # %% Core methods .
@@ -111,18 +111,18 @@ def waveform_stats(wfs, wtime):
     return snr, wf_amp, wf_dur
 
 
-def isi_stats(spike_times):
+def isi_stats(spk_times):
     """Returns ISIs and some related statistics."""
 
     # No spike: ISI v.r. and TrueSpikes are uninterpretable.
-    if not spike_times.size:
+    if not spk_times.size:
         return np.nan, np.nan
 
     # Only one spike: ISI v.r. is 0%, TrueSpikes is 100%.
-    if spike_times.size == 1:
+    if spk_times.size == 1:
         return 100, 0
 
-    isi = statistics.isi(spike_times).rescale(ms)
+    isi = statistics.isi(spk_times).rescale(ms)
 
     # Percent of spikes violating ISI treshold.
     n_ISI_vr = sum(isi < ISI_TH)
@@ -132,8 +132,8 @@ def isi_stats(spike_times):
     # Based on refractory period violations.
     # See Hill et al., 2011: Quality Metrics to Accompany Spike Sorting of
     # Extracellular Signals
-    N = spike_times.size
-    T = (spike_times.t_stop - spike_times.t_start).rescale(ms)
+    N = spk_times.size
+    T = (spk_times.t_stop - spk_times.t_start).rescale(ms)
     r = n_ISI_vr
     tmax = ISI_TH
     tmin = CENSORED_PRD_LEN
@@ -154,13 +154,13 @@ def classify_unit(snr, true_spikes):
     return unit_type
 
 
-def test_drift(t, v, tbins, tr_starts, spike_times, rej_trials):
+def test_drift(t, v, tbins, tr_starts, spk_times, rej_trials):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
     # Return full task length if not rejecting trials.
     if not rej_trials:
-        t1 = spike_times[0]
-        t2 = spike_times[-1]
+        t1 = spk_times[0]
+        t2 = spk_times[-1]
         first_tr_inc = 0
         last_tr_inc = len(tr_starts)
         prd1 = 0
@@ -218,7 +218,7 @@ def test_drift(t, v, tbins, tr_starts, spike_times, rej_trials):
     prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
     tr_inc = util.indices_in_window(np.array(range(len(tr_starts))),
                                     first_tr_inc, last_tr_inc)
-    spk_inc = util.indices_in_window(spike_times, t1, t2)
+    spk_inc = util.indices_in_window(spk_times, t1, t2)
 
     return t1, t2, prd_inc, tr_inc, spk_inc
 
@@ -237,20 +237,20 @@ def test_qm(u, rej_trials=True, ftempl=None):
     """
 
     # Init values.
-    waveforms, wavetime, spike_dur, spike_times, sampl_per = get_base_data(u)
+    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_base_data(u)
 
     # Time binned statistics.
-    tbinned_stats = time_bin_data(spike_times, waveforms)
-    tbins, tbin_vmid, wf_binned, sp_times_binned = tbinned_stats
+    tbinned_stats = time_bin_data(spk_times, waveforms)
+    tbins, tbin_vmid, wf_binned, spk_times_binned = tbinned_stats
 
     snr_t = [waveform_stats(wfb, wavetime)[0] for wfb in wf_binned]
-    rate_t = np.array([spt.size/(t2-t1).rescale(s)
-                       for spt, (t1, t2) in zip(sp_times_binned, tbins)]) / s
+    rate_t = np.array([spkt.size/(t2-t1).rescale(s)
+                       for spkt, (t1, t2) in zip(spk_times_binned, tbins)]) / s
 
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
     test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts,
-                          spike_times, rej_trials)
+                          spk_times, rej_trials)
     t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
 
     # Waveform statistics of included spikes only.
@@ -260,13 +260,13 @@ def test_qm(u, rej_trials=True, ftempl=None):
     mean_rate = float(np.sum(spk_inc) / (t2_inc - t1_inc))
 
     # ISI statistics.
-    true_spikes, ISI_vr = isi_stats(spike_times[spk_inc])
+    true_spikes, ISI_vr = isi_stats(spk_times[spk_inc])
     unit_type = classify_unit(snr, true_spikes)
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDur'] = np.mean(spike_dur[spk_inc]).rescale(us)
+    u.QualityMetrics['MeanWfDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
     u.QualityMetrics['MeanFiringRate'] = mean_rate
     u.QualityMetrics['ISIviolation'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -284,7 +284,8 @@ def test_qm(u, rej_trials=True, ftempl=None):
     # Plot quality metric results.
     if ftempl is not None:
         plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
-                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc, ftempl)
+                snr_t, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
+                ftempl)
 
 
 def test_rejection(u):
@@ -326,7 +327,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     """Plot quality metrics related figures."""
 
     # Init values.
-    waveforms, wavetime, spike_dur, spike_times, sampl_per = get_base_data(u)
+    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_base_data(u)
 
     # Get waveform stats of included and excluded spikes.
     wf_inc = waveforms[spk_inc]
@@ -343,6 +344,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Init plotting theme.
     putil.set_style('notebook', 'ticks')
+    putil.inline_off()   # disable inline plotting to prevent memory leak
 
     # Init plotting objects.
     fig, gsp, sbp = putil.get_gs_subplots(nrow=3, ncol=3, subw=4, subh=4)
@@ -361,27 +363,26 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # Common variables, limits and labels.
     spk_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
     spk_t = spk_i * sampl_per
-    ses_t_lim = [min(spike_times.t_start, trial_starts.iloc[0]),
-                 max(spike_times.t_stop, trial_starts.iloc[-1])]
+    ses_t_lim = [min(spk_times.t_start, trial_starts.iloc[0]),
+                 max(spk_times.t_stop, trial_starts.iloc[-1])]
     ss = 1.0  # marker size on scatter plot
     sa = .80  # marker alpha on scatter plot
-    glim = [gmin, gmax]  # gain axes limit
+    g_lim = [gmin, gmax]  # gain axes limit
     wf_t_lim = [min(spk_t), max(spk_t)]
     dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
     amp_lim = [0, gmax-gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
 
     # Color spikes by their occurance over session time.
     my_cmap = putil.get_cmap('jet')
-    spk_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spike_times), 1))
-    if not np.all(np.invert(spk_inc)):  # check if there is any spike included
-        spk_t_inc = np.array(spike_times[spk_inc])
-        spk_t_inc_shifted = spk_t_inc - spk_t_inc.min()
-        spk_t_inc_max = spk_t_inc_shifted.max()
-        spk_cols[spk_inc, :] = my_cmap(spk_t_inc_shifted/spk_t_inc_max)
+    spk_cols = np.tile(np.array([.25, .25, .25, .25]), (len(spk_times), 1))
+    if np.any(spk_inc):  # check if there is any spike included
+        spk_t_inc = np.array(spk_times[spk_inc])
+        tmin, tmax = float(spk_times.min()), float(spk_times.max())
+        spk_cols[spk_inc, :] = my_cmap((spk_t_inc-tmin) / (tmax-tmin))
     # Put excluded trials to the front, and randomise order of included trials
     # so later spikes don't systematically cover earlier ones.
-    sp_order = np.hstack((np.where(np.invert(spk_inc))[0],
-                          np.random.permutation(np.where(spk_inc)[0])))
+    spk_order = np.hstack((np.where(np.invert(spk_inc))[0],
+                           np.random.permutation(np.where(spk_inc)[0])))
 
     # Common labels for plots
     wf_t_lab = 'WF time ($\mu$s)'
@@ -392,44 +393,50 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # %% Waveform shape analysis.
 
-    # Plot excluded and included waveforms on different axes.
+    # Plot included and excluded waveforms on different axes.
     # Color included by occurance in session time to help detect drifts.
-    wfs = np.transpose(waveforms)
-    for i in sp_order:
-        ax = ax_wf_inc if spk_inc[i] else ax_wf_exc
-        ax.plot(spk_t, wfs[:, i], color=spk_cols[i, :], alpha=0.05)
+    s_waveforms, s_spk_cols = waveforms[spk_order, :], spk_cols[spk_order]
+    for st in ('Included', 'Excluded'):
+        ax = ax_wf_inc if st == 'Included' else ax_wf_exc
+        spk_idx = spk_inc if st == 'Included' else np.invert(spk_inc)
+        tr_idx = tr_inc if st == 'Included' else np.invert(tr_inc)
 
-    # Format waveform plots
-    n_sp_inc, n_sp_exc = sum(spk_inc), sum(np.invert(spk_inc))
-    n_tr_inc, n_tr_exc = sum(tr_inc), sum(np.invert(tr_inc))
-    for ax, st, n_sp, n_tr in [(ax_wf_inc, 'Included', n_sp_inc, n_tr_inc),
-                               (ax_wf_exc, 'Excluded', n_sp_exc, n_tr_exc)]:
-        title = '{} WFs, {} spikes, {} trials'.format(st, n_sp, n_tr)
-        putil.format_plot(ax, wf_t_lim, glim, wf_t_lab, volt_lab, title)
+        title = '{} WFs, {} spikes, {} trials'.format(st, sum(spk_idx),
+                                                      sum(tr_idx))
+        # Select waveforms and colors.
+        rand_spk_idx = spk_idx[spk_order]
+        wfs = s_waveforms[rand_spk_idx, :]
+        cols = s_spk_cols[rand_spk_idx]
+
+        # Plot waveforms.
+        pwaveform.wfs(wfs, spk_t, cols=cols, lw=0.1, alpha=0.05,
+                      xlim=wf_t_lim, ylim=g_lim, title=title,
+                      xlab=wf_t_lab, ylab=volt_lab, ax=ax)
 
     # %% Waveform summary metrics.
 
     # Waveform amplitude across session time.
     m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
     title = 'WF amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
-    pplot.scatter(spike_times, wf_amp_all, spk_inc, c='m', bc='grey', s=ss,
+    pplot.scatter(spk_times, wf_amp_all, spk_inc, c='m', bc='grey', s=ss,
                   xlab=ses_t_lab, ylab=amp_lab, xlim=ses_t_lim, ylim=amp_lim,
                   edgecolors='', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
-    wf_dur_all = spike_dur.rescale(us)  # to use TPLCell's waveform duration
+    wf_dur_all = spk_dur.rescale(us)  # to use TPLCell's waveform duration
     wf_dur_inc = wf_dur_all[spk_inc]
     mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
     title = 'WF duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
-    pplot.scatter(spike_times, wf_dur_all, spk_inc, c='c', bc='grey', s=ss,
+    pplot.scatter(spk_times, wf_dur_all, spk_inc, c='c', bc='grey', s=ss,
                   xlab=ses_t_lab, ylab=dur_lab, xlim=ses_t_lim, ylim=dur_lim,
                   edgecolors='', alpha=sa, title=title, ax=ax_wf_dur)
 
     # Waveform duration against amplitude.
     title = 'WF duration - amplitude'
-    pplot.scatter(wf_dur_all[sp_order], wf_amp_all[sp_order], c=spk_cols[sp_order],
-                  s=ss, xlab=dur_lab, ylab=amp_lab, xlim=dur_lim, ylim=amp_lim,
-                  edgecolors='', alpha=sa, title=title, ax=ax_amp_dur)
+    pplot.scatter(wf_dur_all[spk_order], wf_amp_all[spk_order],
+                  c=spk_cols[spk_order], s=ss, xlab=dur_lab, ylab=amp_lab,
+                  xlim=dur_lim, ylim=amp_lim, edgecolors='', alpha=sa,
+                  title=title, ax=ax_amp_dur)
 
     # %% SNR, firing rate and spike timing.
 
@@ -479,6 +486,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     title = ('{}: "{}"'.format(u.Name, unit_type) +
              # '\n\nSNR: {:.2f}%'.format(snr_inc) +
              ',   ISI vr: {:.2f}%'.format(ISI_vr) +
-             ',   Tr Sp: {:.1f}%'.format(true_spikes))
+             ',   True Spk: {:.1f}%'.format(true_spikes))
     fname = ftempl.format(u.name_to_fname())
     putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
+    putil.inline_on()

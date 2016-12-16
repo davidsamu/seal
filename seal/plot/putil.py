@@ -112,7 +112,7 @@ def plot_signif_prds(rates1, rates2, time, pval, test, test_kws, ypos=0,
     lc = mc.LineCollection(line_segments, colors=ColConv.to_rgba(color),
                            linewidth=linewidth)
     lc.sign_prd = True  # add label to find these LC objects for post-adjusting
-    plt.gca().add_collection(lc)
+    ax.add_collection(lc)
 
 
 def move_signif_lines(ax=None, ypos=None):
