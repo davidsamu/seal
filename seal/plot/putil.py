@@ -76,7 +76,7 @@ def unit_info(u, fs='large', ax=None):
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
     SNR, mWFdur, mFR = [upars[meas] if meas in upars else None
-                        for meas in ('SNR', 'MeanSpikeDuration', 'MeanFiringRate')]
+                        for meas in ('SNR', 'mWFDur', 'mFR')]
     lbl_dict = OrdDict([('SNR', 'N/A' if SNR is None else '{:.2f}'.format(SNR)),
                         ('WfDur', 'N/A' if mWFdur is None else '{:.0f} $\mu$s'.format(mWFdur)),
                         ('FR', 'N/A' if mFR is None else '{:.1f} sp/s'.format(mFR))])

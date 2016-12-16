@@ -66,7 +66,7 @@ class Unit:
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
                  else p for p in TPLCell.PInfo]
         sess_date = dt.date(dt.strptime(date, '%m%d%y'))
-        recording = monkey+ '_' + util.date_to_str(sess_date)
+        recording = monkey + '_' + util.date_to_str(sess_date)
 
         # Name unit.
         self.Name = (' '.join([task, monkey, date, probe]) +
@@ -287,8 +287,8 @@ class Unit:
     def included_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
-        if 'IncludedTrials' in self.QualityMetrics:
-            included_trials = self.QualityMetrics['IncludedTrials']
+        if 'IncTrials' in self.QualityMetrics:
+            included_trials = self.QualityMetrics['IncTrials']
         else:
             included_trials = self.all_trials(filtered=False)
         return included_trials

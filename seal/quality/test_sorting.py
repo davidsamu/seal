@@ -265,21 +265,21 @@ def test_qm(u, rej_trials=True, ftempl=None):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['MeanWfAmplitude'] = np.mean(wf_amp)
-    u.QualityMetrics['MeanWfDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
-    u.QualityMetrics['MeanFiringRate'] = mean_rate
-    u.QualityMetrics['ISIviolation'] = ISI_vr
+    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp)
+    u.QualityMetrics['mWfDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
+    u.QualityMetrics['mFR'] = mean_rate
+    u.QualityMetrics['ISIvr'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['UnitType'] = unit_type
 
     # Trial removal info.
     tr_exc = np.invert(tr_inc)
     u.QualityMetrics['NTrialsTotal'] = len(tr_starts)
-    u.QualityMetrics['NTrialsIncluded'] = np.sum(tr_inc)
-    u.QualityMetrics['NTrialsExcluded'] = np.sum(tr_exc)
-    u.QualityMetrics['IncludedTrials'] = Trials(tr_inc, 'included trials')
-    u.QualityMetrics['ExcludedTrials'] = Trials(tr_exc, 'excluded trials')
-    u.QualityMetrics['IncludedSpikes'] = spk_inc
+    u.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
+    u.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
+    u.QualityMetrics['IncTrials'] = Trials(tr_inc, 'included trials')
+    u.QualityMetrics['ExcTrials'] = Trials(tr_exc, 'excluded trials')
+    u.QualityMetrics['IncSpikes'] = spk_inc
 
     # Plot quality metric results.
     if ftempl is not None:
@@ -301,13 +301,13 @@ def test_rejection(u):
     test_passed['SNR'] = qm['SNR'] > min_SNR
 
     # Extremely low unit activity (FR).
-    test_passed['FR'] = qm['MeanFiringRate'] > min_FR
+    test_passed['FR'] = qm['mFR'] > min_FR
 
     # Extremely high ISI violation ratio (ISIvr).
-    test_passed['ISI'] = qm['ISIviolation'] < max_ISIvr
+    test_passed['ISI'] = qm['ISIvr'] < max_ISIvr
 
     # Insufficient number of trials (ratio of included trials).
-    inc_trs_ratio = 100 * qm['NTrialsIncluded'] / qm['NTrialsTotal']
+    inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
 
     # Insufficient direction selectivity (DSI).
