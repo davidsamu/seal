@@ -121,6 +121,10 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
     # Iterate through list of rate arrays.
     for i, (name, rts, col) in enumerate(zip(names, rate_list, cols)):
 
+        # Skip empty array (no trials).
+        if not rts.shape[0]:
+            continue
+
         # Set line label.
         lbl = name
         if lgn_lbl is not None:
@@ -144,11 +148,10 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
     putil.set_legend(ax, add_lgn, loc=1, borderaxespad=0.5, handletextpad=0.1)
 
     # Add significance line to top of axes.
-    if pval is not None and len(rate_list) == 2:
-        ypos = ax.get_ylim()[1]
+    if (pval is not None) and (len(rate_list) == 2):
         r1, r2 = rate_list
         putil.plot_signif_prds(r1, r2, tvec, pval, test, test_kws,
-                               ypos=ypos, color='m', linewidth=4.0, ax=ax)
+                               color='m', linewidth=4.0, ax=ax)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

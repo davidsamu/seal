@@ -97,11 +97,14 @@ def unit_info(u, fs='large', ax=None):
 
 # %% Generic plot decorator functions.
 
-def plot_signif_prds(rates1, rates2, time, pval, test, test_kws, ypos=0,
+def plot_signif_prds(rates1, rates2, time, pval, test, test_kws, ypos=None,
                      color='c', linewidth=4, ax=None):
     """Add significant intervals to axes."""
 
     ax = axes(ax)
+
+    if ypos is None:
+        ypos = ax.get_ylim()[1]
 
     # Get intervals of significant differences between rates.
     sign_periods = util.sign_periods(rates1, rates2, time, pval,

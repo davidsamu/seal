@@ -582,7 +582,7 @@ def sem(v, axis=0):
 
     # Keeping dimension of Quantity arrays (as opposed to scipy.stats.sem).
     std = np.nanstd(v, axis)      # standard deviation
-    n = (~np.isnan(v)).sum(axis)  # number of (non-None) samples
+    n = (~np.isnan(v)).sum(axis)  # number of valid (non-None) samples
     sem = std / np.sqrt(n)
 
     return sem
@@ -641,6 +641,10 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     Run t-test between two related (paired) or independent (unpaired) samples.
     """
 
+    # Insufficient sample size.
+    if len(x) < 2 or len(y) < 2:
+        return np.nan, np.nan
+
     if paired:
         stat, pval = sp.stats.ttest_rel(x, y, nan_policy=nan_policy)
     else:
@@ -661,6 +665,10 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
           that n > 20.
     """
 
+    # Insufficient sample size.
+    if len(x) < 2 or len(y) < 2:
+        return np.nan, np.nan
+
     stat, pval = sp.stats.wilcoxon(x, y, zero_method=zero_method,
                                    correction=correction)
     return stat, pval
@@ -671,7 +679,7 @@ def sign_diff(ts1, ts2, p, test, test_kwargs):
     Return times of significant difference between two sets of time series.
     """
 
-    # To make sure we can use standard Numpy indexing.
+    # Make sure we can use standard Numpy indexing.
     ts1 = np.array(ts1)
     ts2 = np.array(ts2)
 
@@ -689,7 +697,6 @@ def sign_diff(ts1, ts2, p, test, test_kwargs):
     else:
         print('Unrecognised test name: ' + str(test) + ', running t-test.')
         test_func = t_test
-        return None, None
 
     # Calculate p-values and times of significant difference.
     pvals = np.array([test_func(ts1[:, i], ts2[:, i], **test_kwargs)[1]
@@ -703,7 +710,7 @@ def periods(t_on, time=None, min_len=None):
     """Return list of periods where t_on is True and with minimum length."""
 
     if time is None:
-        time = np.array(range(t_on))
+        time = np.array(range(len(t_on)))
 
     if len(t_on) != len(time):
         warnings.warn('Lengths of t_on ({}) and time differ ({})!'
@@ -720,7 +727,7 @@ def periods(t_on, time=None, min_len=None):
     # Zip (start, end) pairs of periods.
     pers = [(t1, t2) for t1, t2 in zip(time[istarts], time[iends])]
 
-    # Drop too short periods
+    # Drop too short periods.
     if min_len is not None:
         pers = [(t1, t2) for t1, t2 in pers if t2-t1 >= min_len]
 
