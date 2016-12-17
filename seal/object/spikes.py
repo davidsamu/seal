@@ -107,9 +107,14 @@ class Spikes:
         f_rate = self.spike_stats_in_prd(trs, t1, t2)[1]
 
         # Calculate statistics.
-        mean_rate = np.mean(f_rate)
-        std_rate = np.std(f_rate)
-        sem_rate = std_rate / np.sqrt(f_rate.size)
+        if f_rate.size:
+            mean_rate = np.mean(f_rate)
+            std_rate = np.std(f_rate)
+            sem_rate = std_rate / np.sqrt(f_rate.size)
+        else:  # in case there are no spike in interval
+            mean_rate = np.nan * 1/s
+            std_rate = np.nan * 1/s
+            sem_rate = np.nan * 1/s
 
         # Put them into a Series.
         spike_stats = pd.Series([mean_rate, std_rate, sem_rate],

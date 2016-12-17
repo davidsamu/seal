@@ -13,11 +13,10 @@ import numpy as np
 import pandas as pd
 from quantities import s, ms, us
 
-from elephant import statistics
+import elephant
 
 from seal.util import util
 from seal.plot import putil, pplot, pwaveform
-from seal.object.trials import Trials
 from seal.object.periods import Periods
 
 
@@ -28,12 +27,10 @@ REC_GAIN = 4100                # gain of recording
 CENSORED_PRD_LEN = 0.675 * ms  # length of censored period
 WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
-
 # Constants related to quality metrics calculation.
-ISI_TH = 1.0 * ms      # ISI violation threshold
-MAX_DRIFT_RATIO = 2    # maximum tolerable drift ratio
-MIN_BIN_LEN = 120 * s  # minimum window length for firing binned statistics
-
+ISI_TH = 1.0 * ms          # ISI violation threshold
+MAX_DRIFT_RATIO = 2        # maximum tolerable drift ratio
+MIN_BIN_LEN = 120 * s      # minimum window length for firing binned statistics
 
 # Constants related to unit exclusion.
 min_RF_coverage = 0.5  # min. receptive field coverage
@@ -122,7 +119,7 @@ def isi_stats(spk_times):
     if spk_times.size == 1:
         return 100, 0
 
-    isi = statistics.isi(spk_times).rescale(ms)
+    isi = elephant.statistics.isi(spk_times).rescale(ms)
 
     # Percent of spikes violating ISI treshold.
     n_ISI_vr = sum(isi < ISI_TH)
@@ -154,65 +151,54 @@ def classify_unit(snr, true_spikes):
     return unit_type
 
 
-def test_drift(t, v, tbins, tr_starts, spk_times, rej_trials):
+def test_drift(t, v, tbins, tr_starts, spk_times):
     """Test drift (gradual, or more instantaneous jump or drop) in variable."""
 
-    # Return full task length if not rejecting trials.
-    if not rej_trials:
-        t1 = spk_times[0]
-        t2 = spk_times[-1]
-        first_tr_inc = 0
-        last_tr_inc = len(tr_starts)
-        prd1 = 0
-        prd2 = len(tbins)
+    # Number of trials from beginning of session
+    # until start and end of each period.
+    tr_starts = util.list_to_quantity(tr_starts)
+    n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
+                      for t1, t2 in tbins]
+    n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
+                    for t1, t2 in tbins]
 
-    else:
+    # Find period within acceptible drift range for each bin.
+    cols = ['prd_start_i', 'prd_end_i', 'n_prd',
+            't_start', 't_end', 't_len',
+            'tr_start_i', 'tr_end_i', 'n_tr']
+    prd_res = pd.DataFrame(index=range(len(v)), columns=cols)
+    for i, v1 in enumerate(v):
+        vmin, vmax = v1, v1
+        for j, v2 in enumerate(v[i:]):
+            # Update extreme values.
+            vmin = min(vmin, v2)
+            vmax = max(vmax, v2)
+            # If difference becomes unacceptable, terminate period.
+            if vmax > MAX_DRIFT_RATIO*v2 or v2 > MAX_DRIFT_RATIO*vmin:
+                j -= 1
+                break
+        end_i = i + j
+        prd_res.prd_start_i[i] = i
+        prd_res.prd_end_i[i] = end_i
+        prd_res.n_prd[i] = j + 1
+        prd_res.t_start[i] = tbins[i][0]
+        prd_res.t_end[i] = tbins[end_i][1]
+        prd_res.t_len[i] = tbins[end_i][1] - tbins[i][0]
+        prd_res.tr_start_i[i] = n_tr_prd_start[i]
+        prd_res.tr_end_i[i] = n_tr_prd_end[end_i]
+        prd_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
 
-        # Number of trials from beginning of session
-        # until start and end of each period.
-        tr_starts = util.list_to_quantity(tr_starts)
-        n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
-                          for t1, t2 in tbins]
-        n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
-                        for t1, t2 in tbins]
-
-        # Find period within acceptible drift range for each bin.
-        cols = ['prd_start_i', 'prd_end_i', 'n_prd',
-                't_start', 't_end', 't_len',
-                'tr_start_i', 'tr_end_i', 'n_tr']
-        period_res = pd.DataFrame(index=range(len(v)), columns=cols)
-        for i, v1 in enumerate(v):
-            vmin, vmax = v1, v1
-            for j, v2 in enumerate(v[i:]):
-                # Update extreme values.
-                vmin = min(vmin, v2)
-                vmax = max(vmax, v2)
-                # If difference becomes unacceptable, terminate period.
-                if vmax > MAX_DRIFT_RATIO*v2 or v2 > MAX_DRIFT_RATIO*vmin:
-                    j -= 1
-                    break
-            end_i = i + j
-            period_res.prd_start_i[i] = i
-            period_res.prd_end_i[i] = end_i
-            period_res.n_prd[i] = j + 1
-            period_res.t_start[i] = tbins[i][0]
-            period_res.t_end[i] = tbins[end_i][1]
-            period_res.t_len[i] = tbins[end_i][1] - tbins[i][0]
-            period_res.tr_start_i[i] = n_tr_prd_start[i]
-            period_res.tr_end_i[i] = n_tr_prd_end[end_i]
-            period_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
-
-        # Find bin with longest period.
-        idx = period_res.n_tr.argmax()
-        # Indices of longest period.
-        prd1 = period_res.prd_start_i[idx]
-        prd2 = period_res.prd_end_i[idx]
-        # Times of longest period.
-        t1 = period_res.t_start[idx]
-        t2 = period_res.t_end[idx]
-        # Trial indices within longest period.
-        first_tr_inc = period_res.tr_start_i[idx]
-        last_tr_inc = period_res.tr_end_i[idx] - 1
+    # Find bin with longest period.
+    idx = prd_res.n_tr.argmax()
+    # Indices of longest period.
+    prd1 = prd_res.prd_start_i[idx]
+    prd2 = prd_res.prd_end_i[idx]
+    # Times of longest period.
+    t1 = prd_res.t_start[idx]
+    t2 = prd_res.t_end[idx]
+    # Trial indices within longest period.
+    first_tr_inc = prd_res.tr_start_i[idx]
+    last_tr_inc = prd_res.tr_end_i[idx] - 1
 
     # Return included trials and spikes.
     prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
@@ -225,11 +211,10 @@ def test_drift(t, v, tbins, tr_starts, spk_times, rej_trials):
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
-def test_qm(u, rej_trials=True, ftempl=None):
+def test_qm(u, ftempl=None):
     """
-    Test ISI, SNR and stationarity of spikes and spike waveforms.
-    Optionally find and reject trials with unacceptable
-    drift (if do_trial_rejection is True).
+    Test ISI, SNR and stationarity of FR and spike waveforms.
+    Find trials with unacceptable drift.
 
     Non-stationarities can happen due to e.g.:
     - electrode drift, or
@@ -249,8 +234,7 @@ def test_qm(u, rej_trials=True, ftempl=None):
 
     # Test drifts and reject trials if necessary.
     tr_starts = u.TrialParams.TrialStart
-    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts,
-                          spk_times, rej_trials)
+    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
     t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
 
     # Waveform statistics of included spikes only.
@@ -273,13 +257,7 @@ def test_qm(u, rej_trials=True, ftempl=None):
     u.QualityMetrics['UnitType'] = unit_type
 
     # Trial removal info.
-    tr_exc = np.invert(tr_inc)
-    u.QualityMetrics['NTrialsTotal'] = len(tr_starts)
-    u.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
-    u.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
-    u.QualityMetrics['IncTrials'] = Trials(tr_inc, 'included trials')
-    u.QualityMetrics['ExcTrials'] = Trials(tr_exc, 'excluded trials')
-    u.QualityMetrics['IncSpikes'] = spk_inc
+    u.update_included_trials(tr_inc)
 
     # Plot quality metric results.
     if ftempl is not None:
@@ -352,8 +330,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     ax_wf_amp, ax_wf_dur, ax_amp_dur = sbp[0, 1], sbp[1, 1], sbp[2, 1]
     ax_snr, ax_rate, ax_filler2 = sbp[0, 2], sbp[1, 2], sbp[2, 2]
 
-    ax_filler1.axis('off')
-    ax_filler2.axis('off')
+    [ax.axis('off') for ax in (ax_filler1, ax_filler2)]
 
     # Trial markers.
     trial_starts = u.TrialParams.TrialStart
@@ -438,7 +415,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                   xlim=dur_lim, ylim=amp_lim, edgecolors='', alpha=sa,
                   title=title, ax=ax_amp_dur)
 
-    # %% SNR, firing rate and spike timing.
+    # %% SNR and firing rate.
 
     # Color segments depending on whether they are included / excluded.
     def plot_periods(v, color, ax):
@@ -456,7 +433,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # SNR over session time.
     title = 'SNR: {:.2f}'.format(snr_inc)
-    ylim = [0, 1.2*np.max(snr_t)]
+    ylim = [0, 1.2*np.max(snr_t)]  # strech plot vertically for labels to fit
     plot_periods(snr_t, 'y', ax_snr)
     pplot.lines([], [], c='y', xlim=ses_t_lim, ylim=ylim, title=title,
                 xlab=ses_t_lab, ylab='SNR', ax=ax_snr)
@@ -473,7 +450,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
         # Trial markers.
         putil.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=0.35,
-                          lbl_height=0.9, ax=ax)
+                          lbl_height=0.94, ax=ax)
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials

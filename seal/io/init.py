@@ -28,7 +28,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel):
         print(recording)
 
         # Get all available task files.
-        f_rec_tasks = os.listdir(tpl_dir + recording)
+        f_rec_tasks = sorted(os.listdir(tpl_dir + recording))
 
         # Extract task names and indices from file names.
         task_idxs = [rtdir.split('_')[2] for rtdir in f_rec_tasks]
@@ -46,7 +46,8 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel):
         for i in task_order:
 
             # Report progress.
-            print('  ', itasks[i], tasks[i])
+            task = tasks[i]
+            print('  ', itasks[i], task)
 
             # Load in Matlab structure (SimpleTPLCell).
             fname_matlab = tpl_dir + recording + '/' + f_rec_tasks[i]
@@ -54,36 +55,31 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel):
 
             # Create list of Units from TPLCell structures.
             params = [(TPLCell, constants.t_start, constants.t_stop,
-                       kernels, constants.step, constants.tr_params)
+                       kernels, constants.step, constants.tr_params, task)
                       for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.
-            UA.add_task(tasks[i], tUnits)
+            UA.add_task(task, tUnits)
 
         # Save Units.
         rec_dir_no_qc = seal_dir + recording + '/before_qc/'
         fname_seal = rec_dir_no_qc + recording + '.data'
         util.write_objects({'UnitArr': UA}, fname_seal)
 
-        # Write out unit list and save parameter plot.
-        UA.save_params_table(rec_dir_no_qc + 'unit_list.xlsx')
-        UA.plot_params(rec_dir_no_qc + 'unit_params.png')
 
-
-def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
-                      use_users=True, plot_QM=True, plot_SR=True, plot_DS=True,
-                      plot_sum=True, plot_stab=True):
+def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
+                      plot_DS=True, plot_sum=True, plot_stab=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),
       - stimulus selectivity (DS) test,
-      - recording stability test.
+      - recording stability test,
+      - exporting automatic unit and trial selection results.
     """
 
-
     # Init data structures.
-    UA = unitarray.UnitArray(ua_name)
+    combUA = unitarray.UnitArray(ua_name)
 
     print('\nStarting quality control...\n')
 
@@ -99,15 +95,15 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
 
         # Read in Units.
         f_data = bfr_qc_dir + recording + '.data'
-        recUA = util.read_objects(f_data, 'UnitArr')
+        UA = util.read_objects(f_data, 'UnitArr')
 
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
         print('  Testing unit quality...')
         ftempl = qc_dir + 'quality_metrics/{}.png' if plot_QM else None
-        for u in recUA.iter_thru():
+        for u in UA.iter_thru():
             putil.inline_off()
-            test_sorting.test_qm(u, rej_trials=rej_trials, ftempl=ftempl)
+            test_sorting.test_qm(u, ftempl=ftempl)
         putil.inline_on()
 
         # Test stimulus response to all directions.
@@ -115,14 +111,14 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
             putil.inline_off()
-            test_units.direction_response_test(recUA, ftempl=ftempl,
+            test_units.direction_response_test(UA, ftempl=ftempl,
                                                match_scale=False)
             putil.inline_on()
 
-        # Test direction selectivity by tuning.
+        # Test direction selectivity.
         print('  Testing direction selectivity...')
         ftempl = qc_dir + 'direction_tuning/{}.png'
-        for u in recUA.iter_thru():
+        for u in UA.iter_thru():
             putil.inline_off()
             u.test_DS(do_plot=plot_DS, ftempl=ftempl)
         putil.inline_on()
@@ -132,7 +128,7 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
             print('  Plotting summary figures (rates and DS)...')
             ftempl = qc_dir + 'rate_DS_summary/{}.png'
             putil.inline_off()
-            test_units.rate_DS_summary(recUA, ftempl=ftempl)
+            test_units.rate_DS_summary(UA, ftempl=ftempl)
             putil.inline_on()
 
         # Test stability of recording session across tasks.
@@ -140,43 +136,56 @@ def run_preprocessing(data_dir, ua_name, rej_trials=True, exc_units=False,
             print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
             putil.inline_off()
-            test_units.check_recording_stability(recUA, fname)
+            test_units.check_recording_stability(UA, fname)
             putil.inline_on()
 
-        # Exclude units with low quality or no direction selectivity.
-        if exc_units:
-            print('  Excluding units...')
-            exclude = []
-            for u in recUA.iter_thru():
-                to_excl = test_sorting.test_rejection(u)
-                u.set_excluded(to_excl)
-                exclude.append(to_excl)
-
-            # Report unit exclusion results.
-            n_tot = len(exclude)
-            n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
-            perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
-            rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
-            print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
-            print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
-
-        UA.add_recording(recUA)
+        # Add to combined UA
+        combUA.add_recording(UA)
 
     # Add index to unit names.
-    UA.index_units()
+    combUA.index_units()
 
     # Save selected Units with quality metrics and direction selectivity.
     print('\nExporting combined UnitArray...')
     ts = util.timestamp()
-    n_units = UA.n_units()
+    n_units = combUA.n_units()
     fname = util.format_to_fname(ua_name)
     data_dir = 'data/combined_recordings/{}_n{}_{}/'.format(fname, n_units, ts)
-    util.write_objects({'UnitArr': UA}, data_dir + fname + '.data')
+    util.write_objects({'UnitArr': combUA}, data_dir + fname + '.data')
 
-    # Write out unit list and save parameter plot.
-#    print('\nExporting combined unit list and parameter plot...')
-#    UA.save_params_table(data_dir + 'unit_list.xlsx')
-#    UA.plot_params(data_dir + 'unit_params.png')
+    # Export unit and trial selection results.
+    print('  Exporting automatic unit and trial selection results...')
+    fname = data_dir + 'unit_trial_selection.xlsx'
+    combUA.export_unit_trial_selection_table(fname)
 
     # Re-enable inline plotting
     putil.inline_on()
+
+
+def exclude_units_and_trials(data_dir, fname=None):
+    """Exclude low quality units and trials."""
+
+    if fname is None:
+        fname
+
+    # Exclude units with low quality or no direction selectivity.
+    print('  Excluding units...')
+    exclude = []
+    for u in UA.iter_thru():
+        to_excl = test_sorting.test_rejection(u)
+        u.set_excluded(to_excl)
+        exclude.append(to_excl)
+
+    # Report unit exclusion results.
+    n_tot = len(exclude)
+    n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
+    perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
+    rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
+    print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
+    print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
+
+     # Write out unit list and save parameter plot.
+#    print('\nExporting combined unit list and saving parameter plot...')
+#    UA.export_params_table(data_dir + 'unit_list.xlsx')
+#    fname = data_dir + 'unit_params.png'
+#    putil.group_params(UA.unit_params(), UA.Name, fname)

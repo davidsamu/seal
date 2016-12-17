@@ -5,7 +5,8 @@ TODO list of Seal project
 
 - go through master scripts, move functionality into Seal, collect TODOs
 
-- calculate waveform duration in a way that deals with truncated WFs!
+- calculate waveform duration in a way that deals with truncated WFs
+- exclude WFs from excluded trials from mean WF calculation
 
 
 trials
@@ -23,7 +24,6 @@ unit
 test_sorting
 ------------
   - add RF coverage to unit selection(?)
-  - add autocorrelation function to QMs.
 
 
 test_units

@@ -14,7 +14,6 @@ from collections import OrderedDict as OrdDict
 
 from seal.object import unit
 from seal.util import util
-from seal.plot import putil
 
 
 class UnitArray:
@@ -50,7 +49,7 @@ class UnitArray:
 
     # %% Iterator methods.
 
-    # Usage: e.g. [u for u in UnitArray.iter_throu(kwargs)]
+    # Usage: e.g. [u for u in UnitArray.iter_thru(kwargs)]
 
     def iter_thru(self, tasks=None, uids=None, miss=False, excl=False):
         """Custom iterator init over selected tasks and units."""
@@ -94,7 +93,21 @@ class UnitArray:
 
         return u
 
-    # %% Other methods to query units.
+    # %% Other methods to query and yield units.
+
+    def get_unit(self, uid, task):
+        """Return unit of given task and uid."""
+
+        u = self.Units.loc[uid, task]
+        return u
+
+    def get_unit_by_name(self, uname):
+        """Return unit of specific name."""
+
+        task, subj, date, elec, chun, isort = uname.split()
+        uid = (subj+'_'+date, int(chun[2:4]), int(chun[-1]))
+        u = self.get_unit(uid, task)
+        return u
 
     def unit_list(self, tasks=None, uids=None, miss=False, excl=False):
         """Return units in a list."""
@@ -131,7 +144,7 @@ class UnitArray:
         """Return original recording task order."""
 
         tasks = pd.Series(self.tasks())
-        task_idxs = [[u.SessParams.loc['task_idx'] - 1
+        task_idxs = [[u.SessParams.loc['task #'] - 1
                       for u in self.iter_thru([task])][0] for task in tasks]
 
         rec_task_ord = tasks[task_idxs]
@@ -208,6 +221,9 @@ class UnitArray:
 
         self.Units = pd.concat([self.Units, UA.Units], axis=0, join='outer')
 
+        # Replace missing (nan) values with empty Unit objects.
+        self.Units = self.Units.fillna(unit.Unit())
+
     # %% Methods to manipulate units.
 
     def index_units(self):
@@ -230,15 +246,30 @@ class UnitArray:
         unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
         return unit_params
 
-    def save_params_table(self, fname):
-        """Save unit parameters as Excel table."""
+    def export_params_table(self, fname):
+        """Export unit parameters as Excel table."""
 
-        writer = pd.ExcelWriter(fname)
         unit_params = self.unit_params()
+        writer = pd.ExcelWriter(fname)
         util.write_table(unit_params, writer)
 
-    def plot_params(self, ffig):
-        """Plot group level histogram of unit parameters."""
+    def export_unit_trial_selection_table(self, fname):
+        """Export unit and trial selection as Excel table."""
 
-        unit_params = self.unit_params()
-        putil.group_params(unit_params, self.Name, ffig=ffig)
+        # Gather selection dataframe.
+        columns = ['task', 'session', 'channel', 'unit index', 'unit included',
+                   'first included trial', 'last included trial']
+        SelectDF = pd.DataFrame(columns=columns)
+
+        for i, u in enumerate(self.iter_thru(excl=True)):
+            rec, ch, un, task = u.get_utid()
+            inc = int(not u.is_excluded)
+            inc_trs = u.QualityMetrics['IncTrials'].trial_indices()
+            ftr, ltr = -1, -1
+            if len(inc_trs):
+                ftr, ltr = inc_trs.min()+1, inc_trs.max()+1
+            SelectDF.loc[i] = [task, rec, ch, un, inc, ftr, ltr]
+
+        # Write out selection dataframe.
+        writer = pd.ExcelWriter(fname)
+        util.write_table(SelectDF, writer)

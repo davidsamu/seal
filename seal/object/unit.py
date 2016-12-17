@@ -32,8 +32,8 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, t_start=None, t_stop=None, kernels=None,
-                 step=10*ms, tr_params=None):
-        """Create Unit instance, optionally from TPLCell data structure."""
+                 step=10*ms, tr_params=None, taskname=None):
+        """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
@@ -59,34 +59,34 @@ class Unit:
         # %% Session parameters.
 
         # Prepare session params.
-        monkey, date, probe, exp, sortno = util.params_from_fname(TPLCell.File)
+        subj, date, probe, exp, isort = util.params_from_fname(TPLCell.File)
         task, task_idx = exp[:-1], int(exp[-1])
+        task = task if taskname is None else taskname  # use provided name
         [chan, un] = TPLCell.ChanUnit
         sampl_per = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
                  else p for p in TPLCell.PInfo]
         sess_date = dt.date(dt.strptime(date, '%m%d%y'))
-        recording = monkey + '_' + util.date_to_str(sess_date)
-
-        # Name unit.
-        self.Name = (' '.join([task, monkey, date, probe]) +
-                     ' Ch{:02}/{} ({})'.format(chan, un, sortno))
+        recording = subj + '_' + util.date_to_str(sess_date)
 
         # Assign session params.
         sp_list = [('task', task),
-                   ('task_idx', task_idx),
-                   ('monkey', monkey),
+                   ('task #', task_idx),
+                   ('subject', subj),
                    ('date', sess_date),
                    ('recording', recording),
                    ('probe', probe),
                    ('channel #', chan),
                    ('unit #', un),
-                   ('sort #', sortno),
+                   ('sort #', isort),
                    ('filepath', TPLCell.Filename),
                    ('filename', TPLCell.File),
                    ('paraminfo', pinfo),
                    ('sampl_prd', sampl_per)]
         self.SessParams = util.series_from_tuple_list(sp_list)
+
+        # Name unit.
+        self.set_name()
 
         # %% Waveform data.
 
@@ -180,6 +180,18 @@ class Unit:
 
         self.is_excluded = to_excl
 
+    def set_name(self, name=None):
+        """Set/update unit's name."""
+
+        self.Name = name
+        if name is None:  # set name to session, channel and unit parameters
+            params = self.SessParams[['task', 'recording', 'probe',
+                                      'channel #', 'unit #', 'sort #']]
+            task, rec, probe, chan, un, isort = params
+            subj, date = rec.split('_')
+            self.Name = (' '.join([task, subj, date, probe]) +
+                         ' Ch{:02}/{} ({})'.format(chan, un, isort))
+
     def name_to_fname(self):
         """Return filename compatible name string."""
 
@@ -242,6 +254,23 @@ class Unit:
                                                       rem_dims))
 
         return upars
+
+    def update_included_trials(self, tr_inc):
+        """Update fields related to included/excluded trials and spikes."""
+
+        # Update included trials.
+        tr_exc = np.invert(tr_inc)
+        self.QualityMetrics['NTrialsTotal'] = len(self.TrialParams.index)
+        self.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
+        self.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
+        self.QualityMetrics['IncTrials'] = Trials(tr_inc, 'included trials')
+        self.QualityMetrics['ExcTrials'] = Trials(tr_exc, 'excluded trials')
+
+        # Update included spikes.
+        t1 = self.TrialParams.TrialStart[tr_inc].min()
+        t2 = self.TrialParams.TrialStop[tr_inc].max()
+        spk_inc = util.indices_in_window(self.Waveforms['tSpk'], t1, t2)
+        self.QualityMetrics['IncSpikes'] = spk_inc
 
     def get_trial_params(self, trs=None, t1=None, t2=None):
         """Return default values of some common parameters."""
@@ -505,9 +534,9 @@ class Unit:
         trs = self.trials_by_param_values(pname)
 
         # Calculate spike count and stats for each value of parameter.
-        p_values = [float(tr.value) for tr in trs]
+        par_vals = [float(tr.value) for tr in trs]
         sp_stats = pd.DataFrame([self.Spikes.spike_count_stats(tr, t1, t2)
-                                 for tr in trs], index=p_values)
+                                 for tr in trs], index=par_vals)
 
         return sp_stats
 
