@@ -265,7 +265,7 @@ class UnitArray:
             rec, ch, un, task = u.get_utid()
             inc = int(not u.is_excluded)
             inc_trs = u.QualityMetrics['IncTrials'].trial_indices()
-            ftr, ltr = -1, -1
+            ftr, ltr = 0, 0
             if len(inc_trs):
                 ftr, ltr = inc_trs.min()+1, inc_trs.max()+1
             SelectDF.loc[i] = [task, rec, ch, un, inc, ftr, ltr]

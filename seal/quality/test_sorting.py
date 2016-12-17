@@ -440,7 +440,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Firing rate over session time.
     title = 'Firing rate: {:.1f} spike/s'.format(mean_rate)
-    ylim = [0, 1.2*np.max(rate_t.magnitude)]
+    ylim = [0, 1.25*np.max(rate_t.magnitude)]
     plot_periods(rate_t, 'b', ax_rate)
     pplot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim, title=title,
                 xlab=ses_t_lab, ylab=putil.FR_lbl, ax=ax_rate)
@@ -450,7 +450,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
         # Trial markers.
         putil.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=0.35,
-                          lbl_height=0.94, ax=ax)
+                          lbl_height=0.96, ax=ax)
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials

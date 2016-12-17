@@ -9,8 +9,10 @@ Function related to importing recorded datasets.
 """
 
 import os
+import warnings
 
 import numpy as np
+import pandas as pd
 
 from seal.util import util
 from seal.plot import putil
@@ -131,6 +133,9 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
             test_units.rate_DS_summary(UA, ftempl=ftempl)
             putil.inline_on()
 
+        # Exclude units with low quality or no direction selectivity.
+        exclude_units(UA)
+
         # Test stability of recording session across tasks.
         if plot_stab:
             print('  Plotting recording stability...')
@@ -147,11 +152,8 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
 
     # Save selected Units with quality metrics and direction selectivity.
     print('\nExporting combined UnitArray...')
-    ts = util.timestamp()
-    n_units = combUA.n_units()
-    fname = util.format_to_fname(ua_name)
-    data_dir = 'data/combined_recordings/{}_n{}_{}/'.format(fname, n_units, ts)
-    util.write_objects({'UnitArr': combUA}, data_dir + fname + '.data')
+    fname = 'data/all_recordings/all_recordings.data'
+    util.write_objects({'UnitArr': combUA}, fname)
 
     # Export unit and trial selection results.
     print('  Exporting automatic unit and trial selection results...')
@@ -162,13 +164,9 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
     putil.inline_on()
 
 
-def exclude_units_and_trials(data_dir, fname=None):
-    """Exclude low quality units and trials."""
+def exclude_units(UA):
+    """Exclude units with low quality or no direction selectivity."""
 
-    if fname is None:
-        fname
-
-    # Exclude units with low quality or no direction selectivity.
     print('  Excluding units...')
     exclude = []
     for u in UA.iter_thru():
@@ -184,7 +182,54 @@ def exclude_units_and_trials(data_dir, fname=None):
     print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
     print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
 
-     # Write out unit list and save parameter plot.
+
+def select_unit_and_trials(f_data, f_sel_table):
+    """Exclude low quality units and trials."""
+
+    # Import combined UnitArray and unit&trial selection file.
+    UA = util.read_objects(f_data, 'UnitArr')
+    UnTrSel = pd.read_excel(f_sel_table)
+
+    # Update units' selection parameters using table.
+    for idx, row in UnTrSel.iterrows():
+
+        # Get unit.
+        uid = tuple(row[['session', 'channel', 'unit index']])
+        u = UA.get_unit(uid, row['task'])
+
+        # Update unit exclusion.
+        exc_unit = not row['unit included']
+        u.set_excluded(exc_unit)
+
+        # Get index of first and last trials to include.
+        first_tr = row['first included trial'] - 1
+        last_tr = row['last included trial'] - 1
+
+        # Set values outside of range to limits.
+        ntrs = len(u.TrialParams.index)
+        first_tr = max(first_tr, 0)
+        last_tr = min(last_tr, ntrs-1)
+        if last_tr == -1:  # -1: include all the way to the end
+            last_tr = ntrs-1
+
+        # Check some simple data inconsistency.
+        if not u.is_excluded and first_tr >= last_tr:
+            warnings.warn(u.Name + ': index of first included trial is' +
+                          ' larger or equal to last! Excluding unit.')
+            u.set_excluded(True)
+            continue
+
+        # Update included trials.
+        tr_idx = np.arange(first_tr, last_tr+1)
+        tr_inc = np.zeros(ntrs, dtype=bool)
+        tr_inc[tr_idx] = True
+        u.update_included_trials(tr_inc)
+
+    # Export updated UnitArray.
+    util.write_objects({'UnitArr': UA}, f_data)
+
+#     # Write out unit list and save parameter plot.
+#    This should be also added to above! (this step is optional)
 #    print('\nExporting combined unit list and saving parameter plot...')
 #    UA.export_params_table(data_dir + 'unit_list.xlsx')
 #    fname = data_dir + 'unit_params.png'

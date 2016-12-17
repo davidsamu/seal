@@ -3,7 +3,7 @@
 """
 Created on Fri Dec  9 16:55:34 2016
 
-@author: upf
+@author: David Samu
 """
 
 # Template script to
@@ -12,18 +12,27 @@ Created on Fri Dec  9 16:55:34 2016
 # 3) test unit quality, recording drifts, stimulus response properties, and
 # 4) exclude trials and units automatically and/or manually.
 
-# To get it work, you need to:
+# To get the code run, you need to:
 #   - install all necessary Python packages
-#       - see 'install_requires' field in https://github.com/davidsamu/seal/blob/master/setup.py
-#   - pull from GitHub, and import, the latest version of Seal (see "Import Seal" below),
+#       - see 'install_requires' field in
+#         https://github.com/davidsamu/seal/blob/master/setup.py
+#   - pull from GitHub, and import, the latest version of Seal
+#     (see section "Import Seal" below),
 #   - set your paths:
 #       - project folder (proj_dir)
 #       - subfolder with .mat TPLCell objects (tpl_dir)
 #       - subfolder into which to output Seal Units (seal_dir)
 
-# Preprocessing analysis is done in two steps:
-# 1) init.convert_TPL_to_Seal: this simply converts the .mat objects into Seal objects, without any analysis
-# 2) init.run_preprocessing: using the converted Seal objects, runs preprocessing analyses, plots results and excludes trials/units
+# Preprocessing analysis is done in three steps:
+# 1) init.convert_TPL_to_Seal: this simply converts the .mat objects
+#    into Seal objects, without any analysis
+# 2) init.run_preprocessing: using the converted Seal objects,
+#    runs preprocessing analyses, plots results and exports automatic
+#    trial and unit selection results
+# 3) OPTIONAL: init.select_unit_and_trials: update selected units and trials
+#    using Excel table modified manually by user (based on figures generated
+#    in step 2)
+
 
 
 # %% Init
@@ -59,6 +68,9 @@ kernels = constants.R100_kernel
 
 init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels)
 
+# Output:
+# - Seal UnitArray data per recording inside 'seal_dir'
+
 
 # %% Run quality test on Units.
 
@@ -73,22 +85,33 @@ ua_name = os.path.split(proj_dir)[1]
 init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_DS,
                        plot_sum, plot_stab)
 
+# Output:
+# - quality control figures for each recording in
+#   [seal_dir]/[recording]/qc_res
+# - aggregate UnitArray data combined across all recordings in
+#   combined_recordings/[project folder name]/[project folder name].data
 
-# %% Exclude low quality units and trials.
+
+# %% OPTIONAL: Update automatically excluded units and trials.
 
 # Before running this section:
 # 1. Check results from previous section (QM and DS plots of each unit)
 # 2. Based on these results, edit unit and trial selection table of combined
 #    UnitArray if necessary (table is saved into 'combined_recordings' folder).
 #    - unit included: 1: include unit, 0: excluded unit
-#    - first included trial: anything less or equal to 1 includes all trials from beginning
-#    - last included trial: anything larger or equal to # trials (or -1, as a shorthand) includes all trials till end
+#    - first included trial [inclusive]: anything less or equal to 1 includes
+#      all trials from beginning of task
+#    - last included trial [inclusive]: anything larger or equal to # trials
+#      (or -1, as a shorthand) includes all trials till end of task
 # 3. After editing, save table into the same folder under a different name,
 #    and set 'f_sel_table' to that file.
 
-# Folder with combined recordings and unit & trial selection table
-# (both created in previous step).
-data_dir = 'data/combined_recordings/'
-f_sel_table = 'unit_trial_selection_modified.xslx'
+data_dir = 'data/all_recordings/'  # folder with combined recordings
+f_data = data_dir + 'all_recordings.data'    # combined recordings data file
+f_sel_table = data_dir + 'unit_trial_selection_modified.xslx'  # unit&trial selection table
 
-init.exclude_unit_and_trials(data_dir, f_sel_table)
+init.select_unit_and_trials(f_data, f_sel_table)
+
+# Output:
+# - UnitArray data of all recordings, updated with unit&trial selection
+#   in combined_recordings/[project folder name]/[project folder name].data
