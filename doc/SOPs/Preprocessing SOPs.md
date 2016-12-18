@@ -2,11 +2,12 @@
 
 ## Steps of generating data files, quality metrics and basic figures for recordings.
 
-1. Concatenate recording sessions using PlexUtil.
-2. Do spike sorting in OfflineSorter.
-3. Split sorted recording using PlexUtil.
-4. Generate TPLCell data structure.
-5. Generate quality metrics and basic unit activity figures.
+1. Concatenate recording sessions (in PlexUtil).
+2. Do spike sorting (in Plexon OfflineSorter).
+3. Split sorted recording (in PlexUtil).
+4. Generate TPLCell data structure (in Matlab).
+5. Generate quality metrics and basic unit activity figures (in Python).
+6. Select units and trials (in Excel and Python).
 
 
 ## 1. Concatenate recording sessions using PlexUtil.
@@ -47,3 +48,7 @@
 - Set paths to folders with recordings, as explained in the script's comments.
 - Depending on the plotting settings you choose ('plot_X') and the number of units and spikes to process, this may run for up to 15-20 mins per recording, and generate various quality metric and stimulus response figures.
 
+## 6. Select units and trials.
+
+- Using the figures generated in step 5, edit and save the unit/trial selection Excel file (also generated in step 5), as explained in [preprocessing.py](https://github.com/davidsamu/seal/blob/master/examples/preprocessing.py).
+- To apply and save unit/trial selection, run corresponding section in [preprocessing.py](https://github.com/davidsamu/seal/blob/master/examples/preprocessing.py).
