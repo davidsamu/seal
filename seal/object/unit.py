@@ -166,6 +166,12 @@ class Unit:
         S1on = self.Events['S1 onset']
         self.Events = self.Events.subtract(S1on, axis=0)
 
+        # Add trial period lengths to trial params.
+        for i, prd in enumerate(['S1Len', 'DelayLen', 'S2Len']):
+            ev1, ev2 = event_cols[i], event_cols[i+1]
+            self.TrialParams[prd] = self.Events[ev2] - self.Events[ev1]
+
+
         # %% Spikes and rates.
 
         # Trials spikes, aligned to S1 onset.
