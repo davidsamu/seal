@@ -249,8 +249,8 @@ def test_qm(u, ftempl=None):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp)
-    u.QualityMetrics['mWfDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
+    u.QualityMetrics['mWFAmpl'] = np.mean(wf_amp)
+    u.QualityMetrics['mWFDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
