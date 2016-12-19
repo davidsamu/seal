@@ -110,25 +110,33 @@ class Unit:
 
         # %% Trial parameters.
 
+        # Rename and add dimension to trial parameters.
         trp_df = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
-
         if tr_params is not None:
             for name, (nnew, dim) in tr_params.iterrows():
                 if name not in trp_df.columns:
-                    print('Warning: Parameter {0} not found!'.format(name))
+                    warnings.warn('Parameter "{0}" not found!'.format(name))
                     continue
                 # Rename column.
                 trp_df.rename(columns={name: nnew}, inplace=True)
                 if dim is not None:  # add dimension
                     trp_df[nnew] = util.add_dim_to_series(trp_df[nnew], dim)
-
         self.TrialParams = trp_df
+        pcols = self.TrialParams.columns
+
+        # Recode correct/incorrect answer column.
+        if 'AnswCorr' in pcols:
+            corr_ans = self.TrialParams['AnswCorr']
+            if len(corr_ans.unique()) > 2:
+                warnings.warn(('More than 2 unique values in AnswCorr: ' +
+                               corr_ans.unique()))
+            corr_ans = corr_ans == corr_ans.max()  # higher value is correct!
+            self.TrialParams['AnswCorr'] = corr_ans
 
         # Add column for subject response (saccade direction).
-        if 'AnswCorr' in self.TrialParams.columns:
-            self.TrialParams['AnswCorr'] = self.TrialParams['AnswCorr'] == 1
-            same_dir = self.TrialParams['S1Dir'] == self.TrialParams['S2Dir']
+        if ('AnswCorr' in pcols) and ('S1Dir' in pcols) and ('S2Dir' in pcols):
             corr_ans = self.TrialParams['AnswCorr']
+            same_dir = self.TrialParams['S1Dir'] == self.TrialParams['S2Dir']
             self.TrialParams['Answ'] = ((same_dir & corr_ans) |
                                         (~same_dir & ~corr_ans))
 
