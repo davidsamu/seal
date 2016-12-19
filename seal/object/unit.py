@@ -113,7 +113,7 @@ class Unit:
         trp_df = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
 
         if tr_params is not None:
-            for name, (nnew, dim) in tr_params.items():
+            for name, (nnew, dim) in tr_params.iterrows():
                 if name not in trp_df.columns:
                     print('Warning: Parameter {0} not found!'.format(name))
                     continue

@@ -8,6 +8,7 @@ Definition of constants relating to task and analysis.
 @author: David Samu
 """
 
+import pandas as pd
 from quantities import ms, deg, cm
 
 from seal.util import util
@@ -22,6 +23,7 @@ tr_params = dict(markS1Dir=('S1Dir', deg), markS2Dir=('S2Dir', deg),
                  MarkS2LocX=('S2LocX', cm), MarkS2LocY=('S2LocY', cm),
                  markS1range=('S1Rng', deg), markS2range=('S2Rng', deg),
                  subjectAnswer=('AnswCorr', None))
+tr_params = pd.DataFrame(tr_params, index=['new name', 'dimension']).T
 
 # Trial start and stop times.
 t_start = -1000*ms
