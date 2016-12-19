@@ -8,6 +8,7 @@ TODO list of Seal project
 - calculate waveform duration in a way that deals with truncated WFs
 - exclude WFs from excluded trials from mean WF calculation
 
+- write Python script to automatically move and rename files after splitting sorted recording files
 
 trials
 ------
@@ -24,6 +25,8 @@ unit
 test_sorting
 ------------
   - add RF coverage to unit selection(?)
+  - make trial selection consider additional criteria (magnitude and stability of FR, SNR, etc)
+  - trial selection: weight max FR deviation factor by FR magnitude? lower FRs may have higher deviations that are still acceptable, than higher FRs
 
 
 test_units
