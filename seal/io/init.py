@@ -152,12 +152,13 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
 
     # Save selected Units with quality metrics and direction selectivity.
     print('\nExporting combined UnitArray...')
-    fname = 'data/all_recordings/all_recordings.data'
+    comb_data_dir = 'data/all_recordings/'
+    fname = comb_data_dir + 'all_recordings.data'
     util.write_objects({'UnitArr': combUA}, fname)
 
     # Export unit and trial selection results.
     print('  Exporting automatic unit and trial selection results...')
-    fname = data_dir + 'unit_trial_selection.xlsx'
+    fname = comb_data_dir + 'unit_trial_selection.xlsx'
     combUA.export_unit_trial_selection_table(fname)
 
     # Re-enable inline plotting
