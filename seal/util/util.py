@@ -322,17 +322,11 @@ def values_in_window(v, vmin=None, vmax=None):
     return v_idxs
 
 
-def zscore_timeseries(timeseries, axis=0):
-    """
-    Z-score set of time series at each time point (per column).
+def find_nearest(arr, v):
+    """Return nearest value in array to v."""
 
-    axis: Axis along which to operate. If None, compute over the whole array.
-    """
-
-    zscored_ts = sp.stats.zscore(timeseries, axis=axis)
-    zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
-
-    return zscored_ts
+    nearest = arr[(np.abs(arr-v)).argmin()]
+    return nearest
 
 
 def make_df(row_list, col_names=None):
@@ -554,6 +548,19 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
 
 
 # %% General statistics and analysis functions.
+
+def zscore_timeseries(timeseries, axis=0):
+    """
+    Z-score set of time series at each time point (per column).
+
+    axis: Axis along which to operate. If None, compute over the whole array.
+    """
+
+    zscored_ts = sp.stats.zscore(timeseries, axis=axis)
+    zscored_ts[np.isnan(zscored_ts)] = 0  # remove NaN values
+
+    return zscored_ts
+
 
 def select_period_around_max(ts, twidth, t_start=None, t_stop=None):
     """Returns values in timeseries within given period around maximum."""

@@ -22,38 +22,38 @@ class Rate:
     """Class for storing firing rates per trial and associated properties."""
 
     # %% Constructor.
-    def __init__(self, name, kernel, spikes, step=10*ms, min_rate=0.01*Hz,
-                 rdim=Hz, tdim=ms):
+    def __init__(self, name, kernel, spikes, step=10*ms, min_rate=0.01*Hz):
         """Create a Rate instance."""
 
         # Create empty instance.
         self.name = name
         self.rates = None
+        self.tvec = None
         self.kernel = kernel
         self.step = step
-        self.tdim = tdim
-        self.rdim = rdim
 
         # Calculate firing rates and extract sampling times.
         with warnings.catch_warnings():
             # Let's ignore warnings about negative firing rate values,
             # they are fixed below.
             warnings.simplefilter("ignore")
-            rate_list = [instantaneous_rate(sp, step, kernel) for sp in spikes]
-            tvec = rate_list[0].times.rescale(tdim)
 
-        # Extract rates and rescale them to Hz.
-        rates = [r[:, 0].rescale(rdim) for r in rate_list]
+            rate_list = [instantaneous_rate(sp, step, kernel) for sp in spikes]
+            tvec = rate_list[0].times.rescale(ms)
+
+        # Extract rates.
+        rates = [r[:, 0] for r in rate_list]
 
         # Convert to DataFrame.
         rates = pd.DataFrame(np.array(rates), columns=tvec)
 
         # Zero out negative and tiny positive values.
         if min_rate is not None:
-            rates[rates < float(min_rate.rescale(rdim))] = 0
+            rates[rates < float(min_rate)] = 0
 
-        # Store rate values.
+        # Store rate and time sample values.
         self.rates = rates
+        self.tvec = tvec
 
     # %% Kernel query methods.
 
@@ -78,23 +78,38 @@ class Rate:
         # Any other, e.g. Gaussian, kernel.
         return sigma
 
-    # %% Methods to get times and rates for given time windows and trials.
+    # %% Methods to get times and rates for given trials and time periods.
+
+    def get_sampled_t_limits(self, t1=None, t2=None):
+        """Return sampled time limits."""
+
+        ts1 = float(util.find_nearest(self.tvec, t1))
+        ts2 = float(util.find_nearest(self.tvec, t2))
+        return ts1, ts2
 
     def get_sample_times(self, t1=None, t2=None):
-        """Return times of rates between t1 and t2."""
+        """Return sample times between t1 and t2."""
 
         if t1 is not None:
-            t1 = t1.rescale(self.tdim)
+            t1 = t1.rescale(self.tvec.units)
         if t2 is not None:
-            t2 = t2.rescale(self.tdim)
+            t2 = t2.rescale(self.tvec.units)
 
-        tvec = np.array(self.rates.columns) * self.tdim
-        sample_times = util.values_in_window(tvec, t1, t2)
+        sample_times = util.values_in_window(self.tvec, t1, t2)
 
         return sample_times
 
-    def get_rates(self, trs=None, t1=None, t2=None):
-        """Return firing rates of some trials within time window."""
+    def get_sample_times_list(self, t1vec=None, t2vec=None):
+        """Return list of sample times for each pair of t1vec and t2vec."""
+
+        stvec = [self.get_sample_times(t1, t2) for t1, t2 in zip(t1vec, t2vec)]
+        return stvec
+
+    def get_fix_rates(self, trs=None, t1=None, t2=None):
+        """
+        Return firing rates of selected trials within time window,
+        fixed among trials.
+        """
 
         # Set default trials.
         if trs is None:
@@ -102,7 +117,37 @@ class Rate:
 
         # Select rates from requested trials
         # and between t1 and t2 (or whole time period).
-        tvec = self.get_sample_times(t1, t2)
-        rates = self.rates.loc[trs, tvec]
+        ts1, ts2 = self.get_sampled_t_limits(t1, t2)
+        rates = self.rates.loc[trs, ts1:ts2]
+
+        return rates
+
+    def get_rel_rates(self, trs=None, t1vec=None, t2vec=None, align='left'):
+        """
+        Return firing rates of some trials within time window.
+
+        align: which end of interval to align by, 'left', 'right'.
+               This makes a difference if the lengths of the selected time
+               windows differ.
+
+        trs, t1vec and t2vec: must all have length equal to number of trials.
+        """
+
+        # Set default trials.
+        if trs is None:
+            trs = np.ones(len(self.rates), dtype=bool)
+
+        # Select rates from some trials between trial-specific time limits.
+        rates = sum(trs) * [[]]
+        for i, itrs in enumerate(np.where(trs)[0]):
+            ts1, ts2 = self.get_sampled_t_limits(t1vec[itrs], t2vec[itrs])
+            rates[i] = self.rates.loc[itrs, ts1:ts2]
+
+        # Align rates relative to left or right of selected period.
+        # This step also adds NaNs to samples missing from any trials.
+        rel_idx = 0 if align == 'left' else -1
+        for r in rates:
+            r.index = r.index - r.index[rel_idx]
+        rates = pd.concat(rates, axis=1).T
 
         return rates
