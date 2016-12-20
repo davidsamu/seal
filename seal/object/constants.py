@@ -22,14 +22,14 @@ tr_params = [('markS1Dir', ('S1Dir', deg)), ('markS2Dir', ('S2Dir', deg)),
              ('MarkS2LocX', ('S2LocX', cm)), ('MarkS2LocY', ('S2LocY', cm)),
              ('markS1range', ('S1Rng', deg)), ('markS2range', ('S2Rng', deg)),
              ('subjectAnswer', ('AnswCorr', None))]
-tr_params = pd.DataFrame.from_items(tr_params, orient='index',
-                                    ['seal_name', 'dimension'])
+tr_params = pd.DataFrame.from_items(tr_params, ['seal_name', 'dimension'],
+                                    'index')
 
 # Trial start and stop times.
 t_start = -1000*ms
-t_stop = 4000*ms
+t_stop = 4000*ms  # this should give enough time for longer delay (+500ms)
 
-S1_len = 500*ms
+S1_len = 500*ms  # these are fixed at the moment
 S2_len = 500*ms
 
 # All 8 directions.

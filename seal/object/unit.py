@@ -15,7 +15,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from quantities import s, ms, us, deg, Hz
+from quantities import s, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import util
@@ -32,11 +32,12 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, t_start=None, t_stop=None, kernels=None,
-                 step=None, tr_params=None, taskname=None):
+                 step=None, tr_params=None, taskname=None, region=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
+        self.region = region
         self.SessParams = pd.Series()
         self.Waveforms = pd.Series()
         self.TrialParams = pd.DataFrame()

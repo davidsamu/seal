@@ -17,7 +17,6 @@ import elephant
 
 from seal.util import util
 from seal.plot import putil, pplot, pwaveform
-from seal.object.periods import Periods
 
 
 # %% Constants.

@@ -10,6 +10,7 @@ TODO list of Seal project
 
 - write Python script to automatically move and rename files after splitting sorted recording files
 
+
 trials
 ------
   - make named Series of fields
@@ -20,6 +21,7 @@ unit
 ----
   - add RF coverage information
   - seprate DS calculation from plotting (add plotting params as fields to Unit?)
+  - "region" parameter should come from TPLCell (either file name, or unique data field)
 
 
 test_sorting

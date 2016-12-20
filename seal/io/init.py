@@ -20,7 +20,8 @@ from seal.quality import test_sorting, test_units
 from seal.object import constants, unit, unitarray
 
 
-def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel):
+def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
+                        region=None):
     """Convert TPLCells to Seal objects."""
 
     print('\nStarting unit import...\n')
@@ -56,8 +57,8 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel):
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
-            params = [(TPLCell, constants.t_start, constants.t_stop,
-                       kernels, constants.step, constants.tr_params, task)
+            params = [(TPLCell, constants.t_start, constants.t_stop, kernels,
+                       constants.step, constants.tr_params, task, region)
                       for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 

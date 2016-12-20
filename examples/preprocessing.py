@@ -22,6 +22,7 @@ Created on Fri Dec  9 16:55:34 2016
 #       - project folder (proj_dir)
 #       - subfolder with .mat TPLCell objects (tpl_dir)
 #       - subfolder into which to output Seal Units (seal_dir)
+#   - set recording region name (region, "PFC" or "MT")
 
 # Preprocessing analysis is done in three steps:
 # 1) init.convert_TPL_to_Seal: this simply converts the .mat objects
@@ -62,11 +63,13 @@ os.chdir(proj_dir)
 tpl_dir = 'data/matlab_cells/'     # folder containig MATLAB TPLCell objects per recording
 seal_dir = 'data/seal_units/'      # folder to write seal units into
 
+region = 'PFC'  # recording region: "PFC" or "MT"
+
 # Kernel set to be used for firing rate estimation,
 # see constants.py for available options.
 kernels = constants.R100_kernel
 
-init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels)
+init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels, region)
 
 # Output:
 # - Seal UnitArray data per recording inside 'seal_dir'
