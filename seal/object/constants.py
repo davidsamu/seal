@@ -12,65 +12,85 @@ import pandas as pd
 from quantities import ms, deg, cm
 
 from seal.util import util
-from seal.object.periods import Periods
 
 
 # %% Task constants.
 
 # Define parameter info.
-tr_params = dict(markS1Dir=('S1Dir', deg), markS2Dir=('S2Dir', deg),
-                 markS1LocX=('S1LocX', cm), markS1LocY=('S1LocY', cm),
-                 MarkS2LocX=('S2LocX', cm), MarkS2LocY=('S2LocY', cm),
-                 markS1range=('S1Rng', deg), markS2range=('S2Rng', deg),
-                 subjectAnswer=('AnswCorr', None))
-tr_params = pd.DataFrame(tr_params, index=['new name', 'dimension']).T
+tr_params = [('markS1Dir', ('S1Dir', deg)), ('markS2Dir', ('S2Dir', deg)),
+             ('markS1LocX', ('S1LocX', cm)), ('markS1LocY', ('S1LocY', cm)),
+             ('MarkS2LocX', ('S2LocX', cm)), ('MarkS2LocY', ('S2LocY', cm)),
+             ('markS1range', ('S1Rng', deg)), ('markS2range', ('S2Rng', deg)),
+             ('subjectAnswer', ('AnswCorr', None))]
+tr_params = pd.DataFrame.from_items(tr_params, orient='index',
+                                    ['seal_name', 'dimension'])
 
 # Trial start and stop times.
 t_start = -1000*ms
 t_stop = 4000*ms
 
+S1_len = 500*ms
+S2_len = 500*ms
 
-# %% Constants related to different trial periods.
+# All 8 directions.
+all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
 
-tr_prds = Periods([('Whole trial', [-1000*ms, 3500*ms]),
-                   ('Fixation',    [-1000*ms,    0*ms]),
-                   ('S1',          [    0*ms,  500*ms]),
-                   ('Delay',       [  500*ms, 2000*ms]),
-                   ('S2',          [ 2000*ms, 2500*ms]),
-                   ('Post-S2',     [ 2500*ms, 3500*ms])])
 
-# Stimulus periods.
-stim_prds = Periods(tr_prds.periods(['S1', 'S2']))
+# %% Neurophysiological constants.
 
-# Extended stimulus periods.
-ext_stim_prds = Periods([('S1', [ -1000*ms, 1900*ms]),
-                         ('S2', [  1900*ms, 3500*ms])])
+# Region-specific latency values (stimulus response delay).
+latency = pd.Series({'MT': 50*ms, 'PFC': 100*ms})
 
-# Delay sub-periods.
-delay_prds = Periods([('early',  [  500*ms, 1000*ms]),
-                      ('middle', [ 1000*ms, 1500*ms]),
-                      ('late',   [ 1500*ms, 2000*ms])])
 
-# Delay sub-periods.
-narrow_delay_prds = Periods([('early',  [  500*ms, 700*ms]),
-                             ('middle', [ 1150*ms, 1350*ms]),
-                             ('late',   [ 1800*ms, 2000*ms])])
+# %% Relative timing of different trial events and periods.
 
-# Delay sub-periods.
-narrow_fixation_prds = Periods([('early',  [-1000*ms, -800*ms]),
-                                ('middle', [ -600*ms, -400*ms]),
-                                ('late',   [ -200*ms,    0*ms])])
+# Trial events are defined relative to the anchor events coming from Tempo, and
+# stored in Unit.Events ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset'].
+# The relative timing of these anchor events can change from trial to trial.
 
-# Stimulus response delay in MT.
-MT_stim_resp_delay = 50*ms
+tr_evt = [  # Basic task events.
+          ('fixation start', ('S1 onset', -1000*ms)),
+          ('S1 onset', ('S1 onset', 0*ms)),
+          ('S1 offset', ('S1 offset', 0*ms)),
+          ('S2 onset', ('S2 onset', 0*ms)),
+          ('S2 offset', ('S2 offset', 0*ms)),
+          ('saccade', ('S2 offset', 1000*ms)),
 
-# Delayed trial and stimulus periods.
-what_delayed = ['S1', 'S2']
-where_delayed = ['start']
-del_tr_prds = Periods(tr_prds.delay_periods(MT_stim_resp_delay,
-                                            what_delayed, where_delayed))
-del_stim_prds = Periods(stim_prds.delay_periods(MT_stim_resp_delay,
-                                                what_delayed, where_delayed))
+          # Delay sub-period limits.
+          ('1/3 delay', ('S1 offset', 500*ms)),
+          ('2/3 delay', ('S2 onset', -500*ms)),
+
+          # Cue-related events.
+          ('no cue', ('S1 offset', 750*ms)),  # latest time without cue on
+          ('cue', ('S2 onset', -750*ms))]
+
+tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'offset'], 'index')
+
+# Trial periods are defined relative to trial events (the exact timing of which
+# are relative themselves to the anchor events, see above).
+
+tr_prd_names = [('whole trial', ('fixation start', 'saccade')),
+
+                # Basic task periods.
+                ('fixation', ('fixation start', 'S1 onset')),
+                ('S1', ('S1 onset', 'S1 offset')),
+                ('delay', ('S1 offset', 'S2 onset')),
+                ('S2', ('S2 onset', 'S2 offset')),
+                ('post-S2', ('S2 offset', 'saccade')),
+
+                # Extended stimulus periods.
+                ('around S1', ('fixation start', 'no cue')),
+                ('around S2', ('cue', 'saccade')),
+
+                # Delay sub-periods.
+                ('early delay', ('S1 offset', '1/3 delay')),
+                ('late delay', ('2/3 delay', 'S2 onset'))]
+
+tr_prd = [(prd, tr_evt.loc[ev1].append(tr_evt.loc[ev2]))
+          for prd, (ev1, ev2) in tr_prd_names]
+tr_prd = pd.DataFrame.from_items(tr_prd, ['start rel to', 'start offset',
+                                          'stop rel to', 'stop offset'],
+                                 orient='index')
 
 
 # %% Analysis constants.
@@ -83,10 +103,5 @@ lngR_kernels = util.kernel_set(['R100', 'R200', 'R500'])
 
 step = 10*ms
 
-# Default rate name (to be used/preferred when rate type is specified).
+# Default rate name (to be used when rate type is not specified).
 def_nrate = 'R100'
-
-
-# %% Direction related constants.
-
-all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)

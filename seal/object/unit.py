@@ -153,7 +153,7 @@ class Unit:
 
         # Timestamps of events. Only S1 offset and S2 onset are reliable!
         # Watch out: indexing starting with 0! (not with 1 as in Matlab)
-        S1_len, S2_len = constants.stim_prds.dur()
+        S1_len, S2_len = constants.S1_len, constants.S2_len
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
         event_cols = ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset']
