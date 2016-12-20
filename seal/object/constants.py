@@ -29,8 +29,8 @@ tr_params = pd.DataFrame.from_items(tr_params, ['seal_name', 'dimension'],
 t_start = -1000*ms
 t_stop = 4000*ms  # this should give enough time for longer delay (+500ms)
 
-S1_len = 500*ms  # these are fixed at the moment
-S2_len = 500*ms
+S1_dur = 500*ms  # these are fixed at the moment
+S2_dur = 500*ms
 
 # All 8 directions.
 all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
@@ -44,8 +44,8 @@ latency = pd.Series({'MT': 50*ms, 'PFC': 100*ms})
 
 # %% Relative timing of different trial events and periods.
 
-# Trial events are defined relative to the anchor events coming from Tempo, and
-# stored in Unit.Events ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset'].
+# Trial events are defined relative to the anchor events coming from Tempo,
+# ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset'].
 # The relative timing of these anchor events can change from trial to trial.
 
 tr_evt = [  # Basic task events.

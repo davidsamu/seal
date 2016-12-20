@@ -15,7 +15,7 @@ from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
-from quantities import s, us, deg, Hz
+from quantities import s, ms, us, deg, Hz
 from neo import SpikeTrain
 
 from seal.util import util
@@ -153,32 +153,47 @@ class Unit:
         # %% Trial events.
 
         # Timestamps of events. Only S1 offset and S2 onset are reliable!
-        # Watch out: indexing starting with 0! (not with 1 as in Matlab)
-        S1_len, S2_len = constants.S1_len, constants.S2_len
+        # S1 onset and S2 offset are fixed to these two.
+        # Altogether these four are call anchor events.
+
+        # Watch out: indexing starting with 0! (not with 1 as in Matlab)!
+        # Everything is in seconds below!
+
+        S1dur, S2dur = [float(l.rescale(s)) for l in (constants.S1_dur,
+                                                      constants.S2_dur)]
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
-        event_cols = ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset']
-        self.Events = pd.DataFrame([TPLCell.Timestamps[iS1off]*s-S1_len,
-                                    TPLCell.Timestamps[iS1off]*s,
-                                    TPLCell.Timestamps[iS2on]*s,
-                                    TPLCell.Timestamps[iS2on]*s+S2_len],
-                                   index=event_cols).T
+        anchor_evts = [('S1 onset', TPLCell.Timestamps[iS1off]-S1dur),
+                       ('S1 offset', TPLCell.Timestamps[iS1off]),
+                       ('S2 onset', TPLCell.Timestamps[iS2on]),
+                       ('S2 offset', TPLCell.Timestamps[iS2on]+S2dur)]
+        anchor_evts = pd.DataFrame.from_items(anchor_evts)
+
         # Align trial events to S1 onset.
-        S1on = self.Events['S1 onset']
-        self.Events = self.Events.subtract(S1on, axis=0)
+        anchor_evts = anchor_evts.subtract(anchor_evts['S1 onset'], axis=0)
+
+        # Add additional trial events, relative to anchor events.
+        evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
+                for evt, (rel, offset) in constants.tr_evt.iterrows()]
+        evts = pd.DataFrame.from_items(evts)
+
+        # Add dimension to timestamps (ms).
+        for evt in evts:
+            evts[evt] = util.add_dim_to_series(1000*evts[evt], ms)  # s --> ms
+        self.Events = evts
 
         # Add trial period lengths to trial params.
-        ev = self.Events
-        self.TrialParams['S1Len'] = ev['S1 offset'] - ev['S1 onset']
-        self.TrialParams['S2Len'] = ev['S2 offset'] - ev['S2 onset']
-        self.TrialParams['DelayLenPrec'] = ev['S2 onset'] - ev['S1 offset']
+        self.TrialParams['S1Len'] = evts['S1 offset'] - evts['S1 onset']
+        self.TrialParams['S2Len'] = evts['S2 offset'] - evts['S2 onset']
+        self.TrialParams['DelayLenPrec'] = evts['S2 onset'] - evts['S1 offset']
         self.TrialParams['DelayLen'] = [np.round(v, 1) for v in
                                         self.TrialParams['DelayLenPrec']]
 
         # %% Spikes and rates.
 
         # Trials spikes, aligned to S1 onset.
-        spk_trains = [TS*s-S1on[i] for i, TS in enumerate(TPLCell.TrialSpikes)]
+        spk_trains = [TS*s - self.Events.loc[i, 'S1 onset']
+                      for i, TS in enumerate(TPLCell.TrialSpikes)]
         self.Spikes = Spikes(spk_trains, t_start, t_stop)
 
         # Estimate firing rate per trial.
