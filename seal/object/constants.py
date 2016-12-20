@@ -27,7 +27,7 @@ tr_params = pd.DataFrame(tr_params, index=['new name', 'dimension']).T
 
 # Trial start and stop times.
 t_start = -1000*ms
-t_stop = 3500*ms
+t_stop = 4000*ms
 
 
 # %% Constants related to different trial periods.

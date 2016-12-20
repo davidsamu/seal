@@ -32,7 +32,7 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, t_start=None, t_stop=None, kernels=None,
-                 step=10*ms, tr_params=None, taskname=None):
+                 step=None, tr_params=None, taskname=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
@@ -181,6 +181,8 @@ class Unit:
         self.Spikes = Spikes(spk_trains, t_start, t_stop)
 
         # Estimate firing rate per trial.
+        if step is None:
+            step = constants.step
         spikes = self.Spikes.get_spikes()
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, kernel in kernels.items()]

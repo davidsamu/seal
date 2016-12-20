@@ -25,13 +25,13 @@ class Spikes:
     """Class for spike trains per trial and associated properties."""
 
     # %% Constructor
-    def __init__(self, spike_train_list, t_start=0*s, t_stop=0*s):
+    def __init__(self, spike_train_list, t_start=None, t_stop=None):
         """Create a Spikes instance."""
 
         # Create empty instance.
         self.spikes = None
-        self.t_start = t_start.rescale(s)
-        self.t_stop = t_stop.rescale(s)
+        self.t_start = t_start
+        self.t_stop = t_stop
 
         # Remove spikes outside of time window [t_start, t_stop].
         tr_spk = [util.values_in_window(spk, t_start, t_stop)
