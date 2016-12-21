@@ -46,13 +46,13 @@ import sys
 # a) command line: "git clone https://github.com/davidsamu/seal", OR
 # b) using a GUI tool, e.g. GitKraken
 
-# Set this to your Seal installation path
+# Set this to your Seal installation path.
 sys.path.insert(1, '/home/upf/Research/tools/python/Seal/')
 
 from seal.object import constants
 from seal.io import init
 
-# Set working directory
+# Set working directory.
 proj_dir = '/home/upf/Research/projects/Combined'  # DON'T add slash to end!
 os.chdir(proj_dir)
 

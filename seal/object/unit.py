@@ -344,7 +344,7 @@ class Unit:
 
         elif nrate not in self.Rates:
             warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
-            self.init_nrate()  # return default rate name
+            self.init_nrate()  # return default (or first available) rate name
 
         return nrate
 
@@ -458,24 +458,26 @@ class Unit:
 
     # %% Methods that provide interface to Unit's Spikes data.
 
-    def get_rates_by_trial(self, trs=None, t1=None, t2=None):
-        """Return spike statistics of time interval in given trials."""
+    def get_rates_by_trial(self, trs=None, t1s=None, t2s=None,
+                           index_by_tr_time=False):
+        """Return rates within time intervals in given trials."""
 
         if self.is_empty:
             return None
 
         # Init trials.
         if trs is None:
-            trs = self.included_trials()
+            trs = self.included_trials().trials
 
         # Get rates.
-        frate = self.Spikes.spike_stats_in_prd(trs, t1, t2)[1]
+        rates = self.Spikes.rates(trs, t1s, t2s)
 
-        # Put them into a Series with trials start times.
-        tr_time = self.TrialParams['TrialStart'][trs.trials]
-        frate_tr_time = pd.Series(frate, index=tr_time, name='FR (1/s)')
+        # Change index from trial index to trials start times.
+        if index_by_tr_time:
+            tr_time = self.TrialParams['TrialStart'][trs]
+            rates.index = util.remove_dim_from_series(tr_time)
 
-        return frate_tr_time
+        return rates
 
     # %% Methods to trials with specific directions.
 
@@ -564,7 +566,7 @@ class Unit:
 
     # %% Methods to calculate tuning curves and preferred values of features.
 
-    def calc_response_stats(self, pname, t1, t2):
+    def calc_response_stats(self, pname, t1s, t2s):
         """Calculate mean response to different values of trial parameter."""
 
         # Get trials for each parameter value.
@@ -572,7 +574,7 @@ class Unit:
 
         # Calculate spike count and stats for each value of parameter.
         par_vals = [float(tr.value) for tr in trs]
-        sp_stats = pd.DataFrame([self.Spikes.spike_count_stats(tr, t1, t2)
+        sp_stats = pd.DataFrame([self.Spikes.spike_rate_stats(tr, t1s, t2s)
                                  for tr in trs], index=par_vals)
 
         return sp_stats

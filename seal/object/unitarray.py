@@ -49,7 +49,7 @@ class UnitArray:
 
     # %% Iterator methods.
 
-    # Usage: e.g. [u for u in UnitArray.iter_thru(kwargs)]
+    # Usage: e.g. [u for u in UnitArray.iter_thru(args)]
 
     def iter_thru(self, tasks=None, uids=None, miss=False, excl=False):
         """Custom iterator init over selected tasks and units."""

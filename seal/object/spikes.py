@@ -111,6 +111,8 @@ class Spikes:
     def rates(self, trs=None, t1s=None, t2s=None):
         """Return rates of given trials in time windows."""
 
+        t1s, t2s = self.init_time_limits(t1s, t2s)
+
         # Get number of spikes.
         n_spikes = self.n_spikes(trs, t1s, t2s)
 
