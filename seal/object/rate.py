@@ -32,20 +32,23 @@ class Rate:
         self.kernel = kernel
         self.step = step
 
-        # Calculate firing rates and extract sampling times.
+        # Calculate firing rates.
         with warnings.catch_warnings():
             # Let's ignore warnings about negative firing rate values,
             # they are fixed below.
-            warnings.simplefilter("ignore")
+            warnings.simplefilter('ignore', UserWarning)
 
-            rate_list = [instantaneous_rate(sp, step, kernel) for sp in spikes]
-            tvec = rate_list[0].times.rescale(ms)
+            rates = len(spikes) * [[]]
+            for i, sp in enumerate(spikes):
 
-        # Extract rates.
-        rates = [r[:, 0] for r in rate_list]
+                # Estimate firing rates.
+                rts = instantaneous_rate(sp, step, kernel)
+                rates[i] = pd.Series(np.array(rts)[:, 0],
+                                     index=rts.times.rescale(ms))
 
-        # Convert to DataFrame.
-        rates = pd.DataFrame(np.array(rates), columns=tvec)
+        # Stack rate vectors into dataframe, adding NaNs to samples missing
+        # from any trials.
+        rates = pd.concat(rates, axis=1).T
 
         # Zero out negative and tiny positive values.
         if min_rate is not None:
@@ -53,7 +56,7 @@ class Rate:
 
         # Store rate and time sample values.
         self.rates = rates
-        self.tvec = tvec
+        self.tvec = np.array(rates.columns) * ms
 
     # %% Kernel query methods.
 
