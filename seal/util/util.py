@@ -406,6 +406,14 @@ def add_dim_to_series(ser, dim):
     return qser
 
 
+def rescale_series(ser, dim):
+    """Rescale dimension of Pandas Series."""
+
+    for i in ser.index:
+        ser[i] = ser[i].rescale(dim)
+    return ser
+
+
 def remove_dim_from_array(qvec, dtype=float):
     """Remove dimension from Quantity array and return Numpy array."""
 

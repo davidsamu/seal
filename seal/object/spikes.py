@@ -8,9 +8,6 @@ Class for array of spike trains.
 @author: David Samu
 """
 
-
-from itertools import compress
-
 import numpy as np
 import pandas as pd
 from quantities import s
@@ -18,114 +15,140 @@ from neo import SpikeTrain
 from elephant import statistics
 
 from seal.util import util
-from seal.object.trials import Trials
 
 
 class Spikes:
-    """Class for spike trains per trial and associated properties."""
+    """Class for storing spike trains per trial and associated properties."""
 
     # %% Constructor
-    def __init__(self, spike_train_list, t_start=None, t_stop=None):
+    def __init__(self, spk_trains, t_starts=None, t_stops=None):
         """Create a Spikes instance."""
 
         # Create empty instance.
         self.spikes = None
-        self.t_start = t_start
-        self.t_stop = t_stop
+        self.t_starts = None
+        self.t_stops = None
 
-        # Remove spikes outside of time window [t_start, t_stop].
-        tr_spk = [util.values_in_window(spk, t_start, t_stop)
-                  for spk in spike_train_list]
+        # Init t_starts and t_stops.
+        # Below deals with single values, including None.
+        n_trs = len(spk_trains)
+        if not util.is_iterable(t_starts):
+            t_starts = n_trs * [t_starts]
+        if not util.is_iterable(t_stops):
+            t_stops = n_trs * [t_stops]
+
+        # Convert into Pandas Series for speed and more functionality.
+        self.t_starts = pd.Series(t_starts)
+        self.t_stops = pd.Series(t_stops)
 
         # Create list of Neo SpikeTrain objects.
-        self.spikes = [SpikeTrain(spk, t_start=t_start, t_stop=t_stop)
-                       for spk in tr_spk]
+        self.spk_trains = pd.Series(index=np.arange(n_trs), dtype=object)
+        for i in self.spk_trains.index:
+
+            # This also removes spikes outside of time window.
+            t_start, t_stop = self.t_starts[i], self.t_stops[i]
+            spk_tr = util.values_in_window(spk_trains[i], t_start, t_stop)
+            self.spk_trains[i] = SpikeTrain(spk_tr, t_start=t_start,
+                                            t_stop=t_stop)
 
     # %% Utility methods.
 
-    def init_time_limits(self, t1, t2):
+    def init_time_limits(self, t1s=None, t2s=None):
         """Set time limits to default values if not specified."""
 
         # Default time limits.
-        if t1 is None:
-            t1 = self.t_start
-        if t2 is None:
-            t2 = self.t_stop
-        return t1, t2
+        if t1s is None:
+            t1s = self.t_starts
+        if t2s is None:
+            t2s = self.t_stops
+        return t1s, t2s
 
     def n_trials(self):
         """Return number of trials."""
 
-        n_trials = len(self.spikes)
-        return n_trials
+        n_trs = len(self.spk_trains.index)
+        return n_trs
 
-    def get_spikes(self, trs=None, t1=None, t2=None):
-        """Return spike times of given trials within time window."""
+    def get_spikes(self, trs=None, t1s=None, t2s=None):
+        """Return spike times of given trials within time windows."""
 
-        # Default trials.
+        # Default trial list.
         if trs is None:
-            all_trs = np.ones(self.n_trials(), dtype=bool)
-            trs = Trials(all_trs, 'all trials')  # all trials
+            trs = np.ones(self.n_trials(), dtype=bool)
 
         # Default time limits.
-        t1, t2 = self.init_time_limits(t1, t2)
+        t1s, t2s = self.init_time_limits(t1s, t2s)
 
-        # Select spikes between t1 and t2 during selected trials.
-        spikes = [util.values_in_window(spk, t1, t2)
-                  for spk in compress(self.spikes, trs.trials)]
+        # Assamble time-windowed spike trains.
+        itrs = np.where(trs)[0]
+        spk_trains = pd.Series(index=itrs, dtype=object)
+        for itr in itrs:
 
-        # Convert them into new SpikeTrain list, with time limits set.
-        spikes = [SpikeTrain(spk, t_start=t1, t_stop=t2) for spk in spikes]
+            # Select spikes between t1 and t2 during selected trials, and
+            # Convert them into new SpikeTrain list, with time limits set.
+            t1, t2 = t1s[itr], t2s[itr]
+            spk_tr = util.values_in_window(self.spk_trains[itr], t1, t2)
+            spk_trains[itr] = SpikeTrain(spk_tr, t_start=t1, t_stop=t2)
 
-        return spikes
+        return spk_trains
 
     # %% Methods for summary statistics over spikes.
 
-    def spike_stats_in_prd(self, trs=None, t1=None, t2=None):
-        """Return spike count and rate of given trials within time window."""
+    def n_spikes(self, trs=None, t1s=None, t2s=None):
+        """Return spike count of given trials in time windows."""
 
         # Default time limits.
-        t1, t2 = self.init_time_limits(t1, t2)
+        t1s, t2s = self.init_time_limits(t1s, t2s)
+
+        # Select spikes within windows.
+        spk_trains = self.get_spikes(trs, t1s, t2s)
+
+        # Count spikes during each selected trial.
+        n_spikes = spk_trains.apply(np.size)
+
+        return n_spikes
+
+    def rates(self, trs=None, t1s=None, t2s=None):
+        """Return rates of given trials in time windows."""
+
+        # Get number of spikes.
+        n_spikes = self.n_spikes(trs, t1s, t2s)
 
         # Rescale time limits.
-        t1 = t1.rescale(s)
-        t2 = t2.rescale(s)
+        t1s = util.rescale_series(t1s, s)
+        t2s = util.rescale_series(t2s, s)
 
-        # Select spikes.
-        spikes = self.get_spikes(trs, t1, t2)
+        # Calculate rates for each selected trial.
+        rates = n_spikes / (t2s - t1s)
 
-        # Calculate rate.
-        n_spikes = np.array([spk.size for spk in spikes])
-        f_rate = n_spikes / (t2 - t1)
+        return rates
 
-        return n_spikes, f_rate
+    def spike_rate_stats(self, trs=None, t1s=None, t2s=None):
+        """Return spike rate statistics across selected trials."""
 
-    def spike_count_stats(self, trs=None, t1=None, t2=None):
-        """Return spike count statistics across selected trials."""
-
-        # Get rates in specified trials within specified time window.
-        f_rate = self.spike_stats_in_prd(trs, t1, t2)[1]
+        # Get rates in given trials in time windows.
+        rates = np.array(self.rates(trs, t1s, t2s))
 
         # Calculate statistics.
-        if f_rate.size:
-            mean_rate = np.mean(f_rate)
-            std_rate = np.std(f_rate)
-            sem_rate = std_rate / np.sqrt(f_rate.size)
+        if rates.size:
+            mean_rate = np.mean(rates)
+            std_rate = np.std(rates)
+            sem_rate = std_rate / np.sqrt(rates.size)
         else:  # in case there are no spike in interval
             mean_rate = np.nan * 1/s
             std_rate = np.nan * 1/s
             sem_rate = np.nan * 1/s
 
         # Put them into a Series.
-        spike_stats = pd.Series([mean_rate, std_rate, sem_rate],
-                                index=['mean', 'std', 'sem'])
+        spk_stats = pd.Series([mean_rate, std_rate, sem_rate],
+                              index=['mean', 'std', 'sem'])
 
-        return spike_stats
+        return spk_stats
 
-    def isi(self, trs=None, t1=None, t2=None):
+    def isi(self, trs=None, t1s=None, t2s=None):
         """Return interspike intervals per trial."""
 
-        spikes = self.get_spikes(trs, t1, t2)
-        isi = [statistics.isi(spk) for spk in spikes]
+        spks = self.get_spikes(trs, t1s, t2s)
+        isi = [statistics.isi(spk) for spk in spks]
 
         return isi

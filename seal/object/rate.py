@@ -78,7 +78,7 @@ class Rate:
         # Any other, e.g. Gaussian, kernel.
         return sigma
 
-    # %% Methods to get times and rates for given trials and time periods.
+    # %% Methods to get sample times for given time periods.
 
     def get_sampled_t_limits(self, t1=None, t2=None):
         """Return sampled time limits."""
@@ -105,6 +105,8 @@ class Rate:
         stvec = [self.get_sample_times(t1, t2) for t1, t2 in zip(t1vec, t2vec)]
         return stvec
 
+    # %% Methods to get rates for given trials and time periods.
+
     def get_fix_rates(self, trs=None, t1=None, t2=None):
         """
         Return firing rates of selected trials within time window,
@@ -124,7 +126,7 @@ class Rate:
 
     def get_rel_rates(self, trs=None, t1vec=None, t2vec=None, align='left'):
         """
-        Return firing rates of some trials within time window.
+        Return firing rates of some trials within variable time window.
 
         align: which end of interval to align by, 'left', 'right'.
                This makes a difference if the lengths of the selected time
@@ -144,10 +146,12 @@ class Rate:
             rates[i] = self.rates.loc[itrs, ts1:ts2]
 
         # Align rates relative to left or right of selected period.
-        # This step also adds NaNs to samples missing from any trials.
         rel_idx = 0 if align == 'left' else -1
         for r in rates:
             r.index = r.index - r.index[rel_idx]
+
+        # Stack rate vectors into dataframe, adding NaNs to samples missing
+        # from any trials.
         rates = pd.concat(rates, axis=1).T
 
         return rates

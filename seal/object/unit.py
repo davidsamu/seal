@@ -170,7 +170,8 @@ class Unit:
         anchor_evts = pd.DataFrame.from_items(anchor_evts)
 
         # Align trial events to S1 onset.
-        anchor_evts = anchor_evts.subtract(anchor_evts['S1 onset'], axis=0)
+        abs_S1_onset = anchor_evts['S1 onset']  # this is also used below!
+        anchor_evts = anchor_evts.subtract(abs_S1_onset, axis=0)
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
@@ -192,9 +193,11 @@ class Unit:
         # %% Spikes and rates.
 
         # Trials spikes, aligned to S1 onset.
-        spk_trains = [TS*s - self.Events.loc[i, 'S1 onset']
-                      for i, TS in enumerate(TPLCell.TrialSpikes)]
-        self.Spikes = Spikes(spk_trains, t_start, t_stop)
+        spk_trains = [(spk_train - abs_S1_onset[i]) * s
+                      for i, spk_train in enumerate(TPLCell.TrialSpikes)]
+        t_starts = self.Events['fixation start']
+        t_stops = self.Events['saccade']
+        self.Spikes = Spikes(spk_trains, t_starts, t_stops)
 
         # Estimate firing rate per trial.
         if step is None:

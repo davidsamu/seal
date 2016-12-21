@@ -10,6 +10,10 @@ TODO list of Seal project
 
 - write Python script to automatically move and rename files after splitting sorted recording files
 
+- all container object inside every class should be converted into Pandas or numpy objects to improve speed
+
+- same with other Python operation list multiple comprehension -> for loops, range -> np.arange, etc
+
 
 trials
 ------
