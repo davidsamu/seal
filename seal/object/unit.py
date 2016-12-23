@@ -31,8 +31,8 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell=None, t_start=None, t_stop=None, kernels=None,
-                 step=None, tr_params=None, taskname=None, region=None):
+    def __init__(self, TPLCell=None, kernels=None, step=None, stim_params=None,
+                 answ_params=None, taskname=None, region=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
@@ -40,8 +40,10 @@ class Unit:
         self.region = region
         self.SessParams = pd.Series()
         self.Waveforms = pd.Series()
-        self.TrialParams = pd.DataFrame()
+        self.StimParams = pd.DataFrame()
+        self.Answer = pd.DataFrame()
         self.Events = pd.DataFrame()
+        self.TrialParams = pd.DataFrame()
         self.Spikes = Spikes([])
         self.Rates = pd.Series()
         self.QualityMetrics = pd.Series()
@@ -49,9 +51,6 @@ class Unit:
 
         self.is_empty = True
         self.is_excluded = True
-
-        self.t_start = t_start
-        self.t_stop = t_stop
 
         # Return if no TPLCell is passed.
         if TPLCell is None:
@@ -109,68 +108,53 @@ class Unit:
                    ('tSpk', util.fill_dim(sp_times))]
         self.Waveforms = util.series_from_tuple_list(wf_data)
 
-        # %% Trial parameters.
+        # %% Stimulus parameters.
 
-        # Rename and add dimension to trial parameters.
-        trp_df = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
-        if tr_params is not None:
-            for name, (nnew, dim) in tr_params.iterrows():
-                if name not in trp_df.columns:
-                    warnings.warn('Parameter "{0}" not found!'.format(name))
-                    continue
-                # Rename column.
-                trp_df.rename(columns={name: nnew}, inplace=True)
-                if dim is not None:  # add dimension
-                    trp_df[nnew] = util.add_dim_to_series(trp_df[nnew], dim)
-        self.TrialParams = trp_df
-        pcols = self.TrialParams.columns
+        # Extract all trial parameters.
+        trpars = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
+
+        # Process stimulus parameters.
+        self.StimParams = pd.DataFrame(columns=stim_params.index,
+                                       index=trpars.index)
+        for sf, (pname, dim) in stim_params.iterrows():
+            self.StimParams[sf] = util.add_dim_to_series(trpars[pname], dim)
+
+        # %% Subject answer parameters.
 
         # Recode correct/incorrect answer column.
-        if 'AnswCorr' in pcols:
-            corr_ans = self.TrialParams['AnswCorr']
-            if len(corr_ans.unique()) > 2:
-                warnings.warn(('More than 2 unique values in AnswCorr: ' +
-                               corr_ans.unique()))
-            corr_ans = corr_ans == corr_ans.max()  # higher value is correct!
-            self.TrialParams['AnswCorr'] = corr_ans
+        corr_ans = trpars[answ_params.loc['AnswCorr', 'name']]
+        if len(corr_ans.unique()) > 2:
+            warnings.warn(('More than 2 unique values in AnswCorr: ' +
+                           corr_ans.unique()))
+        corr_ans = corr_ans == corr_ans.max()  # higher value is correct!
+        self.Answer['AnswCorr'] = corr_ans
 
         # Add column for subject response (saccade direction).
-        if ('AnswCorr' in pcols) and ('S1Dir' in pcols) and ('S2Dir' in pcols):
-            corr_ans = self.TrialParams['AnswCorr']
-            same_dir = self.TrialParams['S1Dir'] == self.TrialParams['S2Dir']
-            self.TrialParams['Answ'] = ((same_dir & corr_ans) |
-                                        (~same_dir & ~corr_ans))
-
-        # Add start time, end time and length of each trials.
-        tstamps = TPLCell.Timestamps
-        tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
-                             in TPLCell.Info.successfull_trials_indices]) * s
-        for colname, col in [('TrialStart', tr_times[:, 0]),
-                             ('TrialStop', tr_times[:, 1]),
-                             ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
-            util.add_quant_col(self.TrialParams, col, colname)
+        same_dir = self.StimParams['S1', 'Dir'] == self.StimParams['S2', 'Dir']
+        self.Answer['SaccadeDir'] = ((same_dir & corr_ans) |
+                                     (~same_dir & ~corr_ans))
 
         # %% Trial events.
 
         # Timestamps of events. Only S1 offset and S2 onset are reliable!
         # S1 onset and S2 offset are fixed to these two.
-        # Altogether these four are call anchor events.
+        # Altogether these four are called anchor events.
 
-        # Watch out: indexing starting with 0! (not with 1 as in Matlab)!
+        # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
         S1dur, S2dur = [float(l.rescale(s)) for l in (constants.S1_dur,
                                                       constants.S2_dur)]
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
-        anchor_evts = [('S1 onset', TPLCell.Timestamps[iS1off]-S1dur),
-                       ('S1 offset', TPLCell.Timestamps[iS1off]),
-                       ('S2 onset', TPLCell.Timestamps[iS2on]),
-                       ('S2 offset', TPLCell.Timestamps[iS2on]+S2dur)]
+        anchor_evts = [('S1 on', TPLCell.Timestamps[iS1off]-S1dur),
+                       ('S1 off', TPLCell.Timestamps[iS1off]),
+                       ('S2 on', TPLCell.Timestamps[iS2on]),
+                       ('S2 off', TPLCell.Timestamps[iS2on]+S2dur)]
         anchor_evts = pd.DataFrame.from_items(anchor_evts)
 
         # Align trial events to S1 onset.
-        abs_S1_onset = anchor_evts['S1 onset']  # this is also used below!
+        abs_S1_onset = anchor_evts['S1 on']  # this is also used below!
         anchor_evts = anchor_evts.subtract(abs_S1_onset, axis=0)
 
         # Add additional trial events, relative to anchor events.
@@ -183,10 +167,21 @@ class Unit:
             evts[evt] = util.add_dim_to_series(1000*evts[evt], ms)  # s --> ms
         self.Events = evts
 
+        # %% Trial parameters.
+
+        # Add start time, end time and length of each trials.
+        tstamps = TPLCell.Timestamps
+        tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
+                             in TPLCell.Info.successfull_trials_indices]) * s
+        for colname, col in [('TrialStart', tr_times[:, 0]),
+                             ('TrialStop', tr_times[:, 1]),
+                             ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
+            util.add_quant_col(self.TrialParams, col, colname)
+
         # Add trial period lengths to trial params.
-        self.TrialParams['S1Len'] = evts['S1 offset'] - evts['S1 onset']
-        self.TrialParams['S2Len'] = evts['S2 offset'] - evts['S2 onset']
-        self.TrialParams['DelayLenPrec'] = evts['S2 onset'] - evts['S1 offset']
+        self.TrialParams['S1Len'] = evts['S1 off'] - evts['S1 on']
+        self.TrialParams['S2Len'] = evts['S2 off'] - evts['S2 on']
+        self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
         self.TrialParams['DelayLen'] = [np.round(v, 1) for v in
                                         self.TrialParams['DelayLenPrec']]
 
@@ -195,8 +190,8 @@ class Unit:
         # Trials spikes, aligned to S1 onset.
         spk_trains = [(spk_train - abs_S1_onset[i]) * s
                       for i, spk_train in enumerate(TPLCell.TrialSpikes)]
-        t_starts = self.Events['fixation start']
-        t_stops = self.Events['saccade']
+        t_starts = self.ev_times('fixate')
+        t_stops = self.ev_times('saccade')
         self.Spikes = Spikes(spk_trains, t_starts, t_stops)
 
         # Estimate firing rate per trial.
@@ -309,17 +304,17 @@ class Unit:
         spk_inc = util.indices_in_window(self.Waveforms['tSpk'], t1, t2)
         self.QualityMetrics['IncSpikes'] = spk_inc
 
-    def get_trial_params(self, trs=None, t1=None, t2=None):
+    def get_trial_params(self, trs=None, t1s=None, t2s=None):
         """Return default values of some common parameters."""
 
         if trs is None:
-            trs = [self.all_trials()]
-        if t1 is None:
-            t1 = self.t_start
-        if t2 is None:
-            t2 = self.t_stop
+            trs = [self.all_trials()]  # default: all (included) trials
+        if t1s is None:
+            t1s = self.timing('fixate')   # default: start of fixation
+        if t2s is None:
+            t2s = self.timing('saccade')  # default: saccade time
 
-        return trs, t1, t2
+        return trs, t1s, t2s
 
     def pref_dir(self, stim='S1', method='weighted', pd_type='cPD'):
         """Return preferred direction."""
@@ -347,6 +342,25 @@ class Unit:
             self.init_nrate()  # return default (or first available) rate name
 
         return nrate
+
+
+    # %% Methods to get times of trial events and periods.
+
+    def ev_times(self, evname):
+        """Return timing of events across trials."""
+
+        evt = self.Events[evname]
+        return evt
+
+
+    def pr_times(self, prname):
+        """Return timing of period (start event, stop event) across trials."""
+
+        ev1, ev2 = constants.tr_prd.loc[prname]
+        evt1, evt2 = self.ev_times(ev1), self.ev_times(ev2)
+        prt = pd.concat([evt1, evt2], axis=1)
+
+        return prt
 
     # %% Generic methods to get various set of trials.
 
@@ -458,9 +472,9 @@ class Unit:
 
     # %% Methods that provide interface to Unit's Spikes data.
 
-    def get_rates_by_trial(self, trs=None, t1s=None, t2s=None,
-                           index_by_tr_time=False):
-        """Return rates within time intervals in given trials."""
+    def get_prd_rates(self, trs=None, t1s=None, t2s=None,
+                      index_by_tr_time=False):
+        """Return rates within time periods in given trials."""
 
         if self.is_empty:
             return None
@@ -710,25 +724,25 @@ class Unit:
 
     # %% Plotting methods.
 
-    def prep_plot_params(self, nrate, trs, t1, t2):
+    def prep_plot_params(self, nrate, trs, t1s, t2s):
         """Prepare plotting parameters."""
 
         # Get trial params.
-        trs, t1, t2 = self.get_trial_params(trs, t1, t2)
+        trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)
         names = [tr.name for tr in trs]
 
         # Get spikes.
-        spikes = [self.Spikes.get_spikes(tr, t1, t2) for tr in trs]
+        spikes = [self.Spikes.get_spikes(tr, t1s, t2s) for tr in trs]
 
         # Get rates and rate times.
         nrate = self.init_nrate(nrate)
         rates, time = None, None
         if nrate is not None:
-            rates = [self.Rates[nrate].get_rates(tr.trials, t1, t2)
+            rates = [self.Rates[nrate].get_rates(tr.trials, t1s, t2s)
                      for tr in trs]
-            time = self.Rates[nrate].get_sample_times(t1, t2)
+            time = self.Rates[nrate].get_sample_times(t1s, t2s)
 
-        return trs, t1, t2, spikes, rates, time, names
+        return trs, t1s, t2s, spikes, rates, time, names
 
     def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""

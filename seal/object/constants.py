@@ -16,19 +16,22 @@ from seal.util import util
 
 # %% Task constants.
 
-# Define parameter info.
-tr_params = [('markS1Dir', ('S1Dir', deg)), ('markS2Dir', ('S2Dir', deg)),
-             ('markS1LocX', ('S1LocX', cm)), ('markS1LocY', ('S1LocY', cm)),
-             ('MarkS2LocX', ('S2LocX', cm)), ('MarkS2LocY', ('S2LocY', cm)),
-             ('markS1range', ('S1Rng', deg)), ('markS2range', ('S2Rng', deg)),
-             ('subjectAnswer', ('AnswCorr', None))]
-tr_params = pd.DataFrame.from_items(tr_params, ['seal_name', 'dimension'],
-                                    'index')
+# Stimulus parameters.
+stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg),
+                            ('S2', 'Dir'): ('markS2Dir', deg),
+                            ('S1', 'LocX'): ('markS1LocX', cm),
+                            ('S1', 'LocY'): ('markS1LocY', cm),
+                            ('S2', 'LocX'): ('MarkS2LocX', cm),
+                            ('S2', 'LocY'): ('MarkS2LocY', cm),
+                            ('S1', 'Rng'): ('markS1range', deg),
+                            ('S2', 'Rng'): ('markS2range', deg)},
+                            index=('name', 'dim')).T
 
-# Trial start and stop times.
-t_start = -1000*ms
-t_stop = 4000*ms  # this should give enough time for longer delay (+500ms)
+# Subject answer reports.
+answ_params = pd.DataFrame({('AnswCorr'): ('subjectAnswer', None)},
+                           index=('name', 'dim')).T
 
+# Stimulus durations.
 S1_dur = 500*ms  # these are fixed at the moment
 S2_dur = 500*ms
 
@@ -45,52 +48,48 @@ latency = pd.Series({'MT': 50*ms, 'PFC': 100*ms})
 # %% Relative timing of different trial events and periods.
 
 # Trial events are defined relative to the anchor events coming from Tempo,
-# ['S1 onset', 'S1 offset', 'S2 onset', 'S2 offset'].
+# ['S1 on', 'S1 off', 'S2 on', 'S2 off'].
 # The relative timing of these anchor events can change from trial to trial.
 
 tr_evt = [  # Basic task events.
-          ('fixation start', ('S1 onset', -1000*ms)),
-          ('S1 onset', ('S1 onset', 0*ms)),
-          ('S1 offset', ('S1 offset', 0*ms)),
-          ('S2 onset', ('S2 onset', 0*ms)),
-          ('S2 offset', ('S2 offset', 0*ms)),
-          ('saccade', ('S2 offset', 1000*ms)),
+          ('fixate', ('S1 on', -1000*ms)),
+          ('S1 on', ('S1 on', 0*ms)),
+          ('S1 off', ('S1 off', 0*ms)),
+          ('S2 on', ('S2 on', 0*ms)),
+          ('S2 off', ('S2 off', 0*ms)),
+          ('saccade', ('S2 off', 1000*ms)),
 
           # Delay sub-period limits.
-          ('1/3 delay', ('S1 offset', 500*ms)),
-          ('2/3 delay', ('S2 onset', -500*ms)),
+          ('1/3 delay', ('S1 off', 500*ms)),
+          ('2/3 delay', ('S2 on', -500*ms)),
 
           # Cue-related events.
-          ('no cue', ('S1 offset', 750*ms)),  # latest time without cue on
-          ('cue', ('S2 onset', -750*ms))]
+          ('no cue', ('S1 off', 750*ms)),  # latest time without cue on
+          ('cue', ('S2 on', -750*ms))]
 
-tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'offset'], 'index')
+tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'shift'], 'index')
 
 # Trial periods are defined relative to trial events (the exact timing of which
 # are relative themselves to the anchor events, see above).
 
-tr_prd_names = [('whole trial', ('fixation start', 'saccade')),
+tr_prd_names = [('whole trial', ('fixate', 'saccade')),
 
                 # Basic task periods.
-                ('fixation', ('fixation start', 'S1 onset')),
-                ('S1', ('S1 onset', 'S1 offset')),
-                ('delay', ('S1 offset', 'S2 onset')),
-                ('S2', ('S2 onset', 'S2 offset')),
-                ('post-S2', ('S2 offset', 'saccade')),
+                ('fixation', ('fixate', 'S1 on')),
+                ('S1', ('S1 on', 'S1 off')),
+                ('delay', ('S1 off', 'S2 on')),
+                ('S2', ('S2 on', 'S2 off')),
+                ('post-S2', ('S2 off', 'saccade')),
 
                 # Extended stimulus periods.
-                ('around S1', ('fixation start', 'no cue')),
+                ('around S1', ('fixate', 'no cue')),
                 ('around S2', ('cue', 'saccade')),
 
                 # Delay sub-periods.
-                ('early delay', ('S1 offset', '1/3 delay')),
-                ('late delay', ('2/3 delay', 'S2 onset'))]
+                ('early delay', ('S1 off', '1/3 delay')),
+                ('late delay', ('2/3 delay', 'S2 on'))]
 
-tr_prd = [(prd, tr_evt.loc[ev1].append(tr_evt.loc[ev2]))
-          for prd, (ev1, ev2) in tr_prd_names]
-tr_prd = pd.DataFrame.from_items(tr_prd, ['start rel to', 'start offset',
-                                          'stop rel to', 'stop offset'],
-                                 orient='index')
+tr_prd = pd.DataFrame.from_items(tr_prd_names, ['start', 'stop'], 'index')
 
 
 # %% Analysis constants.
