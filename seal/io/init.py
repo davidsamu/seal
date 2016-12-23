@@ -57,8 +57,11 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
-            params = [(TPLCell, kernels, constants.step, constants.stim_params, 
-                       constants.answ_params, task, region)
+            step, stim_params = constants.step, constants.stim_params,
+            answ_params, stim_dur = constants.answ_params, constants.stim_dur
+            tr_evt = constants.tr_evt
+            params = [(TPLCell, kernels, step, stim_params, answ_params,
+                       stim_dur, tr_evt, task, region)
                       for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 

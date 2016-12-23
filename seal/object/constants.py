@@ -31,9 +31,8 @@ stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg),
 answ_params = pd.DataFrame({('AnswCorr'): ('subjectAnswer', None)},
                            index=('name', 'dim')).T
 
-# Stimulus durations.
-S1_dur = 500*ms  # these are fixed at the moment
-S2_dur = 500*ms
+# Stimulus durations. These are fixed for now.
+stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 
 # All 8 directions.
 all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)

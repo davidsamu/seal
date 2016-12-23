@@ -23,7 +23,6 @@ from seal.plot import prate, ptuning
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
-from seal.object.trials import Trials
 from seal.analysis import tuning
 
 
@@ -32,14 +31,16 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, kernels=None, step=None, stim_params=None,
-                 answ_params=None, taskname=None, region=None):
+                 answ_params=None, stim_dur=None, tr_evt=None, taskname=None,
+                 region=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
-        self.region = region
+        self.UnitParams = pd.Series()
         self.SessParams = pd.Series()
-        self.Waveforms = pd.Series()
+        self.Waveforms = pd.DataFrame()
+        self.SpikeParams = pd.DataFrame()
         self.StimParams = pd.DataFrame()
         self.Answer = pd.DataFrame()
         self.Events = pd.DataFrame()
@@ -49,8 +50,10 @@ class Unit:
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
 
-        self.is_empty = True
-        self.is_excluded = True
+        # Default unit params.
+        self.UnitParams['region'] = region
+        self.UnitParams['empty'] = True
+        self.UnitParams['excluded'] = True
 
         # Return if no TPLCell is passed.
         if TPLCell is None:
@@ -63,7 +66,7 @@ class Unit:
         task, task_idx = exp[:-1], int(exp[-1])
         task = task if taskname is None else taskname  # use provided name
         [chan, un] = TPLCell.ChanUnit
-        sampl_per = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
+        sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
                  else p for p in TPLCell.PInfo]
         sess_date = dt.date(dt.strptime(date, '%m%d%y'))
@@ -82,31 +85,25 @@ class Unit:
                    ('filepath', TPLCell.Filename),
                    ('filename', TPLCell.File),
                    ('paraminfo', pinfo),
-                   ('sampl_prd', sampl_per)]
+                   ('sampl_prd', sampl_prd)]
         self.SessParams = util.series_from_tuple_list(sp_list)
 
         # Name unit.
         self.set_name()
 
-        # %% Waveform data.
+        # %% Waveforms.
 
-        # Prepare waveform data.
         wfs = TPLCell.Waves
         if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
             wfs = np.reshape(wfs, (1, len(wfs)))
-        wf_sampl_t = range(wfs.shape[1]) * self.SessParams['sampl_prd']
+        wf_sampl_t = float(sampl_prd) * np.arange(wfs.shape[1])
+        self.Waveforms = pd.DataFrame(wfs, columns=wf_sampl_t)
 
-        t_min = np.min(TPLCell.Spikes)
-        t_max = np.max(TPLCell.Spikes)
-        sp_times = SpikeTrain(TPLCell.Spikes*s, t_start=t_min, t_stop=t_max)
+        # %% Spike params.
 
-        # Assign waveform data.
-        wf_data = [('tWF', wf_sampl_t),
-                   ('WF', wfs),
-                   ('SpkDur', util.fill_dim(TPLCell.Spikes_dur * s)),
-                   ('mSpkDur', TPLCell.MeanSpikeDur * s),
-                   ('tSpk', util.fill_dim(sp_times))]
-        self.Waveforms = util.series_from_tuple_list(wf_data)
+        spk_pars = [('time', util.fill_dim(TPLCell.Spikes)),
+                    ('dur', util.fill_dim(TPLCell.Spikes_dur * s.rescale(us)))]
+        self.SpikeParams = pd.DataFrame.from_items(spk_pars)
 
         # %% Stimulus parameters.
 
@@ -131,6 +128,7 @@ class Unit:
 
         # Add column for subject response (saccade direction).
         same_dir = self.StimParams['S1', 'Dir'] == self.StimParams['S2', 'Dir']
+        # This is not actually correct for passive task!
         self.Answer['SaccadeDir'] = ((same_dir & corr_ans) |
                                      (~same_dir & ~corr_ans))
 
@@ -143,8 +141,8 @@ class Unit:
         # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
-        S1dur, S2dur = [float(l.rescale(s)) for l in (constants.S1_dur,
-                                                      constants.S2_dur)]
+        S1dur = float(stim_dur['S1'].rescale(s))
+        S2dur = float(stim_dur['S2'].rescale(s))
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
         anchor_evts = [('S1 on', TPLCell.Timestamps[iS1off]-S1dur),
@@ -159,7 +157,7 @@ class Unit:
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
-                for evt, (rel, offset) in constants.tr_evt.iterrows()]
+                for evt, (rel, offset) in tr_evt.iterrows()]
         evts = pd.DataFrame.from_items(evts)
 
         # Add dimension to timestamps (ms).
@@ -184,33 +182,54 @@ class Unit:
         self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
         self.TrialParams['DelayLen'] = [np.round(v, 1) for v in
                                         self.TrialParams['DelayLenPrec']]
+        self.TrialParams['included'] = True
 
-        # %% Spikes and rates.
+        # %% Spikes.
 
         # Trials spikes, aligned to S1 onset.
         spk_trains = [(spk_train - abs_S1_onset[i]) * s
                       for i, spk_train in enumerate(TPLCell.TrialSpikes)]
-        t_starts = self.ev_times('fixate')
-        t_stops = self.ev_times('saccade')
+        t_starts = self.ev_times('fixate')  # start of trial
+        t_stops = self.ev_times('saccade')  # end of trial
         self.Spikes = Spikes(spk_trains, t_starts, t_stops)
 
+        # %% Rates.
+
         # Estimate firing rate per trial.
-        if step is None:
-            step = constants.step
         spikes = self.Spikes.get_spikes()
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, kernel in kernels.items()]
         self.Rates = pd.Series(rate_list, index=kernels.keys())
 
-        self.is_empty = False
-        self.is_excluded = False
+        # %% Update unit params.
+
+        self.UnitParams['empty'] = False
+        self.UnitParams['excluded'] = False
 
     # %% Utility methods.
+
+    def is_empty(self):
+        """Return 1 if unit is empty, 0 if not empty."""
+
+        im_empty = self.UnitParams['empty']
+        return im_empty
+
+    def is_excluded(self):
+        """Return 1 if unit is excluded, 0 if included."""
+
+        im_excluded = self.UnitParams['excluded']
+        return im_excluded
+
+    def get_region(self):
+        """Return unit's region of origin."""
+
+        my_region = self.UnitParams['region']
+        return my_region
 
     def set_excluded(self, to_excl):
         """Set unit's exclude flag."""
 
-        self.is_excluded = to_excl
+        self.UnitParams['excluded'] = to_excl
 
     def set_name(self, name=None):
         """Set/update unit's name."""
@@ -260,7 +279,8 @@ class Unit:
 
         # Basic params.
         upars['Name'] = self.Name
-        upars['excluded'] = self.is_excluded
+        upars['region'] = self.get_region()
+        upars['excluded'] = self.is_excluded()
 
         # Recording params.
         upars['Session information'] = ''
@@ -291,24 +311,25 @@ class Unit:
         """Update fields related to included/excluded trials and spikes."""
 
         # Update included trials.
+        self.TrialParams['included'] = tr_inc
+
+        # Statistics on trial inclusion.
         tr_exc = np.invert(tr_inc)
         self.QualityMetrics['NTrialsTotal'] = len(self.TrialParams.index)
         self.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
         self.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
-        self.QualityMetrics['IncTrials'] = Trials(tr_inc, 'included trials')
-        self.QualityMetrics['ExcTrials'] = Trials(tr_exc, 'excluded trials')
 
         # Update included spikes.
-        t1 = self.TrialParams.TrialStart[tr_inc].min()
-        t2 = self.TrialParams.TrialStop[tr_inc].max()
+        t1 = self.TrialParams.loc[tr_inc, 'TrialStart'].min()
+        t2 = self.TrialParams.loc[tr_inc, 'TrialStop'].max()
         spk_inc = util.indices_in_window(self.Waveforms['tSpk'], t1, t2)
         self.QualityMetrics['IncSpikes'] = spk_inc
 
     def get_trial_params(self, trs=None, t1s=None, t2s=None):
-        """Return default values of some common parameters."""
+        """Return default values of trials, start times and stop times."""
 
         if trs is None:
-            trs = [self.all_trials()]  # default: all (included) trials
+            trs = [self.all_trials()]  # default: all included trials
         if t1s is None:
             t1s = self.timing('fixate')   # default: start of fixation
         if t2s is None:
@@ -343,7 +364,6 @@ class Unit:
 
         return nrate
 
-
     # %% Methods to get times of trial events and periods.
 
     def ev_times(self, evname):
@@ -351,7 +371,6 @@ class Unit:
 
         evt = self.Events[evname]
         return evt
-
 
     def pr_times(self, prname):
         """Return timing of period (start event, stop event) across trials."""
@@ -376,17 +395,15 @@ class Unit:
     def filter_trials(self, trs):
         """Filter trials by excluding rejected ones."""
 
-        tr_idxs = np.logical_and(trs.trials, self.included_trials().trials)
-        filtered_trials = Trials(tr_idxs, trs.value, trs.name)
+        tr_idxs = np.logical_and(trs, self.included_trials())
         return filtered_trials
 
     def ftrials(self, trs, value=None, name=None, filtered=True):
         """
-        Create and return trial object from list of trial indices
+        Return trial indices
         after excluding unit's rejected trials.
         """
 
-        trs = Trials(trs, value, name)
         if filtered:
             trs = self.filter_trials(trs)
 
@@ -400,20 +417,22 @@ class Unit:
 
         return trs
 
-    def param_values_in_trials(self, trs, pnames=None):
-        """Return list of parameter values during given trials."""
+    def stim_pars_in_trials(self, trs, pnames=None):
+        """Return selected stimulus params during given trials."""
 
+        # Default: return all stimulus params.
         if pnames is None:
-            pnames = self.TrialParams.columns.values
-        pvals = self.TrialParams[pnames][trs.trials]
+            pnames = self.StimParams.columns.values
+
+        pvals = self.StimParams.loc[trs.trials, pnames]
 
         return pvals
 
-    def trials_by_param_values(self, pname, pvals=None, comb_values=False):
-        """Return trials grouped by (requested) values of parameter."""
+    def trials_by_stim_pars(self, pname, pvals=None, comb_values=False):
+        """Return trials grouped by selected values of stimulus param."""
 
         # All unique values of parameter and their trial indices.
-        vals, idxs = np.unique(self.TrialParams[pname], return_inverse=True)
+        vals, idxs = np.unique(self.StimParams[pname], return_inverse=True)
 
         # Set default values: all values of parameter.
         if pvals is None:
@@ -437,12 +456,12 @@ class Unit:
 
         return ptrials
 
-    def trials_by_comb_params(self, pdict, comb_params='all',
-                              comb_values=False):
-        """Return trials grouped by combination of values of parameters."""
+    def trials_by_comb_stim_params(self, pdict, comb_params='all',
+                                   comb_values=False):
+        """Return trials grouped by value combinations of stimulus params."""
 
-        # First, collect requested trials from each parameter separately.
-        ptrials = [self.trials_by_param_values(pname, pvals, comb_values)
+        # Collect requested trials from each parameter separately.
+        ptrials = [self.trials_by_stim_pars(pname, pvals, comb_values)
                    for pname, pvals in pdict.items()]
 
         # Set up trial combinations across parameter names.
@@ -464,30 +483,27 @@ class Unit:
     def correct_incorrect_trials(self):
         """Return indices of correct and incorrect trials."""
 
-        ctrs = OrdDict()
-        ctrs['correct'] = self.trials_by_param_values('AnswCorr', [True])[0]
-        ctrs['error'] = self.trials_by_param_values('AnswCorr', [False])[0]
+        corr = self.Answer['AnswCorr']
+        ctrs = pd.DataFrame([corr, ~corr], columns=['correct', 'error'])
 
         return ctrs
 
     # %% Methods that provide interface to Unit's Spikes data.
 
-    def get_prd_rates(self, trs=None, t1s=None, t2s=None,
-                      index_by_tr_time=False):
+    def get_prd_rates(self, trs=None, t1s=None, t2s=None, tr_time_idx=False):
         """Return rates within time periods in given trials."""
 
-        if self.is_empty:
+        if self.is_empty():
             return None
 
         # Init trials.
-        if trs is None:
-            trs = self.included_trials().trials
+        trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)
 
         # Get rates.
         rates = self.Spikes.rates(trs, t1s, t2s)
 
         # Change index from trial index to trials start times.
-        if index_by_tr_time:
+        if tr_time_idx:
             tr_time = self.TrialParams['TrialStart'][trs]
             rates.index = util.remove_dim_from_series(tr_time)
 
