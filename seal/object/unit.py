@@ -10,13 +10,10 @@ Class representing a (spike sorted) unit (single or multi).
 import warnings
 
 from datetime import datetime as dt
-from itertools import product
-from collections import OrderedDict as OrdDict
 
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us, deg, Hz
-from neo import SpikeTrain
 
 from seal.util import util
 from seal.plot import prate, ptuning
@@ -102,7 +99,8 @@ class Unit:
         # %% Spike params.
 
         spk_pars = [('time', util.fill_dim(TPLCell.Spikes)),
-                    ('dur', util.fill_dim(TPLCell.Spikes_dur * s.rescale(us)))]
+                    ('dur', util.fill_dim(TPLCell.Spikes_dur * s.rescale(us))),
+                    ('included', True)]
         self.SpikeParams = pd.DataFrame.from_items(spk_pars)
 
         # %% Stimulus parameters.
@@ -110,16 +108,14 @@ class Unit:
         # Extract all trial parameters.
         trpars = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
 
-        # Process stimulus parameters.
-        self.StimParams = pd.DataFrame(columns=stim_params.index,
-                                       index=trpars.index)
-        for sf, (pname, dim) in stim_params.iterrows():
-            self.StimParams[sf] = util.add_dim_to_series(trpars[pname], dim)
+        # Extract stimulus parameters.
+        self.StimParams = trpars[stim_params.name]
+        self.StimParams.columns = stim_params.index
 
         # %% Subject answer parameters.
 
         # Recode correct/incorrect answer column.
-        corr_ans = trpars[answ_params.loc['AnswCorr', 'name']]
+        corr_ans = trpars[answ_params['AnswCorr']]
         if len(corr_ans.unique()) > 2:
             warnings.warn(('More than 2 unique values in AnswCorr: ' +
                            corr_ans.unique()))
@@ -182,7 +178,9 @@ class Unit:
         self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
         self.TrialParams['DelayLen'] = [np.round(v, 1) for v in
                                         self.TrialParams['DelayLenPrec']]
-        self.TrialParams['included'] = True
+
+        # Init included trials (all trials included).
+        self.TrialParams['included'] = np.array(True, dtype=bool)
 
         # %% Spikes.
 
@@ -195,13 +193,13 @@ class Unit:
 
         # %% Rates.
 
-        # Estimate firing rate per trial.
+        # Estimate firing rate in each trial.
         spikes = self.Spikes.get_spikes()
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, kernel in kernels.items()]
         self.Rates = pd.Series(rate_list, index=kernels.keys())
 
-        # %% Update unit params.
+        # %% Unit params.
 
         self.UnitParams['empty'] = False
         self.UnitParams['excluded'] = False
@@ -310,30 +308,39 @@ class Unit:
     def update_included_trials(self, tr_inc):
         """Update fields related to included/excluded trials and spikes."""
 
+        # Init included and excluded trials.
+        tr_inc = np.array(tr_inc, dtype=bool)
+        tr_exc = np.invert(tr_inc)
+
         # Update included trials.
         self.TrialParams['included'] = tr_inc
 
         # Statistics on trial inclusion.
-        tr_exc = np.invert(tr_inc)
         self.QualityMetrics['NTrialsTotal'] = len(self.TrialParams.index)
         self.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
         self.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
 
         # Update included spikes.
-        t1 = self.TrialParams.loc[tr_inc, 'TrialStart'].min()
-        t2 = self.TrialParams.loc[tr_inc, 'TrialStop'].max()
-        spk_inc = util.indices_in_window(self.Waveforms['tSpk'], t1, t2)
-        self.QualityMetrics['IncSpikes'] = spk_inc
+        if tr_inc.all():  # all trials included: include full recording
+            t1 = self.SpikeParams['time'].min()
+            t2 = self.SpikeParams['time'].max()
+        else:
+            # Include spikes occurring between first and last included trials.
+            t1 = self.TrialParams.loc[tr_inc, 'TrialStart'].min()
+            t2 = self.TrialParams.loc[tr_inc, 'TrialStop'].max()
+
+        spk_inc = util.indices_in_window(self.SpikeParams['time'], t1, t2)
+        self.SpikeParams['included'] = spk_inc
 
     def get_trial_params(self, trs=None, t1s=None, t2s=None):
         """Return default values of trials, start times and stop times."""
 
         if trs is None:
-            trs = [self.all_trials()]  # default: all included trials
+            trs = self.inc_trials()       # default: all included trials
         if t1s is None:
-            t1s = self.timing('fixate')   # default: start of fixation
+            t1s = self.ev_times('fixate')   # default: start of fixation
         if t2s is None:
-            t2s = self.timing('saccade')  # default: saccade time
+            t2s = self.ev_times('saccade')  # default: saccade time
 
         return trs, t1s, t2s
 
@@ -383,110 +390,60 @@ class Unit:
 
     # %% Generic methods to get various set of trials.
 
-    def included_trials(self):
+    def inc_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
-        if 'IncTrials' in self.QualityMetrics:
-            included_trials = self.QualityMetrics['IncTrials']
-        else:
-            included_trials = self.all_trials(filtered=False)
-        return included_trials
+        inc_trs = self.TrialParams['included']
+        return inc_trs
 
     def filter_trials(self, trs):
-        """Filter trials by excluding rejected ones."""
+        """Filter out excluded trials."""
 
-        tr_idxs = np.logical_and(trs, self.included_trials())
-        return filtered_trials
-
-    def ftrials(self, trs, value=None, name=None, filtered=True):
-        """
-        Return trial indices
-        after excluding unit's rejected trials.
-        """
-
-        if filtered:
-            trs = self.filter_trials(trs)
-
+        trs = trs & self.inc_trials()
         return trs
-
-    def all_trials(self, filtered=True):
-        """Return indices of all trials."""
-
-        tr_idxs = np.ones(self.Spikes.n_trials(), dtype=bool)
-        trs = self.ftrials(tr_idxs, 'all trials', None, filtered)
-
-        return trs
-
-    def stim_pars_in_trials(self, trs, pnames=None):
-        """Return selected stimulus params during given trials."""
-
-        # Default: return all stimulus params.
-        if pnames is None:
-            pnames = self.StimParams.columns.values
-
-        pvals = self.StimParams.loc[trs.trials, pnames]
-
-        return pvals
-
-    def trials_by_stim_pars(self, pname, pvals=None, comb_values=False):
-        """Return trials grouped by selected values of stimulus param."""
-
-        # All unique values of parameter and their trial indices.
-        vals, idxs = np.unique(self.StimParams[pname], return_inverse=True)
-
-        # Set default values: all values of parameter.
-        if pvals is None:
-            pvals = vals
-
-        # Assamble list of trial names
-        tr_names = ['{} = {}'.format(pname, v) for v in pvals]
-
-        # Helper function to return indices of parameter value.
-        def trials_idxs(v):
-            ival = np.where(vals == v)[0] if v in vals else -1
-            return idxs == ival
-
-        # Create Trials object for each parameter value, separately.
-        ptrials = [self.ftrials(trials_idxs(v), v, n)
-                   for i, (n, v) in enumerate(zip(tr_names, pvals))]
-
-        # Optionally, combine trials across parameter values.
-        if comb_values:
-            ptrials = [Trials.combine_trials(ptrials, 'or')]
-
-        return ptrials
-
-    def trials_by_comb_stim_params(self, pdict, comb_params='all',
-                                   comb_values=False):
-        """Return trials grouped by value combinations of stimulus params."""
-
-        # Collect requested trials from each parameter separately.
-        ptrials = [self.trials_by_stim_pars(pname, pvals, comb_values)
-                   for pname, pvals in pdict.items()]
-
-        # Set up trial combinations across parameter names.
-        if len(pdict) > 1:
-
-            if comb_params == 'one2one':
-                tr_combs = zip(*ptrials)  # one-to-one mapping
-            else:
-                tr_combs = product(*ptrials)  # all combination of values
-
-            # Combine trails across parameters.
-            ptrials = [Trials.combine_trials(trc, 'and') for trc in tr_combs]
-
-        else:
-            ptrials = ptrials[0]  # single parameter value
-
-        return ptrials
 
     def correct_incorrect_trials(self):
         """Return indices of correct and incorrect trials."""
 
         corr = self.Answer['AnswCorr']
-        ctrs = pd.DataFrame([corr, ~corr], columns=['correct', 'error'])
+        ctrs = pd.DataFrame()
+        ctrs['correct'] = corr
+        ctrs['error'] = ~corr
 
         return ctrs
+
+    def pvals_in_trials(self, trs=None, pnames=None):
+        """Return selected stimulus params during given trials."""
+
+        # Defaults.
+        if trs is None:  # all trials
+            trs = np.ones(len(self.StimParams.index), dtype=bool)
+        if pnames is None:  # all stimulus params
+            pnames = self.StimParams.columns.values
+
+        pvals = self.StimParams.loc[trs, pnames]
+
+        return pvals
+
+    def trials_by_pvals(self, stim, feat, vals=None, comb_values=False):
+        """Return trials grouped by (selected) values of stimulus param."""
+
+        # Group indices by stimulus feature value.
+        tr_grps = self.StimParams.groupby([(stim, feat)]).groups
+
+        # Default: all values of stimulus feature.
+        if vals is None:
+            vals = sorted(tr_grps.keys())
+
+        # Convert to Series of trial list per feature value.
+        tr_grps = util.series_from_tuple_list([(v, np.array(tr_grps[v]))
+                                               for v in vals])
+
+        # Optionally, combine trials across feature values.
+        if comb_values:
+            tr_grps = util.aggregate_lists(tr_grps)
+
+        return tr_grps
 
     # %% Methods that provide interface to Unit's Spikes data.
 
@@ -504,95 +461,81 @@ class Unit:
 
         # Change index from trial index to trials start times.
         if tr_time_idx:
-            tr_time = self.TrialParams['TrialStart'][trs]
+            tr_time = self.TrialParams.loc[trs, 'TrialStart']
             rates.index = util.remove_dim_from_series(tr_time)
 
         return rates
 
-    # %% Methods to trials with specific directions.
+    # %% Methods to get trials with specific stimulus directions.
 
-    def dir_trials(self, direction, pname=['S1Dir', 'S2Dir'], offsets=[0*deg],
-                   comb_params='all', comb_values=False):
+    def dir_trials(self, direc, stims=['S1', 'S2'], offsets=[0*deg],
+                   comb_trs=False):
         """Return trials with some direction +- offset during S1 and/or S2."""
 
-        if not util.is_iterable(pname):
-            pname = [pname]
+        # Init list of directions.
+        direcs = [float(util.deg_mod(direc + offset)) for offset in offsets]
 
         # Get trials for direction + each offset value.
-        degs = [util.deg_mod(direction + offset) for offset in offsets]
-        deg_dict = OrdDict([(pn, degs) for pn in pname])
-        trs = self.trials_by_comb_params(deg_dict, comb_params, comb_values)
+        sd_trs = [((stim, d), self.trials_by_pvals(stim, 'Dir', [d]).loc[d])
+                  for d in direcs for stim in stims]
+        sd_trs = util.series_from_tuple_list(sd_trs)
 
-        return trs
+        # Combine values across trials.
+        if comb_trs:
+            sd_trs = util.combine_lists(sd_trs)
 
-    def dir_pref_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
-                        offsets=[0*deg], comb_params='all', comb_values=False):
+        return sd_trs
+
+    def dir_pref_trials(self, pref_of, **kwargs):
         """Return trials with preferred direction."""
 
-        # Get trials with preferred direction.
-        pdir = self.pref_dir(stim)
-        trs = self.dir_trials(pdir, pname, offsets, comb_params, comb_values)
-
-        # Rename trials.
-        if len(trs) == 1:
-            trs[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' pref'
+        pdir = self.pref_dir(pref_of)
+        trs = self.dir_trials(pdir, **kwargs)
 
         return trs
 
-    def dir_anti_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
-                        offsets=[0*deg], comb_params='all', comb_values=False):
+    def dir_anti_trials(self, anti_of, **kwargs):
         """Return trials with anti-preferred direction."""
 
-        # Get trials with anti-preferred direction.
-        adir = self.anti_pref_dir(stim)
-        trs = self.dir_trials(adir, pname, offsets, comb_params, comb_values)
-
-        # Rename trials.
-        if len(trs) == 1:
-            trs[0].name = ' & '.join([pn[0:2] for pn in pname]) + ' anti'
+        adir = self.anti_pref_dir(anti_of)
+        trs = self.dir_trials(adir, **kwargs)
 
         return trs
 
-    def dir_pref_anti_trials(self, stim='S1', pname=['S1Dir', 'S2Dir'],
-                             offsets=[0*deg], comb_params='all',
-                             comb_values=False):
+    def dir_pref_anti_trials(self, pref_anti_of, **kwargs):
         """Return trials with preferred and antipreferred direction."""
 
-        pref_trials = self.dir_pref_trials(stim, pname, offsets,
-                                           comb_params, comb_values)
-        apref_trials = self.dir_anti_trials(stim, pname, offsets,
-                                            comb_params, comb_values)
-        pref_apref_trials = pref_trials + apref_trials
+        pref_trials = self.dir_pref_trials(pref_anti_of, **kwargs)
+        apref_trials = self.dir_anti_trials(pref_anti_of, **kwargs)
+        pref_apref_trials = pref_trials.append(apref_trials)
 
         return pref_apref_trials
 
-    def S_D_trials(self, stim='S1', offsets=[0*deg], combine=True):
+    def S_D_trials(self, pref_of, offsets=[0*deg]):
         """
         Return trials for S1 = S2 (same) and S1 =/= S2 (different)
         with S2 being at given offset from the unit's preferred direction.
         """
 
         # Collect S- and D-trials for all offsets.
-        trS = []
-        trD = []
+        trS, trD = pd.Series(), pd.Series()
         for offset in offsets:
 
             # Trials to given offset to preferred direction.
-            pS2 = self.dir_pref_trials(stim, 'S2Dir', [offset])[0]
-            pS1 = self.dir_pref_trials(stim, 'S1Dir', [offset])[0]
+            # stims order must be first S2, then S1!
+            trs = self.dir_pref_trials(pref_of, stims=['S2', 'S1'], [offset])
 
             # S- and D-trials.
-            trS.append(Trials.combine_trials([pS2, pS1], 'and', 'S trials'))
-            trD.append(Trials.combine_trials([pS2, pS1], 'diff', 'D trials'))
+            trS[float(offset)] = util.intersect_lists(trs)[0]
+            trD[float(offset)] = util.diff_lists(trs)[0]
 
         # Combine S- and D-trials across offsets.
-        if combine:
-            trS = Trials.combine_trials(trS, 'or', 'S trials')
-            trD = Trials.combine_trials(trD, 'or', 'D trials')
+        trS = util.union_lists(trS, 'S trials')
+        trD = util.union_lists(trD, 'D trials')
 
-        trs = [trS, trD]
+        trsSD = trS.append(trD)
 
-        return trs
+        return trsSD
 
     # %% Methods to calculate tuning curves and preferred values of features.
 

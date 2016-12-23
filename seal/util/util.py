@@ -12,6 +12,7 @@ import copy
 import warnings
 import pickle
 import datetime
+import functools
 
 import string
 import numpy as np
@@ -362,6 +363,47 @@ def get_scalar_vals(series, remove_dimensions=False):
          for v in sub_series.values if isinstance(v, Quantity)]
 
     return sub_series
+
+
+def union_lists(val_lists, name='or'):
+    """Union (OR) of list of lists of values into single list."""
+
+    agg_list = functools.reduce(np.union1d, val_lists)
+    agg_ser = pd.Series([agg_list], index=[name])
+
+    return agg_ser
+
+
+def intersect_lists(val_lists, name='and'):
+    """Intersection (AND) of list of lists of values into single list."""
+
+    com_list = functools.reduce(np.intersect1d, val_lists)
+    com_ser = pd.Series([com_list], index=[name])
+
+    return com_ser
+
+
+def diff_lists(val_lists, name='diff'):
+    """Difference of list of lists of values into single list."""
+
+    diff_list = functools.reduce(np.setdiff1d, val_lists)
+    diff_ser = pd.Series([diff_list], index=[name])
+
+    return diff_ser
+
+
+def combine_lists(val_lists, comb_type, **kwargs):
+    """Combine list of lists by pass type ('and', 'or', or 'diff')."""
+
+    comb_ser = None
+    if comb_type == 'and':
+        comb_ser = intersect_lists(val_lists, **kwargs)
+    elif comb_type == 'or':
+        comb_ser = union_lists(val_lists, **kwargs)
+    elif comb_type == 'diff':
+        comb_ser = diff_lists(val_lists, **kwargs)
+
+    return comb_ser
 
 
 # %% Functions to handle Numpy and Pandas objects with Quantities as elements.
