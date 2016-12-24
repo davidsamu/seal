@@ -107,15 +107,15 @@ def fit_gaus_curve(x, y, y_err=None):
 
 # %% Miscullaneous functions.
 
-def center_pref_dir(dirs, PD, meanFR=None, semFR=None):
-    """Center preferred direction by shift direction - response values."""
+def center_pref_dir(dirs, dir0=0*deg, resp=None, resp_sem=None):
+    """Center preferred direction by shifting direction - response values."""
 
     # Init.
     ndirs = len(dirs)
     idx = np.array(range(ndirs))
 
     # Center preferred direction.
-    dirs_offset = dirs - PD
+    dirs_offset = dirs - dir0
 
     # Reorganise direction and response arrays to even number of values
     # to left and right (e.g. 4 - 4 for 8 directions).
@@ -130,14 +130,18 @@ def center_pref_dir(dirs, PD, meanFR=None, semFR=None):
     dirs_ctrd[idx_to_flip] = dirs_ctrd[idx_to_flip] - 360*deg
 
     # Shift responses.
-    meanFR_ctrd = None
-    if meanFR is not None:
-        meanFR_ctrd = meanFR[idx]
-    semFR_ctrd = None
-    if semFR is not None:
-        semFR_ctrd = semFR[idx]
+    resp_ctrd = None
+    if resp is not None:
+        resp_ctrd = resp[idx]
+    resp_sem_ctrd = None
+    if resp_sem is not None:
+        resp_sem_ctrd = resp_sem[idx]
 
-    return dirs_ctrd, meanFR_ctrd, semFR_ctrd
+    # Put results into series.
+    res = pd.Series([dirs_ctrd, resp_ctrd, resp_sem_ctrd],
+                    index=['dirs_ctrd', 'mean_ctrd', 'sem_ctrd'])
+
+    return res
 
 
 def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):

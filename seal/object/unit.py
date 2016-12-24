@@ -20,7 +20,7 @@ from seal.plot import prate, ptuning
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
-from seal.analysis import tuning
+from seal.analysis import direction, tuning
 
 
 class Unit:
@@ -373,17 +373,21 @@ class Unit:
 
     # %% Methods to get times of trial events and periods.
 
-    def ev_times(self, evname):
+    def ev_times(self, evname, add_latency=False):
         """Return timing of events across trials."""
 
-        evt = self.Events[evname]
+        evt = self.Events[evname].copy()
+        if add_latency:
+            evt += constants.latency[self.get_region()]
+
         return evt
 
-    def pr_times(self, prname):
+    def pr_times(self, prname, add_latency=False):
         """Return timing of period (start event, stop event) across trials."""
 
         ev1, ev2 = constants.tr_prd.loc[prname]
-        evt1, evt2 = self.ev_times(ev1), self.ev_times(ev2)
+        evt1 = self.ev_times(ev1, add_latency)
+        evt2 = self.ev_times(ev2, add_latency)
         prt = pd.concat([evt1, evt2], axis=1)
 
         return prt
@@ -523,7 +527,8 @@ class Unit:
 
             # Trials to given offset to preferred direction.
             # stims order must be first S2, then S1!
-            trs = self.dir_pref_trials(pref_of, stims=['S2', 'S1'], [offset])
+            trs = self.dir_pref_trials(pref_of=pref_of, stims=['S2', 'S1'],
+                                       offsets=[offset])
 
             # S- and D-trials.
             trS[float(offset)] = util.intersect_lists(trs)[0]
@@ -539,151 +544,123 @@ class Unit:
 
     # %% Methods to calculate tuning curves and preferred values of features.
 
-    def calc_response_stats(self, pname, t1s, t2s):
-        """Calculate mean response to different values of trial parameter."""
+    def calc_stim_resp_stats(self, stim, feat, t1s=None, t2s=None,
+                             add_latency=True):
+        """Calculate mean response to different values of stimulus feature."""
+
+        # Init time period (stimulus on).
+        if t1s is None and t2s is None:
+            tprd = self.pr_times(stim, add_latency)
+            t1s, t2s = [tvec for tname, tvec in tprd.items()]
 
         # Get trials for each parameter value.
-        trs = self.trials_by_param_values(pname)
+        trs = self.trials_by_pvals(stim, feat)
 
         # Calculate spike count and stats for each value of parameter.
-        par_vals = [float(tr.value) for tr in trs]
         sp_stats = pd.DataFrame([self.Spikes.spike_rate_stats(tr, t1s, t2s)
-                                 for tr in trs], index=par_vals)
+                                 for tr in trs.values], index=trs.index)
 
         return sp_stats
 
-    def calc_dir_response(self, stim, t1=None, t2=None):
-        """Calculate mean response to each direction during given stimulus."""
+    def dir_resp_stats(self, stim, **kwargs):
+        """Return direction response stats."""
 
-        # Init stimulus.
-        pname = stim + 'Dir'
+        # Get direction response stats.
+        resp_stats = self.calc_stim_resp_stats(stim, 'Dir', **kwargs)
 
-        # Init time period.
-        t1_stim, t2_stim = constants.del_stim_prds.periods(stim)
-        if t1 is None:
-            t1 = t1_stim
-        if t2 is None:
-            t2 = t2_stim
-
-        # Calculate response statistics.
-        response_stats = self.calc_response_stats(pname, t1, t2)
-
-        return response_stats
-
-    def calc_DS(self, stim, t1=None, t2=None):
-        """Calculate direction selectivity (DS)."""
-
-        pd_idx = ['PD', 'cPD', 'AD', 'cAD']
-
-        # Get response stats to each direction.
-        resp_stats = self.calc_dir_response(stim, t1, t2)
+        # Convert each result to Numpy array.
         dirs = np.array(resp_stats.index) * deg
         meanFR, stdFR, semFR = [util.dim_series_to_array(resp_stats[stat])
                                 for stat in ('mean', 'std', 'sem')]
 
-        # DS based on maximum rate only (legacy method).
-        mPD = dirs[np.argmax(meanFR)]
-        mAD = util.deg_mod(mPD+180*deg)
-        cmPD, cmAD = mPD, mAD
-        mPR, mAR = [meanFR[np.where(dirs == d)[0]] for d in (mPD, mAD)]
-        mDS = float(util.modulation_index(mPR, mAR)) if mAR.size else np.nan
+        # Put results into Series.
+        DR_stats = pd.Series([dirs, meanFR, stdFR, semFR],
+                             index=['dirs', 'mean', 'std', 'sem'])
 
-        mPDres = pd.Series([mPD, mAD, cmPD, cmAD], pd_idx)
+        return DR_stats
+
+    def calc_DS(self, stim, **kwargs):
+        """Calculate direction selectivity (DS)."""
+
+        # Get response stats to each direction.
+        DR = self.dir_resp_stats(stim, **kwargs)
+        dirs, meanFR, stdFR, semFR = DR
+
+        # DS based on maximum rate only (legacy method).
+        mPDres, mDS = direction.max_DS(dirs, meanFR)
 
         # DS based on weighted sum of all rates & directions.
-        wDS, wPD, cwPD = util.deg_w_mean(dirs, meanFR, constants.all_dirs)
-        wAD, cwAD = [util.deg_mod(d+180*deg) for d in (wPD, cwPD)]
-
-        wPDres = pd.Series([wPD, cwPD, wAD, cwAD], pd_idx)
-
-        # Calculate parameters of Gaussian tuning curve.
-        # Start by centering stimulus - response.
-        tun_res = tuning.center_pref_dir(dirs, wPD, meanFR, semFR)
-        dirs_cntr, meanFR_cntr, semFR_cntr = tun_res
-        # Fit Gaussian tuning curve to stimulus - response.
-        fit_params, fit_res = tuning.fit_gaus_curve(dirs_cntr, meanFR_cntr,
-                                                    semFR_cntr)
+        wPDres, wDS = direction.weighted_DS(dirs, meanFR)
 
         # DS based on Gaussian tuning curve fit.
-        tPD = wPD + fit_params.loc['fit', 'x0']
-        ctPD = util.coarse_dir(tPD, constants.all_dirs)
-        tAD, ctAD = [util.deg_mod(d+180*deg) for d in (tPD, ctPD)]
+        dir0 = wPDres.PD  # reference direction (to start curve fitting from)
+        tPDres, tun_res = direction.tuned_DS(dirs, meanFR, dir0, semFR)
 
-        tPDres = pd.Series([tPD, ctPD, tAD, ctAD], pd_idx)
-
+        # Prepare results.
         PD = pd.concat([mPDres, wPDres, tPDres], axis=1,
                        keys=('max', 'weighted', 'tuned'))
         DSI = pd.Series([mDS, wDS], index=['mDS', 'wDS'])
 
-        # Prepare results.
-        res = {'dirs': dirs, 'meanFR': meanFR, 'stdFR': stdFR, 'semFR': semFR,
-               'dirs_cntr': dirs_cntr, 'meanFR_cntr': meanFR_cntr,
-               'semFR_cntr': semFR_cntr, 'fit_params': fit_params,
-               'fit_res': fit_res, 'PD': PD, 'DSI': DSI}
+        return DR, PD, DSI, tun_res
 
-        return res
-
-    def test_DS(self, stims=['S1', 'S2'], no_labels=False, do_plot=True,
-                ftempl=None, **kwargs):
-        """
-        Test DS of unit by calculating
-          - DS index and PD, and
-          - parameters of Gaussian tuning curve.
-        """
+    def test_DS(self, stims=['S1', 'S2'], **kwargs):
+        """Test unit's direction selectivit."""
 
         # Init field to store DS results.
-        DSres_plot = {}
-        lDSI, lPD, lTP = [], [], []
+        lDR, lDSI, lPD, lTP = [], [], [], []
         for stim in stims:
 
-            res = self.calc_DS(stim, t1=None, t2=None)
+            # Calculate DS during stimulus.
+            DR, PD, DSI, tun_res = self.calc_DS(stim, **kwargs)
 
-            # Generate data points for plotting fitted tuning curve.
-            a, b, x0, sigma = res['fit_params'].loc['fit']
-            x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
-                                        a=a, b=b, x0=x0, sigma=sigma)
+            # Collect DR values.
+            for v in ['dirs_ctrd', 'mean_ctrd', 'sem_ctrd']:
+                DR[v] = tun_res[v]
+            lDR.append(DR)
 
-            # Collect calculated DS results param values.
-            lDSI.append(res['DSI'])
-            lPD.append(res['PD'])
+            # Collect DS params.
+            lDSI.append(DSI)
+            lPD.append(PD)
 
-            # TPs
-            lTP.append(res['fit_params'].loc['fit'].append(res['fit_res']))
-
-            # Collect data for plotting.
-            DSres_plot[stim] = res
-            DSres_plot[stim]['xfit'] = x
-            DSres_plot[stim]['yfit'] = y
+            # Collect tuning params.
+            tun_fit = tun_res['fit_pars'].loc['fit']
+            lTP.append(tun_fit.append(tun_res['fit_res']))
 
         # Convert each to a DataFrame.
-        DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
-                       for rlist in (lDSI, lPD, lTP)]
+        DR, DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
+                           for rlist in (lDR, lDSI, lPD, lTP)]
 
         # Save DS results.
+        self.DS['DR'] = DR
         self.DS['DSI'] = DSI
         self.DS['PD'] = PD
         self.DS['TP'] = TP
 
-        # Plot direction selectivity results.
-        if do_plot:
-            DSres_plot = pd.DataFrame(DSres_plot).T
-            title = self.Name
-
-            # Minimise labels on plot.
-            if no_labels:
-                title = None
-                kwargs['labels'] = False
-                kwargs['polar_legend'] = True
-                kwargs['tuning_legend'] = False
-
-            ffig = (None if ftempl is None
-                    else ftempl.format(self.name_to_fname()))
-            ptuning.direction_selectivity(DSres_plot, title=title,
-                                          ffig=ffig, **kwargs)
-
     # %% Plotting methods.
 
-    def prep_plot_params(self, nrate, trs, t1s, t2s):
+    def plot_DS(self, no_labels=False, ftempl=None, **kwargs):
+        """Plot direction selectivity results."""
+
+        if self.is_empty():
+            return
+
+        # Test DS if it hasn't been yet.
+        if not len(self.DS.index):
+            self.test_DS()
+
+        # Set up plot params.
+        if no_labels:  # minimise labels on plot
+            title = None
+            kwargs['labels'] = False
+            kwargs['polar_legend'] = True
+            kwargs['tuning_legend'] = False
+        else:
+            title = self.Name
+
+        ffig = None if ftempl is None else ftempl.format(self.name_to_fname())
+        ptuning.plot_DS(self.DS, title=title, ffig=ffig, **kwargs)
+
+    def prep_rr_plot_params(self, nrate, trs, t1s, t2s):
         """Prepare plotting parameters."""
 
         # Get trial params.
@@ -706,11 +683,11 @@ class Unit:
     def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
-        if self.is_empty:
+        if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
+        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
         trs, t1, t2, spikes, rates, tvec, names = plot_params
         spikes = spikes[0]
         names = names[0]
@@ -724,11 +701,11 @@ class Unit:
     def plot_rate(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
-        if self.is_empty:
+        if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
+        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
         trs, t1, t2, spikes, rates, tvec, names = plot_params
 
         # Plot rate.
@@ -741,17 +718,19 @@ class Unit:
                          no_labels=False, rate_kws=dict(), **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
-        if self.is_empty:
+        if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_plot_params(nrate, trs, t1, t2)
+        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
         trs, t1, t2, spikes, rates, tvec, names = plot_params
 
         # Set labels.
-        title = self.Name if not no_labels else None
         if no_labels:
+            title = None
             rate_kws.update({'xlab': None, 'ylab': None, 'add_lgn': False})
+        else:
+            title = self.Name
 
         # Plot raster and rate.
         res = prate.raster_rate(spikes, rates, tvec, names, t1, t2,

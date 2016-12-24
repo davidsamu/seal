@@ -3,7 +3,7 @@
 """
 Created on Sat Dec  3 12:23:54 2016
 
-Function related to importing recorded datasets.
+Functions related to importing recorded datasets.
 
 @author: David Samu
 """

@@ -74,15 +74,14 @@ class Spikes:
 
         # Default trial list.
         if trs is None:
-            trs = np.ones(self.n_trials(), dtype=bool)
+            trs = np.arange(self.n_trials())
 
         # Default time limits.
         t1s, t2s = self.init_time_limits(t1s, t2s)
 
         # Assamble time-windowed spike trains.
-        itrs = np.where(trs)[0]
-        spk_trains = pd.Series(index=itrs, dtype=object)
-        for itr in itrs:
+        spk_trains = pd.Series(index=trs, dtype=object)
+        for itr in trs:
 
             # Select spikes between t1 and t2 during selected trials, and
             # Convert them into new SpikeTrain list, with time limits set.
@@ -117,11 +116,11 @@ class Spikes:
         n_spikes = self.n_spikes(trs, t1s, t2s)
 
         # Rescale time limits.
-        t1s = util.rescale_series(t1s, s)
-        t2s = util.rescale_series(t2s, s)
+        t1s_sec = util.rescale_series(t1s[trs], s)
+        t2s_sec = util.rescale_series(t2s[trs], s)
 
         # Calculate rates for each selected trial.
-        rates = n_spikes / (t2s - t1s)
+        rates = n_spikes / (t2s_sec - t1s_sec)
 
         return rates
 

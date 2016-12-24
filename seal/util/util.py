@@ -451,9 +451,10 @@ def add_dim_to_series(ser, dim):
 def rescale_series(ser, dim):
     """Rescale dimension of Pandas Series."""
 
-    for i in ser.index:
-        ser[i] = ser[i].rescale(dim)
-    return ser
+    ser2 = ser.copy()
+    for i in ser2.index:
+        ser2[i] = ser2[i].rescale(dim)
+    return ser2
 
 
 def remove_dim_from_array(qvec, dtype=float):
@@ -555,22 +556,11 @@ def coarse_dir(origd, dirs):
     return cd
 
 
-def deg_w_mean(dirs, weights=None, cdirs=None):
-    """
-    Taking a vector of directions (2D unit vectors) and their weights, returns
-        - index of unidirectionality of weights
-            + inverse of spread, "direction selectivity", DSI
-        - weighted mean of directions
-            + "preferred direction", PD
-        - coarsed weighted mean of directions
-            + "preferred one of the original (or passed) directions", PDc.
-    """
+def polar_wmean(dirs, weights=None):
+    """Return weighted mean of unit length polar coordinate vectors."""
 
     if weights is None:
         weights = np.ones(len(dirs))
-
-    if cdirs is None:
-        cdirs = np.unique(dirs)
 
     # Remove values correspinding to NaN weights.
     idxs = np.logical_not(np.isnan(weights))
@@ -578,7 +568,7 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
 
     # Uniform zero weights (eg. no response).
     if dirs.size == 0 or np.all(weights == 0):
-        return 0, np.nan*deg, np.nan*deg
+        return 0, np.nan*deg
 
     # Convert directions to Cartesian unit vectors.
     dirs_xy = np.array([pol2cart(1, d.rescale(rad)) for d in dirs])
@@ -591,10 +581,7 @@ def deg_w_mean(dirs, weights=None, cdirs=None):
     rho, phi = cart2pol(x_mean, y_mean)
     phi_deg = deg_mod(phi*rad)
 
-    # Coarse to one of the original directions.
-    phi_deg_c = coarse_dir(phi_deg, cdirs)
-
-    return rho, phi_deg, phi_deg_c
+    return rho, phi_deg
 
 
 # %% General statistics and analysis functions.

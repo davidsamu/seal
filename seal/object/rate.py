@@ -102,10 +102,10 @@ class Rate:
 
         return sample_times
 
-    def get_sample_times_list(self, t1vec=None, t2vec=None):
-        """Return list of sample times for each pair of t1vec and t2vec."""
+    def get_sample_times_list(self, t1s=None, t2s=None):
+        """Return list of sample times for each pair of t1s and t2s."""
 
-        stvec = [self.get_sample_times(t1, t2) for t1, t2 in zip(t1vec, t2vec)]
+        stvec = [self.get_sample_times(t1, t2) for t1, t2 in zip(t1s, t2s)]
         return stvec
 
     # %% Methods to get rates for given trials and time periods.
@@ -118,7 +118,7 @@ class Rate:
 
         # Set default trials.
         if trs is None:
-            trs = np.ones(len(self.rates), dtype=bool)
+            trs = np.arange(len(self.rates))
 
         # Select rates from requested trials
         # and between t1 and t2 (or whole time period).
@@ -127,7 +127,7 @@ class Rate:
 
         return rates
 
-    def get_rel_rates(self, trs=None, t1vec=None, t2vec=None, align='left'):
+    def get_rel_rates(self, trs=None, t1s=None, t2s=None, align='left'):
         """
         Return firing rates of some trials within variable time window.
 
@@ -135,18 +135,18 @@ class Rate:
                This makes a difference if the lengths of the selected time
                windows differ.
 
-        trs, t1vec and t2vec: must all have length equal to number of trials.
+        trs, t1s and t2s: must all have length equal to number of trials.
         """
 
         # Set default trials.
         if trs is None:
-            trs = np.ones(len(self.rates), dtype=bool)
+            trs = np.arange(len(self.rates))
 
         # Select rates from some trials between trial-specific time limits.
-        rates = sum(trs) * [[]]
-        for i, itrs in enumerate(np.where(trs)[0]):
-            ts1, ts2 = self.get_sampled_t_limits(t1vec[itrs], t2vec[itrs])
-            rates[i] = self.rates.loc[itrs, ts1:ts2]
+        rates = len(trs) * [[]]
+        for i, itr in enumerate(trs):
+            ts1, ts2 = self.get_sampled_t_limits(t1s[itr], t2s[itr])
+            rates[i] = self.rates.loc[itr, ts1:ts2]
 
         # Align rates relative to left or right of selected period.
         rel_idx = 0 if align == 'left' else -1

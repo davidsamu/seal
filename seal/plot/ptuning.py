@@ -9,8 +9,9 @@ Created on Fri Dec  9 20:31:00 2016
 """
 
 import numpy as np
-from quantities import rad, s
+from quantities import deg, rad, s
 
+from seal.analysis import tuning
 from seal.plot import putil, pplot
 from seal.object import constants
 
@@ -26,9 +27,8 @@ def empty_direction_selectivity(fig, outer_gsp):
     return mock_polar_ax, mock_tuning_ax
 
 
-def direction_selectivity(DSres, title=None, labels=True,
-                          polar_legend=True, tuning_legend=True,
-                          ffig=None, fig=None, outer_gsp=None):
+def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
+            ffig=None, fig=None, outer_gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init plots.
@@ -41,24 +41,28 @@ def direction_selectivity(DSres, title=None, labels=True,
     polar_patches = []
     tuning_patches = []
 
-    for name, DSr in DSres.iterrows():
+    stims = DS.DSI.index
+    for stim in stims:
 
-        # Init stimulus plotting.
+        # Extract params and results.
+        a, b, x0, sigma, FWHM, R2, RMSE = DS.TP.loc[stim]
+        DSI = DS.DSI.loc[stim, 'wDS']
+        PD, cPD = DS.PD.loc[(stim, 'weighted'), ['PD', 'cPD']]
+        dirs, SR, SRstd, SRsem, dirsc, SRc, SRsemc = DS.DR.loc[stim]
+
+        # Generate data points for plotting fitted tuning curve.
+        x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
+                                    a=a, b=b, x0=x0, sigma=sigma)
         color = next(colors)
 
-        DSI = DSr.DSI.loc['wDS']
-        PD = DSr.PD.loc['PD', 'weighted']
-        cPD = DSr.PD.loc['cPD', 'weighted']
-
-        # Plot direction selectivity on polar plot.
+        # Plot DS polar plot.
         ttl = 'Direction response' if labels else None
-        polar_dir_resp(DSr.dirs, DSr.meanFR, DSI, PD, title=ttl,
-                       color=color, ax=ax_polar)
+        plot_DR(dirs, SR, DSI, PD, title=ttl, color=color, ax=ax_polar)
 
         # Collect parameters of polar plot (stimulus - response).
         s_pd = str(float(round(PD, 1)))
         s_pd_c = str(int(cPD)) if not np.isnan(float(cPD)) else 'nan'
-        lgd_lbl = '{}:   {:.3f}'.format(name, DSI)
+        lgd_lbl = '{}:   {:.3f}'.format(stim, DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
         polar_patches.append(putil.get_proxy_artist(lgd_lbl, color))
 
@@ -69,17 +73,14 @@ def direction_selectivity(DSres, title=None, labels=True,
         xlim = [-180-5, 180+5]  # degrees
         ylim = [0, None]
         ttl = 'Tuning curve' if labels else None
-        tuning_curve(DSr.xfit, DSr.yfit, DSr.dirs_cntr, DSr.meanFR_cntr,
-                     DSr.semFR_cntr, xticks, xlim, ylim, color, ttl,
-                     xlab, ylab, ax=ax_tuning)
+        plot_tuning(x, y, dirsc, SRc, SRsemc, xticks, xlim, ylim, color, ttl,
+                    xlab, ylab, ax=ax_tuning)
 
         # Collect parameters tuning curve fit.
-        a, b, x0, sigma = DSr.fit_params.loc['fit']
-        FWHM, R2, RMSE = DSr.fit_res
         s_a, s_b, s_x0, s_sigma, s_FWHM = [str(float(round(p, 1)))
                                            for p in (a, b, x0, sigma, FWHM)]
         s_R2 = format(R2, '.2f')
-        lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(name, 5 * ' ', s_a, 5 * ' ', s_b)
+        lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(stim, 5 * ' ', s_a, 5 * ' ', s_b)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(8 * ' ', s_FWHM, 8 * ' ', s_R2)
         tuning_patches.append(putil.get_proxy_artist(lgd_lbl, color))
@@ -109,7 +110,7 @@ def direction_selectivity(DSres, title=None, labels=True,
     for (plot_legend, lgd_ttl, patches, ax) in lgn_params:
         if not plot_legend:
             continue
-        if not labels:  # customisation for summary plot
+        if not labels:  # customize for summary plot
             lgd_ttl = None
         lgd = putil.set_legend(ax, handles=patches, title=lgd_ttl, **lgd_kws)
         lgd.get_title().set_ha('left')
@@ -122,9 +123,9 @@ def direction_selectivity(DSres, title=None, labels=True,
     putil.save_fig(fig, ffig)
 
 
-def polar_dir_resp(dirs, resp, DSI=None, PD=None, plot_type='line',
-                   complete_missing_dirs=False, color='b', title=None,
-                   ffig=None, ax=None):
+def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
+            complete_missing_dirs=False, color='b', title=None,
+            ffig=None, ax=None):
     """
     Plot response to each directions on polar plot, with a vector pointing to
     preferred direction (PD) with length DSI.
@@ -163,7 +164,6 @@ def polar_dir_resp(dirs, resp, DSI=None, PD=None, plot_type='line',
         arr_props = dict(facecolor=color, edgecolor='k', shrink=0.0, alpha=0.5)
         ax.annotate('', xy, xytext=(0, 0), arrowprops=arr_props)
 
-
     # Remove spines.
     putil.set_spines(ax, False, False)
 
@@ -172,9 +172,9 @@ def polar_dir_resp(dirs, resp, DSI=None, PD=None, plot_type='line',
     return ax
 
 
-def tuning_curve(xfit, yfit, v=None, meanr=None, semr=None, xticks=None,
-                 xlim=None, ylim=None, color='b', title=None,
-                 xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
+def plot_tuning(xfit, yfit, v=None, meanr=None, semr=None, xticks=None,
+                xlim=None, ylim=None, color='b', title=None,
+                xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
     """Plot tuning curve, optionally with data samples."""
 
     # Plot fitted curve.

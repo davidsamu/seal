@@ -14,7 +14,6 @@ TODO list of Seal project
 unit
 ----
   - add RF coverage information
-  - seprate DS calculation from plotting (add plotting params as fields to Unit?)
   - "region" parameter should come from TPLCell (either file name, or unique data field)
 
 
