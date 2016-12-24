@@ -20,7 +20,7 @@ from seal.plot import prate, ptuning
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
-from seal.analysis import direction, tuning
+from seal.analysis import direction
 
 
 class Unit:
@@ -336,7 +336,7 @@ class Unit:
         """Return default values of trials, start times and stop times."""
 
         if trs is None:
-            trs = self.inc_trials()       # default: all included trials
+            trs = self.inc_trials()         # default: all included trials
         if t1s is None:
             t1s = self.ev_times('fixate')   # default: start of fixation
         if t2s is None:
@@ -397,31 +397,35 @@ class Unit:
     def inc_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
-        inc_trs = self.TrialParams['included']
+        inc_trs = self.TrialParams.index[self.TrialParams['included']]
         return inc_trs
 
-    def filter_trials(self, trs):
+    def filter_trials(self, trs_ser):
         """Filter out excluded trials."""
 
-        trs = trs & self.inc_trials()
-        return trs
+        ftrs_ser = trs_ser.apply(np.intersect1d, args=(self.inc_trials(),))
+        return ftrs_ser
 
     def correct_incorrect_trials(self):
         """Return indices of correct and incorrect trials."""
 
         corr = self.Answer['AnswCorr']
-        ctrs = pd.DataFrame()
-        ctrs['correct'] = corr
-        ctrs['error'] = ~corr
+        ctrs = pd.Series([corr.index[idxs] for idxs in (corr, ~corr)])
+        ctrs.index = ['correct', 'error']
+
+        ctrs = self.filter_trials(ctrs)
 
         return ctrs
 
     def pvals_in_trials(self, trs=None, pnames=None):
-        """Return selected stimulus params during given trials."""
+        """
+        Return selected stimulus params during given trials.
+        pnames is list of (stim, feature) pairs.
+        """
 
         # Defaults.
         if trs is None:  # all trials
-            trs = np.ones(len(self.StimParams.index), dtype=bool)
+            trs = self.inc_trials()
         if pnames is None:  # all stimulus params
             pnames = self.StimParams.columns.values
 
@@ -433,7 +437,8 @@ class Unit:
         """Return trials grouped by (selected) values of stimulus param."""
 
         # Group indices by stimulus feature value.
-        tr_grps = self.StimParams.groupby([(stim, feat)]).groups
+        tr_grps = pd.Series(self.StimParams.groupby([(stim, feat)]).groups)
+        tr_grps = self.filter_trials(tr_grps)
 
         # Default: all values of stimulus feature.
         if vals is None:
@@ -445,7 +450,7 @@ class Unit:
 
         # Optionally, combine trials across feature values.
         if comb_values:
-            tr_grps = util.aggregate_lists(tr_grps)
+            tr_grps = util.union_lists(tr_grps)
 
         return tr_grps
 
@@ -660,12 +665,11 @@ class Unit:
         ffig = None if ftempl is None else ftempl.format(self.name_to_fname())
         ptuning.plot_DS(self.DS, title=title, ffig=ffig, **kwargs)
 
-    def prep_rr_plot_params(self, nrate, trs, t1s, t2s):
+    def prep_rr_plot_params(self, nrate=None, trs=None, t1s=None, t2s=None):
         """Prepare plotting parameters."""
 
         # Get trial params.
         trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)
-        names = [tr.name for tr in trs]
 
         # Get spikes.
         spikes = [self.Spikes.get_spikes(tr, t1s, t2s) for tr in trs]
@@ -678,7 +682,7 @@ class Unit:
                      for tr in trs]
             time = self.Rates[nrate].get_sample_times(t1s, t2s)
 
-        return trs, t1s, t2s, spikes, rates, time, names
+        return trs, t1s, t2s, spikes, rates, time
 
     def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
