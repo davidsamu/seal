@@ -110,32 +110,13 @@ class Rate:
 
     # %% Methods to get rates for given trials and time periods.
 
-    def get_fix_rates(self, trs=None, t1=None, t2=None):
+    def get_rates(self, trs=None, t1s=None, t2s=None, ref_ts=None):
         """
-        Return firing rates of selected trials within time window,
-        fixed among trials.
-        """
+        Return firing rates of some trials within trial-specific time windows.
 
-        # Set default trials.
-        if trs is None:
-            trs = np.arange(len(self.rates))
-
-        # Select rates from requested trials
-        # and between t1 and t2 (or whole time period).
-        ts1, ts2 = self.get_sampled_t_limits(t1, t2)
-        rates = self.rates.loc[trs, ts1:ts2]
-
-        return rates
-
-    def get_rel_rates(self, trs=None, t1s=None, t2s=None, align='left'):
-        """
-        Return firing rates of some trials within variable time window.
-
-        align: which end of interval to align by, 'left', 'right'.
-               This makes a difference if the lengths of the selected time
-               windows differ.
-
-        trs, t1s and t2s: must all have length equal to number of trials.
+        trs:      List with indices of trials to select.
+        t1s, t2s: Time window per trial. They must contain all trials!
+        ref_ts:   Array of reference times to align rate vectors by..
         """
 
         # Set default trials.
@@ -148,10 +129,14 @@ class Rate:
             ts1, ts2 = self.get_sampled_t_limits(t1s[itr], t2s[itr])
             rates[i] = self.rates.loc[itr, ts1:ts2]
 
-        # Align rates relative to left or right of selected period.
-        rel_idx = 0 if align == 'left' else -1
-        for r in rates:
-            r.index = r.index - r.index[rel_idx]
+        # Align rates relative to reference times.
+        if ref_ts is None:  # default: align to start of each time window
+            ref_ts = [r.index[0] for r in rates]
+        else:
+            ref_ts = [float(util.find_nearest(self.tvec, t)) for t in ref_ts]
+
+        for i, r in enumerate(rates):
+            r.index = r.index - ref_ts[i]
 
         # Stack rate vectors into dataframe, adding NaNs to samples missing
         # from any trials.

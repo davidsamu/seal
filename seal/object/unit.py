@@ -382,13 +382,14 @@ class Unit:
 
         return evt
 
-    def pr_times(self, prname, add_latency=False):
+    def pr_times(self, prname, add_latency=False, concat=True):
         """Return timing of period (start event, stop event) across trials."""
 
         ev1, ev2 = constants.tr_prd.loc[prname]
         evt1 = self.ev_times(ev1, add_latency)
         evt2 = self.ev_times(ev2, add_latency)
-        prt = pd.concat([evt1, evt2], axis=1)
+
+        prt = pd.concat([evt1, evt2], axis=1) if concat else [evt1, evt2]
 
         return prt
 
@@ -665,69 +666,74 @@ class Unit:
         ffig = None if ftempl is None else ftempl.format(self.name_to_fname())
         ptuning.plot_DS(self.DS, title=title, ffig=ffig, **kwargs)
 
-    def prep_rr_plot_params(self, nrate=None, trs=None, t1s=None, t2s=None):
+    def prep_rr_plot_params(self, prd, nrate=None, trs=None):
         """Prepare plotting parameters."""
 
         # Get trial params.
-        trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)
+        t1s, t2s = self.pr_times(prd, concat=False)
+        if trs is None:
+            trs = pd.Series([self.inc_trials()], ['included'])
 
         # Get spikes.
         spikes = [self.Spikes.get_spikes(tr, t1s, t2s) for tr in trs]
 
         # Get rates and rate times.
         nrate = self.init_nrate(nrate)
-        rates, time = None, None
+        rates, tvecs = None, None
         if nrate is not None:
-            rates = [self.Rates[nrate].get_rates(tr.trials, t1s, t2s)
-                     for tr in trs]
-            time = self.Rates[nrate].get_sample_times(t1s, t2s)
+            rates = [self.Rates[nrate].get_rates(tr, t1s, t2s) for tr in trs]
+            tvecs = np.array(rates[0].columns)*ms
 
-        return trs, t1s, t2s, spikes, rates, time
+        # Get trial set names.
+        names = trs.index
 
-    def plot_raster(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
+        return trs, t1s, t2s, spikes, rates, tvecs, names
+
+    def plot_raster(self, prd, nrate=None, trs=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, tvec, names = plot_params
-        spikes = spikes[0]
-        names = names[0]
+        plot_params = self.prep_rr_plot_params(prd, nrate, trs)
+        trs, t1s, t2s, spikes, rates, tvecs, names = plot_params
+        stim_prds = None
 
         # Plot raster.
-        ax = prate.raster(spikes, t1, t2, prds=constants.stim_prds,
+        ax = prate.raster(spikes, t1s, t2s, prds=stim_prds,
                           title=self.Name, **kwargs)
 
         return ax
 
-    def plot_rate(self, nrate=None, trs=None, t1=None, t2=None, **kwargs):
+    def plot_rate(self, prd, nrate=None, trs=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, tvec, names = plot_params
+        plot_params = self.prep_rr_plot_params(prd, nrate, trs)
+        trs, t1s, t2s, spikes, rates, tvec, names = plot_params
+        stim_prds = None
 
         # Plot rate.
-        ax = prate.rate(rates, tvec, names, t1, t2, prds=constants.stim_prds,
+        ax = prate.rate(rates, tvec, names, prds=stim_prds,
                         title=self.Name, **kwargs)
 
         return ax
 
-    def plot_raster_rate(self, nrate=None, trs=None, t1=None, t2=None,
-                         no_labels=False, rate_kws=dict(), **kwargs):
+    def plot_raster_rate(self, prd, nrate=None, trs=None, no_labels=False,
+                         rate_kws=dict(), **kwargs):
         """Plot raster and rate plot of unit for specific trials."""
 
         if self.is_empty():
             return
 
         # Set up params.
-        plot_params = self.prep_rr_plot_params(nrate, trs, t1, t2)
-        trs, t1, t2, spikes, rates, tvec, names = plot_params
+        plot_params = self.prep_rr_plot_params(prd, nrate, trs)
+        trs, t1s, t2s, spikes, rates, tvec, names = plot_params
+        #stim_prds
 
         # Set labels.
         if no_labels:
@@ -737,8 +743,8 @@ class Unit:
             title = self.Name
 
         # Plot raster and rate.
-        res = prate.raster_rate(spikes, rates, tvec, names, t1, t2,
-                                prds=constants.stim_prds, title=title,
+        res = prate.raster_rate(spikes, rates, tvec, names, t1s, t2s,
+                                prds=stim_prds, title=title,
                                 rate_kws=rate_kws, **kwargs)
         fig, raster_axs, rate_ax = res
 

@@ -53,15 +53,17 @@ class Spikes:
 
     # %% Utility methods.
 
-    def init_time_limits(self, t1s=None, t2s=None):
+    def init_time_limits(self, t1s=None, t2s=None, ref_ts=None):
         """Set time limits to default values if not specified."""
 
-        # Default time limits.
+        # Default time limits and reference time.
         if t1s is None:
             t1s = self.t_starts
         if t2s is None:
             t2s = self.t_stops
-        return t1s, t2s
+        if ref_ts is None:
+            ref_ts = t1s
+        return t1s, t2s, ref_ts
 
     def n_trials(self):
         """Return number of trials."""
@@ -69,7 +71,7 @@ class Spikes:
         n_trs = len(self.spk_trains.index)
         return n_trs
 
-    def get_spikes(self, trs=None, t1s=None, t2s=None):
+    def get_spikes(self, trs=None, t1s=None, t2s=None, ref_ts=None):
         """Return spike times of given trials within time windows."""
 
         # Default trial list.
@@ -77,16 +79,16 @@ class Spikes:
             trs = np.arange(self.n_trials())
 
         # Default time limits.
-        t1s, t2s = self.init_time_limits(t1s, t2s)
+        t1s, t2s, ref_ts = self.init_time_limits(t1s, t2s, ref_ts)
 
         # Assamble time-windowed spike trains.
         spk_trains = pd.Series(index=trs, dtype=object)
         for itr in trs:
-
             # Select spikes between t1 and t2 during selected trials, and
-            # Convert them into new SpikeTrain list, with time limits set.
-            t1, t2 = t1s[itr], t2s[itr]
+            # convert them into new SpikeTrain list, with time limits set.
+            t1, t2, tr = t1s[itr], t2s[itr], ref_ts[itr]
             spk_tr = util.values_in_window(self.spk_trains[itr], t1, t2)
+            spk_tr, t1, t2 = spk_tr-tr, t1-tr, t2-tr  # align to reference time
             spk_trains[itr] = SpikeTrain(spk_tr, t_start=t1, t_stop=t2)
 
         return spk_trains
@@ -97,7 +99,7 @@ class Spikes:
         """Return spike count of given trials in time windows."""
 
         # Default time limits.
-        t1s, t2s = self.init_time_limits(t1s, t2s)
+        t1s, t2s, _ = self.init_time_limits(t1s, t2s)
 
         # Select spikes within windows.
         spk_trains = self.get_spikes(trs, t1s, t2s)
@@ -110,7 +112,7 @@ class Spikes:
     def rates(self, trs=None, t1s=None, t2s=None):
         """Return rates of given trials in time windows."""
 
-        t1s, t2s = self.init_time_limits(t1s, t2s)
+        t1s, t2s, _ = self.init_time_limits(t1s, t2s)
 
         # Get number of spikes.
         n_spikes = self.n_spikes(trs, t1s, t2s)

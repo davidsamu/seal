@@ -70,24 +70,24 @@ tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'shift'], 'index')
 # Trial periods are defined relative to trial events (the exact timing of which
 # are relative themselves to the anchor events, see above).
 
-tr_prd_names = [('whole trial', ('fixate', 'saccade')),
+tr_prd = [('whole trial', ('fixate', 'saccade')),
 
-                # Basic task periods.
-                ('fixation', ('fixate', 'S1 on')),
-                ('S1', ('S1 on', 'S1 off')),
-                ('delay', ('S1 off', 'S2 on')),
-                ('S2', ('S2 on', 'S2 off')),
-                ('post-S2', ('S2 off', 'saccade')),
+          # Basic task periods.
+          ('fixation', ('fixate', 'S1 on')),
+          ('S1', ('S1 on', 'S1 off')),
+          ('delay', ('S1 off', 'S2 on')),
+          ('S2', ('S2 on', 'S2 off')),
+          ('post-S2', ('S2 off', 'saccade')),
 
-                # Extended stimulus periods.
-                ('around S1', ('fixate', 'no cue')),
-                ('around S2', ('cue', 'saccade')),
+          # Extended stimulus periods.
+          ('around S1', ('fixate', 'no cue')),
+          ('around S2', ('cue', 'saccade')),
 
-                # Delay sub-periods.
-                ('early delay', ('S1 off', '1/3 delay')),
-                ('late delay', ('2/3 delay', 'S2 on'))]
+          # Delay sub-periods.
+          ('early delay', ('S1 off', '1/3 delay')),
+          ('late delay', ('2/3 delay', 'S2 on'))]
 
-tr_prd = pd.DataFrame.from_items(tr_prd_names, ['start', 'stop'], 'index')
+tr_prd = pd.DataFrame.from_items(tr_prd, ['start', 'stop'], 'index')
 
 
 # %% Analysis constants.
