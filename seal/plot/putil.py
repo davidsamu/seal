@@ -30,7 +30,7 @@ mpl.rc('figure', autolayout=True)  # to prevent object being cut off
 
 ColConv = mpl.colors.ColorConverter()
 
-t_lbl = 'Time since S1 onset (ms)'
+t_lbl = 'Time since {} (ms)'
 FR_lbl = 'Firing rate (sp/s)'
 
 t_ticks = np.arange(-1000, 5000+1, 1000) * ms
@@ -144,7 +144,7 @@ def plot_periods(prds, t_unit=ms, alpha=0.2, color='grey', ax=None, **kwargs):
         return
 
     ax = axes(ax)
-    for name, (t_start, t_stop) in prds.periods().iterrows():
+    for name, t_start, t_stop in prds:
         if t_unit is not None:
             t_start = t_start.rescale(t_unit)
             t_stop = t_stop.rescale(t_unit)

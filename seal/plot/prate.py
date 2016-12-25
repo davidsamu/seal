@@ -64,7 +64,7 @@ def raster_rate(spk_list, rate_list, tvec, names, t1=None, t2=None, prds=None,
 
 
 def raster(spk_trains, t1=None, t2=None, t_unit=ms, prds=None, size=1.5, c='b',
-           title=None, xlab=putil.t_lbl, ylab=None, ffig=None, ax=None):
+           title=None, xlab=None, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
     t1, t2 = t1.rescale(t_unit), t2.rescale(t_unit)
@@ -84,6 +84,8 @@ def raster(spk_trains, t1=None, t2=None, t_unit=ms, prds=None, size=1.5, c='b',
     putil.set_limits(ax, [t1, t2], ylim)
     putil.hide_axes(ax, show_x=True)
     putil.hide_spines(ax)
+    if xlab is not None:
+        xlab = putil.t_lbl.format(xlab)
     putil.set_labels(ax, xlab, ylab, title)
 
     # Order trials from top to bottom, only after setting axis limits.
@@ -96,7 +98,7 @@ def raster(spk_trains, t1=None, t2=None, t_unit=ms, prds=None, size=1.5, c='b',
 
 def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
          pval=0.05, test='t-test', test_kws={}, xlim=None, ylim=None,
-         cols=None, title=None, xlab=putil.t_lbl, ylab=putil.FR_lbl,
+         cols=None, title=None, xlab=None, ylab=putil.FR_lbl,
          add_lgn=True, lgn_lbl='trs', ffig=None, ax=None):
     """Plot firing rate."""
 
@@ -139,6 +141,8 @@ def rate(rate_list, tvec, names, t1=None, t2=None, t_unit=ms, prds=None,
     # Set ticks, labels and axis limits.
     if ylim is None:
         ylim = (0, None)
+    if xlab is not None:
+        xlab = putil.t_lbl.format(xlab)
     putil.format_plot(ax, [t1, t2], ylim, xlab, ylab, title)
     xtcks = util.values_in_window(putil.t_ticks, t1, t2)
     putil.set_xtick_labels(ax, xtcks)

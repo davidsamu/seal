@@ -67,6 +67,7 @@ tr_evt = [  # Basic task events.
 
 tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'shift'], 'index')
 
+
 # Trial periods are defined relative to trial events (the exact timing of which
 # are relative themselves to the anchor events, see above).
 
@@ -88,6 +89,18 @@ tr_prd = [('whole trial', ('fixate', 'saccade')),
           ('late delay', ('2/3 delay', 'S2 on'))]
 
 tr_prd = pd.DataFrame.from_items(tr_prd, ['start', 'stop'], 'index')
+
+
+# Stimulus start and stop time related to each event.
+ev_stim = pd.DataFrame(columns=['stim', 'start', 'stop'])
+for ev, (rel_to, shift) in tr_evt.iterrows():
+    stim, on_off = rel_to.split()
+    stim_start, stim_stop = -shift, -shift
+    if on_off == 'on':
+        stim_stop += stim_dur[stim]
+    else:  # 'off'
+        stim_start -= stim_dur[stim]
+    ev_stim.loc[ev] = [stim, stim_start, stim_stop]
 
 
 # %% Analysis constants.

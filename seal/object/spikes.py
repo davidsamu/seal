@@ -10,7 +10,7 @@ Class for array of spike trains.
 
 import numpy as np
 import pandas as pd
-from quantities import s
+from quantities import s, ms
 from neo import SpikeTrain
 from elephant import statistics
 
@@ -62,7 +62,8 @@ class Spikes:
         if t2s is None:
             t2s = self.t_stops
         if ref_ts is None:
-            ref_ts = t1s
+            ref_ts = np.zeros(self.n_trials()) * ms
+
         return t1s, t2s, ref_ts
 
     def n_trials(self):
