@@ -46,10 +46,10 @@ def get_base_data(u):
     """Return base data of unit for quality metrics calculation."""
 
     # Init values.
-    waveforms = u.Waveforms['WF']
-    wavetime = u.Waveforms['tWF']
-    spk_dur = u.Waveforms['SpkDur']
-    spk_times = u.Waveforms['tSpk']
+    waveforms = np.array(u.Waveforms)
+    wavetime = np.array(u.Waveforms.columns) * us
+    spk_dur = u.SpikeParams['dur']
+    spk_times = u.SpikeParams['time']
     sampl_per = u.SessParams['sampl_prd']
 
     return waveforms, wavetime, spk_dur, spk_times, sampl_per
@@ -59,7 +59,7 @@ def time_bin_data(spk_times, waveforms):
     """Return time binned data for statistics over session time."""
 
     # Time bins and binned waveforms and spike times.
-    t_start, t_stop = spk_times.t_start, spk_times.t_stop
+    t_start, t_stop = spk_times.min()*s, spk_times.max()*s
     nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
     tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
@@ -129,12 +129,14 @@ def isi_stats(spk_times):
     # See Hill et al., 2011: Quality Metrics to Accompany Spike Sorting of
     # Extracellular Signals
     N = spk_times.size
-    T = (spk_times.t_stop - spk_times.t_start).rescale(ms)
+    T = (spk_times.max() - spk_times.min()).rescale(ms)
     r = n_ISI_vr
     tmax = ISI_TH
     tmin = CENSORED_PRD_LEN
     tdif = tmax - tmin
-    true_spikes = 100*(1/2 + np.sqrt(1/4 - float(r*T / (2*tdif*N**2))))
+
+    det = 1/4 - float(r*T / (2*tdif*N**2))  # determinant
+    true_spikes = 100*(1/2 + np.sqrt(det)) if det >= 0 else np.nan
 
     return true_spikes, percent_ISI_vr
 
@@ -243,13 +245,13 @@ def test_qm(u, ftempl=None):
     mean_rate = float(np.sum(spk_inc) / (t2_inc - t1_inc))
 
     # ISI statistics.
-    true_spikes, ISI_vr = isi_stats(spk_times[spk_inc])
+    true_spikes, ISI_vr = isi_stats(np.array(spk_times[spk_inc])*s)
     unit_type = classify_unit(snr, true_spikes)
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['mWFAmpl'] = np.mean(wf_amp)
-    u.QualityMetrics['mWFDur'] = np.mean(spk_dur[spk_inc]).rescale(us)
+    u.QualityMetrics['mWFDur'] = np.mean(spk_dur[spk_inc])
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -339,8 +341,8 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     # Common variables, limits and labels.
     spk_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
     spk_t = spk_i * sampl_per
-    ses_t_lim = [min(spk_times.t_start, trial_starts.iloc[0]),
-                 max(spk_times.t_stop, trial_starts.iloc[-1])]
+    ses_t_lim = [min(spk_times.min() * s, trial_starts.iloc[0]),
+                 max(spk_times.max() * s, trial_starts.iloc[-1])]
     ss = 1.0  # marker size on scatter plot
     sa = .80  # marker alpha on scatter plot
     g_lim = [gmin, gmax]  # gain axes limit
@@ -399,7 +401,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
                   edgecolors='', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
-    wf_dur_all = spk_dur.rescale(us)  # to use TPLCell's waveform duration
+    wf_dur_all = spk_dur  # to use TPLCell's waveform duration
     wf_dur_inc = wf_dur_all[spk_inc]
     mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
     title = 'WF duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
@@ -453,7 +455,7 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials
-            incl_segment = Periods([('selected', [t1_inc, t2_inc])])
+            incl_segment = [('selected', t1_inc, t2_inc)]
             putil.plot_periods(incl_segment, t_unit=s, ymax=0.96, ax=ax)
 
     # %% Save figure and metrics.

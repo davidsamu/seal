@@ -621,26 +621,6 @@ def SNR(v):
     return snr
 
 
-def sem(v, axis=0):
-    """Return standard error of the mean."""
-
-    # Keeping dimension of Quantity arrays (as opposed to scipy.stats.sem).
-    std = np.nanstd(v, axis)      # standard deviation
-    n = (~np.isnan(v)).sum(axis)  # number of valid (non-None) samples
-    sem = std / np.sqrt(n)
-
-    return sem
-
-
-def mean_sem(v, axis=0):
-    """Return mean and SEM of array."""
-
-    v_mean = np.nanmean(v, axis=axis)
-    v_sem = sem(v, axis=axis)
-
-    return v_mean, v_sem
-
-
 def modulation_index(v1, v2):
     """Calculate modulation index between pair(s) of values."""
 
@@ -778,7 +758,7 @@ def periods(t_on, time=None, min_len=None):
     return pers
 
 
-def sign_periods(ts1, ts2, time, p, test, test_kwargs):
+def sign_periods(ts1, ts2, tvec, p, test, test_kwargs):
     """
     Return list of periods of significantly difference
     between sets of time series.
@@ -787,7 +767,7 @@ def sign_periods(ts1, ts2, time, p, test, test_kwargs):
     # Indices of significant difference.
     tsign = sign_diff(ts1, ts2, p, test, test_kwargs)[1]
     # Periods of significant difference.
-    sign_periods = periods(tsign, time)
+    sign_periods = periods(tsign, tvec)
 
     return sign_periods
 

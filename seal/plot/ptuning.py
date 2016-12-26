@@ -16,28 +16,16 @@ from seal.plot import putil, pplot
 from seal.object import constants
 
 
-def empty_direction_selectivity(fig, outer_gsp):
-    """Plot empty direction selectivity plots."""
-
-    mock_gsp_polar = putil.embed_gsp(outer_gsp[0], 1, 1)
-    mock_polar_ax = putil.add_mock_axes(fig, mock_gsp_polar[0, 0], polar=True)
-    mock_gsp_tuning = putil.embed_gsp(outer_gsp[1], 1, 1)
-    mock_tuning_ax = putil.add_mock_axes(fig, mock_gsp_tuning[0, 0])
-
-    return mock_polar_ax, mock_tuning_ax
-
-
 def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
-            ffig=None, fig=None, outer_gsp=None):
+            ffig=None, fig=None, gsp=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init plots.
-    if outer_gsp is None:
-        fig, outer_gsp, _ = putil.get_gs_subplots(1, 2, subw=6, subh=5,
-                                                  create_axes=False, fig=fig)
-    ax_polar = fig.add_subplot(outer_gsp[0], polar=True)
-    ax_tuning = fig.add_subplot(outer_gsp[1])
-    colors = putil.get_colors()
+    if gsp is None:
+        fig, gsp, _ = putil.get_gs_subplots(1, 2, subw=6, subh=5,
+                                            create_axes=False, fig=fig)
+    ax_polar = fig.add_subplot(gsp[0], polar=True)
+    ax_tuning = fig.add_subplot(gsp[1])
     polar_patches = []
     tuning_patches = []
 
@@ -53,9 +41,9 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         # Generate data points for plotting fitted tuning curve.
         x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
                                     a=a, b=b, x0=x0, sigma=sigma)
-        color = next(colors)
 
         # Plot DS polar plot.
+        color = putil.stim_colors.loc[stim]
         ttl = 'Direction response' if labels else None
         plot_DR(dirs, SR, DSI, PD, title=ttl, color=color, ax=ax_polar)
 
@@ -118,9 +106,11 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
             lgd.get_frame().set_linewidth(.5)
 
     # Save figure.
-    if hasattr(outer_gsp, 'tight_layout'):
-        outer_gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
+    if hasattr(gsp, 'tight_layout'):
+        gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     putil.save_fig(fig, ffig)
+
+    return ax_polar, ax_tuning
 
 
 def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',

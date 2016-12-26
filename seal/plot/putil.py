@@ -9,9 +9,9 @@ Collection of plotting-related utility functions.
 
 import warnings
 from itertools import cycle
-from collections import OrderedDict as OrdDict
 
 import numpy as np
+import pandas as pd
 from quantities import ms
 
 import matplotlib as mpl
@@ -37,34 +37,11 @@ t_ticks = np.arange(-1000, 5000+1, 1000) * ms
 
 my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
 
+# Stimulus colors.
+stim_colors = pd.Series(['g', 'b'], index=['S1', 'S2'])
+
 
 # %% Functions to plot group and unit level properties.
-
-def group_params(unit_params, rec_name, ffig=None):
-    """Plot histogram of parameter values across units."""
-
-    # Init parameters to plot.
-    to_skip = ['task_idx', 'filepath', 'filename', 'monkey', 'date', 'probe'
-               'sampl_prd', 'DS', 'DSI', 'PD', 'TP']
-    params = [p for p in unit_params.columns if p not in to_skip]
-
-    # Init figure.
-    fig, _, axs = get_gs_subplots(nrow=len(params), subw=4, subh=3,
-                                  as_array=False)
-
-#    for param, ax in zip(params, axs):
-#        pplots.cat_hist(unit_params[param], ax=ax)
-
-    # Add main title
-    fig_title = ('{} session parameters, quality metrics '.format(rec_name) +
-                 'and stimulus selectivity across units' +
-                 ' (n = {})'.format(unit_params.shape[0]))
-    fig.suptitle(fig_title, y=1.06, fontsize='xx-large')
-
-    # Save and return plot.
-    save_fig(fig, ffig)
-    return fig
-
 
 def unit_info(u, fs='large', ax=None):
     """Plot unit info as text labels."""
@@ -75,16 +52,15 @@ def unit_info(u, fs='large', ax=None):
 
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
-    SNR, mWFdur, mFR = [upars[meas] if meas in upars else None
-                        for meas in ('SNR', 'mWFDur', 'mFR')]
-    lbl_dict = OrdDict([('SNR', 'N/A' if SNR is None else '{:.2f}'.format(SNR)),
-                        ('WfDur', 'N/A' if mWFdur is None else '{:.0f} $\mu$s'.format(mWFdur)),
-                        ('FR', 'N/A' if mFR is None else '{:.1f} sp/s'.format(mFR))])
+    fvals = [(meas, form.format(upars[meas]) if meas in upars else 'N/A')
+             for meas, form in [('SNR', '{:.2f}'), ('WfDur', '{:.0f} $\mu$s'),
+                                ('FR', '{:.1f} sp/s')]]
+    fvals = util.series_from_tuple_list(fvals)
 
     # Plot each label.
     yloc = .0
-    xloc = np.linspace(.10, .85, len(lbl_dict))
-    for xloci, (lbl, val) in zip(xloc, lbl_dict.items()):
+    xloc = np.linspace(.10, .85, len(fvals))
+    for xloci, (lbl, val) in zip(xloc, fvals.items()):
         lbl_str = '{}: {}'.format(lbl, val)
         ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
 
@@ -97,7 +73,7 @@ def unit_info(u, fs='large', ax=None):
 
 # %% Generic plot decorator functions.
 
-def plot_signif_prds(rates1, rates2, time, pval, test, test_kws, ypos=None,
+def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
                      color='c', linewidth=4, ax=None):
     """Add significant intervals to axes."""
 
@@ -106,8 +82,11 @@ def plot_signif_prds(rates1, rates2, time, pval, test, test_kws, ypos=None,
     if ypos is None:
         ypos = ax.get_ylim()[1]
 
+    # Get intersection of time axes of rates.
+    tvec = np.intersect1d(rates1.columns, rates2.columns)
+
     # Get intervals of significant differences between rates.
-    sign_periods = util.sign_periods(rates1, rates2, time, pval,
+    sign_periods = util.sign_periods(rates1[tvec], rates2[tvec], tvec, pval,
                                      test, test_kws)
 
     # Assamble line segments and add them to axes.
@@ -280,14 +259,11 @@ def set_labels(ax=None, xlab=None, ylab=None, title=None, ytitle=None,
     ax.tick_params(axis='both', which='major')
 
 
-def set_legend(ax, add_legend=True, loc=0, frameon=False, **kwargs):
+def set_legend(ax, loc=0, frameon=False, **kwargs):
     """Add legend to axes."""
 
     ax = axes(ax)
-
-    legend = None
-    if add_legend:
-        legend = ax.legend(loc=loc, frameon=frameon, **kwargs)
+    legend = ax.legend(loc=loc, frameon=frameon, **kwargs)
 
     return legend
 

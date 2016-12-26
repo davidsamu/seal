@@ -87,8 +87,8 @@ class UnitArray:
             self._iuid = 0
 
         # Let's not return empty and/or excluded unit if not requested.
-        if ((u.is_empty and not self._iter_missing) or
-            (u.is_excluded and not self._iter_excl)):
+        if ((u.is_empty() and not self._iter_missing) or
+            (u.is_excluded() and not self._iter_excl)):
             return self.__next__()
 
         return u
@@ -120,9 +120,9 @@ class UnitArray:
 
         # Exclude missing and excluded units.
         if not miss:
-            unit_list = [u for u in unit_list if not u.is_empty]
+            unit_list = [u for u in unit_list if not u.is_empty()]
         if not excl:
-            unit_list = [u for u in unit_list if not u.is_excluded]
+            unit_list = [u for u in unit_list if not u.is_excluded()]
 
         return unit_list
 
@@ -234,7 +234,7 @@ class UnitArray:
                                                  excl=True)):
                 # Skip missing units here to keep consistency
                 # of indexing across tasks.
-                if not u.is_empty:
+                if not u.is_empty():
                     u.add_index_to_name(i+1)
 
     # %% Exporting methods.
@@ -263,8 +263,8 @@ class UnitArray:
 
         for i, u in enumerate(self.iter_thru(excl=True)):
             rec, ch, un, task = u.get_utid()
-            inc = int(not u.is_excluded)
-            inc_trs = u.QualityMetrics['IncTrials'].trial_indices()
+            inc = int(not u.is_excluded())
+            inc_trs = u.inc_trials()
             ftr, ltr = 0, 0
             if len(inc_trs):
                 ftr, ltr = inc_trs.min()+1, inc_trs.max()+1

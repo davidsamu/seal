@@ -11,6 +11,11 @@ TODO list of Seal project
 - write Python script to automatically move and rename files after splitting sorted recording files
 
 
+export
+------
+  - add export decoding data (from Anna's script) into pickle and mat
+  - add export unit list function
+
 unit
 ----
   - add RF coverage information
@@ -26,9 +31,7 @@ test_sorting
 
 test_units
 ----------
-  - refactor DR_test and DS_summary by moving inner plotting into Unit
   - to all function: add option to show excluded units?
-  - tuning plot scales to be matched after DS plotting separated in Unit
   - check_recording_stability: add grand total slope
 
 
@@ -39,16 +42,16 @@ init
 
 plot
 ----
-  - refactor group_params plotting, and get_gs_subplots in the process!
+  - refactor get_gs_subplots
+  - refactor subplot passing to plotting functions all around
   - update colors and other theme elements after upgrading to matplotlib 2.0
-  - move group params and unit info plots from putil
-  - finish categorical plots
 
 
 plot.scatter
 ------------
   - add diagonal distribution to scatter
   - report and test significant values separately
+
 
 util
 ----

@@ -117,8 +117,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
             putil.inline_off()
-            test_units.direction_response_test(UA, ftempl=ftempl,
-                                               match_scale=False)
+            test_units.DS_test(UA, ftempl=ftempl, match_scale=True)
             putil.inline_on()
 
         # Test direction selectivity.
@@ -126,7 +125,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in UA.iter_thru():
             putil.inline_off()
-            u.test_DS(do_plot=plot_DS, ftempl=ftempl)
+            u.plot_DS(ftempl=ftempl)
         putil.inline_on()
 
         # Plot trial rate and direction selectivity summary plots.
@@ -137,36 +136,36 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
             test_units.rate_DS_summary(UA, ftempl=ftempl)
             putil.inline_on()
 
-        # Exclude units with low quality or no direction selectivity.
-        exclude_units(UA)
-
-        # Test stability of recording session across tasks.
-        if plot_stab:
-            print('  Plotting recording stability...')
-            fname = qc_dir + 'recording_stability.png'
-            putil.inline_off()
-            test_units.check_recording_stability(UA, fname)
-            putil.inline_on()
-
-        # Add to combined UA
-        combUA.add_recording(UA)
-
-    # Add index to unit names.
-    combUA.index_units()
-
-    # Save selected Units with quality metrics and direction selectivity.
-    print('\nExporting combined UnitArray...')
-    comb_data_dir = 'data/all_recordings/'
-    fname = comb_data_dir + 'all_recordings.data'
-    util.write_objects({'UnitArr': combUA}, fname)
-
-    # Export unit and trial selection results.
-    print('  Exporting automatic unit and trial selection results...')
-    fname = comb_data_dir + 'unit_trial_selection.xlsx'
-    combUA.export_unit_trial_selection_table(fname)
-
-    # Re-enable inline plotting
-    putil.inline_on()
+#        # Exclude units with low quality or no direction selectivity.
+#        exclude_units(UA)
+#
+#        # Test stability of recording session across tasks.
+#        if plot_stab:
+#            print('  Plotting recording stability...')
+#            fname = qc_dir + 'recording_stability.png'
+#            putil.inline_off()
+#            test_units.check_recording_stability(UA, fname)
+#            putil.inline_on()
+#
+#        # Add to combined UA
+#        combUA.add_recording(UA)
+#
+#    # Add index to unit names.
+#    combUA.index_units()
+#
+#    # Save selected Units with quality metrics and direction selectivity.
+#    print('\nExporting combined UnitArray...')
+#    comb_data_dir = 'data/all_recordings/'
+#    fname = comb_data_dir + 'all_recordings.data'
+#    util.write_objects({'UnitArr': combUA}, fname)
+#
+#    # Export unit and trial selection results.
+#    print('  Exporting automatic unit and trial selection results...')
+#    fname = comb_data_dir + 'unit_trial_selection.xlsx'
+#    combUA.export_unit_trial_selection_table(fname)
+#
+#    # Re-enable inline plotting
+#    putil.inline_on()
 
 
 def exclude_units(UA):
@@ -233,9 +232,7 @@ def select_unit_and_trials(f_data, f_sel_table):
     # Export updated UnitArray.
     util.write_objects({'UnitArr': UA}, f_data)
 
-#     # Write out unit list and save parameter plot.
+#     # Write out unit list.
 #    This should be also added to above! (this step is optional)
-#    print('\nExporting combined unit list and saving parameter plot...')
+#    print('\nExporting combined unit list...')
 #    UA.export_params_table(data_dir + 'unit_list.xlsx')
-#    fname = data_dir + 'unit_params.png'
-#    putil.group_params(UA.unit_params(), UA.Name, fname)

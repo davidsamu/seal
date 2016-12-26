@@ -123,10 +123,13 @@ class Rate:
         if trs is None:
             trs = np.arange(len(self.rates))
 
+        # Select times corresponding to selected trials.
+        t1s, t2s, ref_ts = t1s[trs], t2s[trs], ref_ts[trs]
+
         # Select rates from some trials between trial-specific time limits.
         rates = len(trs) * [[]]
         for i, itr in enumerate(trs):
-            ts1, ts2 = self.get_sampled_t_limits(t1s[itr], t2s[itr])
+            ts1, ts2 = self.get_sampled_t_limits(t1s.iloc[i], t2s.iloc[i])
             rates[i] = self.rates.loc[itr, ts1:ts2]
 
         # Align rates relative to reference times.
@@ -140,6 +143,6 @@ class Rate:
 
         # Stack rate vectors into dataframe, adding NaNs to samples missing
         # from any trials.
-        rates = pd.concat(rates, axis=1).T
+        rates = pd.concat(rates, axis=1).T if len(rates) else pd.DataFrame()
 
         return rates
