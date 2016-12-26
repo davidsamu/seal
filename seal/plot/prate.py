@@ -45,8 +45,9 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
     rate(rate_list, names, prds=prds, cols=cols, **rate_kws, ax=rate_ax)
 
-    # Synchronize x axis limits.
-    putil.sync_axes(raster_axs + [rate_ax], sync_x=True)
+    # Synchronize raster's x axis limits to rate.
+    xlim = rate_ax.get_xlim()
+    [ax.set_xlim(xlim) for ax in raster_axs]
 
     # Save and return plot.
     putil.save_fig(fig, ffig)
@@ -59,10 +60,11 @@ def raster(spk_trains, t_unit=ms, prds=None, size=1.5, c='b', xlim=None,
 
     # Init.
     ax = putil.axes(ax)
-    if not len(spk_trains):
-        return ax
 
     putil.plot_periods(prds, t_unit, ax=ax)
+
+    if not len(spk_trains):
+        return ax
 
     # Plot raster.
     for i, spk_tr in enumerate(spk_trains):
@@ -92,15 +94,14 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
 
     # Init.
     ax = putil.axes(ax)
+
+    putil.plot_periods(prds, ax=ax)
+
     if not len(rate_list):
         return ax
 
     if cols is None:
         cols = putil.get_colors()
-
-    # Start by highlighting the periods.
-    putil.plot_periods(prds, ax=ax)
-
     if names is None:
         names = len(rate_list) * ['']
 

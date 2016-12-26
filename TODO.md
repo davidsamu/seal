@@ -5,10 +5,14 @@ TODO list of Seal project
 
 - go through master scripts, move functionality into Seal, collect TODOs
 
+- write Python script to automatically move and rename files after splitting sorted recording files
+
+
+
+waveform duration calculation
+-----------------------------
 - calculate waveform duration in a way that deals with truncated WFs
 - exclude WFs from excluded trials from mean WF calculation
-
-- write Python script to automatically move and rename files after splitting sorted recording files
 
 
 export
@@ -29,15 +33,9 @@ test_sorting
   - trial selection: weight max FR deviation factor by FR magnitude? lower FRs may have higher deviations that are still acceptable, than higher FRs
 
 
-test_units
-----------
-  - to all function: add option to show excluded units?
-  - check_recording_stability: add grand total slope
-
-
 init
 ----
-  - finish exporting cell list table and params plot
+  - finish exporting cell list table
 
 
 plot
@@ -69,4 +67,3 @@ tuning
   - gaus: option to provide bounds and init values for fit
   - gaus: check if bounds and init values are consistent, change them otherwise
   - stats: calculate R2 and RMSE on all samples (rather than means to direction?)
-
