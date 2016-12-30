@@ -39,8 +39,7 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         SR, SRsem = [DS.DR[stim][col] for col in ('mean', 'sem')]
 
         # Center direction  and response stats.
-        dirsc, idx = direction.center_to_dir(dirs, PD)
-        SRc, SRsemc = SR.iloc[idx], SRsem.iloc[idx]
+        dirsc = direction.center_to_dir(dirs, PD)
 
         # Generate data points for plotting fitted tuning curve.
         x, y = tuning.gen_fit_curve(tuning.gaus, -180, 180,
@@ -65,7 +64,7 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         xlim = [-180-5, 180+5]  # degrees
         ylim = [0, None]
         ttl = 'Tuning curve' if labels else None
-        plot_tuning(x, y, dirsc, SRc, SRsemc, xticks, xlim, ylim, color, ttl,
+        plot_tuning(x, y, dirsc, SR, SRsem, xticks, xlim, ylim, color, ttl,
                     xlab, ylab, ax=ax_tuning)
 
         # Collect parameters tuning curve fit.

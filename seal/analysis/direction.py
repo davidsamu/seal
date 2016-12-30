@@ -60,10 +60,10 @@ def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
     """DS based on Gaussian tuning curve fit."""
 
     # Center stimulus - response.
-    dirs, _ = center_to_dir(dirs, dir0)
+    dirs_ctrd = center_to_dir(dirs, dir0)
 
     # Fit Gaussian tuning curve to stimulus - response.
-    fit_params, fit_res = tuning.fit_gaus_curve(dirs, resp, **kwargs)
+    fit_params, fit_res = tuning.fit_gaus_curve(dirs_ctrd, resp, **kwargs)
 
     # DS based on Gaussian tuning curve fit.
     PD = deg_mod(dir0 + fit_params.loc['fit', 'x0'] * deg)
@@ -181,27 +181,13 @@ def center_to_dir(dirs, dir0=0*deg):
         dirs = pd.Series(dirs)
 
     # Init.
-    dirs_idx = dirs.index
-    dirs = np.array(dirs)*deg
-    idx = np.arange(len(dirs))
+    dirs_arr = np.array(dirs)*deg
 
-    # Center preferred direction.
-    dirs_offset = dirs
+    # Center directions around dir0 + 180*deg.
+    dirs_ctrd = dirs_arr
     if dir0 is not None and not np.isnan(float(dir0)):
-        dirs_offset = dirs - dir0
+        dirs_ctrd = deg_mod(dirs_arr - dir0 + 180*deg) - 180*deg
 
-    # Reorganise direction and response arrays to even number of values
-    # to left and right (e.g. 4 - 4 for 8 directions).
-    to_right = dirs_offset < -180*deg   # indices to move to the right
-    to_left = dirs_offset > 180*deg     # indices to move to the left
-    center = np.invert(np.logical_or(to_right, to_left))  # indices to keep
-    idx = np.hstack((idx[to_left], idx[center], idx[to_right]))
+    dirs_ctrd = pd.Series(dirs_ctrd, index=dirs.index)
 
-    # Shift and modulo directions.
-    dirs_ctrd = deg_mod(dirs_offset[idx])
-    idx_to_flip = dirs_ctrd > 180*deg
-    dirs_ctrd[idx_to_flip] = dirs_ctrd[idx_to_flip] - 360*deg
-
-    dirs_ctrd = pd.Series(dirs_ctrd, index=dirs_idx)
-
-    return dirs_ctrd, idx
+    return dirs_ctrd
