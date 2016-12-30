@@ -8,6 +8,10 @@ TODO list of Seal project
 - write Python script to automatically move and rename files after splitting sorted recording files
 
 
+spikes and rates
+----------------
+- returning excluded trials should be made impossible in some way!
+
 
 waveform duration calculation
 -----------------------------
@@ -18,24 +22,11 @@ waveform duration calculation
 export
 ------
   - add export decoding data (from Anna's script) into pickle and mat
-  - add export unit list function
 
 unit
 ----
   - add RF coverage information
   - "region" parameter should come from TPLCell (either file name, or unique data field)
-
-
-test_sorting
-------------
-  - add RF coverage to unit selection(?)
-  - make trial selection consider additional criteria (magnitude and stability of FR, SNR, etc)
-  - trial selection: weight max FR deviation factor by FR magnitude? lower FRs may have higher deviations that are still acceptable, than higher FRs
-
-
-init
-----
-  - finish exporting cell list table
 
 
 plot
@@ -60,10 +51,3 @@ util
 decoding
 --------
   - extend with error trial analysis
-
-
-tuning
------------
-  - gaus: option to provide bounds and init values for fit
-  - gaus: check if bounds and init values are consistent, change them otherwise
-  - stats: calculate R2 and RMSE on all samples (rather than means to direction?)

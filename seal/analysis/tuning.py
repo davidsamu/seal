@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 29 16:52:52 2016
-
 Collection of functions related to tuning and
 other stimulus response properties of units.
 
@@ -13,9 +11,6 @@ import numpy as np
 import pandas as pd
 from scipy import exp
 from scipy.optimize import curve_fit
-from quantities import deg
-
-from seal.util import util
 
 
 # %% Core analysis methods.
@@ -28,9 +23,10 @@ def gaus(x, a=0, b=1, x0=0, sigma=1):
     return g
 
 
-def fit_gaus_curve(x, y, y_err=None):
+def fit_gaus_curve(x, y, y_err=None, lower_bounds=None, upper_bounds=None,
+                   a_init=None, b_init=None, x_init=None, sigma_init=None):
     """
-    Fit Gaussian curve to stimulus - response values. Returns best estimate on
+    Fit Gaussian curve to stimulus - response values. Return best estimate on
     parameter values and their std of error in Pandas data frame.
     """
 
@@ -40,18 +36,15 @@ def fit_gaus_curve(x, y, y_err=None):
     fit_res = pd.Series(index=['FWHM', 'R2', 'RMSE'], dtype=object)
 
     # Remove NaN values from input.
-    idx = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
+    idx = (~pd.isnull(x) & ~pd.isnull(y)).index
     if y_err is not None:
-        idx = np.logical_and(idx, np.logical_not(np.isnan(y_err)))
+        idx = (idx & ~pd.isnull(y_err).index)
         y_err = y_err[idx]
     x, y = x[idx], y[idx]
 
-    # Save input dimensions
-    x_dim, y_dim = x.units, y.units
-
     # Check that there is non-NaN data
     # and that Y values are not all 0 (i.e. no response).
-    if x.size > 1 or not np.all(y == 0):
+    if x.size > 1 and not np.all(y == 0):
 
         # Init input params.
         x, y = np.array(x), np.array(y)
@@ -59,21 +52,31 @@ def fit_gaus_curve(x, y, y_err=None):
         ymin, ymax = np.min(y), np.max(y)
 
         # Every element of y_err has to be positive.
-        if np.all(y_err <= 0):
-            y_err = None
-        else:
-            y_err[y_err <= 0] = np.min(y_err[y_err > 0])  # def. value: minimum
+        if y_err is not None:
+            if np.all(y_err <= 0):
+                y_err = None
+            else:
+                y_err[y_err <= 0] = np.min(y_err[y_err > 0])  # default: min.
 
         # Set initial values.
-        a_init = ymin                    # baseline (vertical shift)
-        b_init = ymax - ymin             # height (vertical stretch)
-        x0_init = np.sum(x*y)/np.sum(y)  # mean (horizontal shift)
-        sigma_init = np.sqrt(np.sum(y*(x-x0_init)**2)/np.sum(y))  # spread (horizontal stretch)
+        if a_init is None:
+            a_init = ymin                    # baseline (vertical shift)
+        if b_init is None:
+            b_init = ymax - ymin             # height (vertical stretch)
+        if x_init is None:
+            x0_init = np.sum(x*y)/np.sum(y)  # mean (horizontal shift)
+        if sigma_init is None:               # spread (horizontal stretch)
+            sigma_init = np.sqrt(np.sum(y*(x-x0_init)**2)/np.sum(y))
         p_init = [a_init, b_init, x0_init, sigma_init]
 
         # Lower and upper bounds of variables.
-        bounds = ([0.8*ymin,   0,               xmin, 0.],
+        bounds = ([0.8*ymin,   0,               xmin, 0],
                   [np.mean(y), 1.2*(ymax-ymin), xmax, (xmax-xmin)/2])
+        for ibnds, bnds in enumerate([lower_bounds, upper_bounds]):
+            if bnds is not None:
+                for i, b in enumerate(bnds):
+                    if b is not None:
+                        bounds[ibnds][i] = b
 
         # Find optimal Gaussian curve fit,
         # using ‘trf’ (Trust Region Reflective) method.
@@ -89,7 +92,7 @@ def fit_gaus_curve(x, y, y_err=None):
 
         # Calculate additional metrics of fit.
         a, b, x0, sigma = p_opt
-        FWHM = 2 * np.sqrt(2*np.log(2)) * sigma * x_dim
+        FWHM = 2 * np.sqrt(2*np.log(2)) * sigma
         R2, RMSE = calc_R2_RMSE(x, y, gaus, a=a, b=b, x0=x0, sigma=sigma)
 
         # Put them into a Series.
@@ -97,61 +100,16 @@ def fit_gaus_curve(x, y, y_err=None):
         fit_res.loc['R2'] = R2
         fit_res.loc['RMSE'] = RMSE
 
-    # Add dimension to fit parameters.
-    param_dims = [('a', y_dim), ('b', y_dim), ('x0', x_dim), ('sigma', x_dim)]
-    for param, dim in param_dims:
-        fit_params[param] = util.add_dim_to_series(fit_params[param], dim)
-
     return fit_params, fit_res
 
 
 # %% Miscullaneous functions.
 
-def center_pref_dir(dirs, dir0=0*deg, resp=None, resp_sem=None):
-    """Center preferred direction by shifting direction - response values."""
-
-    # Init.
-    ndirs = len(dirs)
-    idx = np.array(range(ndirs))
-
-    # Center preferred direction.
-    dirs_offset = dirs - dir0
-
-    # Reorganise direction and response arrays to even number of values
-    # to left and right (e.g. 4 - 4 for 8 directions).
-    to_right = dirs_offset < -180*deg   # indices to move to the right
-    to_left = dirs_offset > 180*deg     # indices to move to the left
-    center = np.invert(np.logical_or(to_right, to_left))  # indices to keep
-    idx = np.hstack((idx[to_left], idx[center], idx[to_right]))
-
-    # Shift directions.
-    dirs_ctrd = util.deg_mod(dirs_offset[idx])
-    idx_to_flip = dirs_ctrd > 180*deg
-    dirs_ctrd[idx_to_flip] = dirs_ctrd[idx_to_flip] - 360*deg
-
-    # Shift responses.
-    resp_ctrd = None
-    if resp is not None:
-        resp_ctrd = resp[idx]
-    resp_sem_ctrd = None
-    if resp_sem is not None:
-        resp_sem_ctrd = resp_sem[idx]
-
-    # Put results into series.
-    res = pd.Series([dirs_ctrd, resp_ctrd, resp_sem_ctrd],
-                    index=['dirs_ctrd', 'mean_ctrd', 'sem_ctrd'])
-
-    return res
-
-
-def gen_fit_curve(f, stim_units, stim_min, stim_max, n=100, **f_kwargs):
+def gen_fit_curve(f, stim_min, stim_max, n=100, **f_kwargs):
     """Generate data points for plotting fitted tuning curve."""
 
     # Sample stimulus values uniformaly within interval.
-    if stim_units is not None:
-        xfit = util.quantity_linspace(stim_min, stim_max, n, stim_units)
-    else:
-        xfit = np.linspace(stim_min, stim_max, n)
+    xfit = np.linspace(stim_min, stim_max, n)
 
     # Generate response values using tuning curve fit.
     yfit = f(xfit, **f_kwargs)
@@ -165,6 +123,11 @@ def calc_R2_RMSE(x, y, f, **f_kwargs):
     # Init.
     n, nparams = x.size, len(f_kwargs)
 
+    # Not enough data samples.
+    if nparams >= n:
+        return np.nan, np.nan
+
+    # Calculate
     ymean = np.mean(y)
     yfit = f(x, **f_kwargs)
     resid = y - yfit

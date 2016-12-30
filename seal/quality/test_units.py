@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Dec  8 12:30:16 2016
-
 Collection of functions for plotting unit activity and direction selectivity
 for different sets of trials or trial periods.
 
@@ -11,8 +9,6 @@ for different sets of trials or trial periods.
 
 import scipy as sp
 import pandas as pd
-
-from quantities import s
 
 from seal.util import util
 from seal.plot import putil, pplot
@@ -44,14 +40,19 @@ def DS_test(UA, nrate=None, ftempl=None, match_scale=True):
                                                   excl=True))
         for task, sps, u in task_gsp_u:
 
-            if u.is_empty():
+            # Plot DR of unit.
+            res = u.plot_DR(nrate, fig, sps)
+            if res is not None:
+                ax_polar, rate_axs = res
+                task_rate_axs.extend(rate_axs)
+                task_polar_axs.append(ax_polar)
+            else:
                 mock_ax = putil.embed_gsp(sps, 1, 1)
                 putil.add_mock_axes(fig, mock_ax[0, 0])
-                continue
 
-            ax_polar, rate_axs = u.plot_DR(nrate, fig, sps)
-            task_rate_axs.extend(rate_axs)
-            task_polar_axs.append(ax_polar)
+            # Add highlight to plots of excluded units.
+            if u.is_excluded():
+                putil.highlight_axes(ax_polar, alpha=0.2)
 
         # Match scale of y axes across tasks.
         if match_scale:
@@ -78,7 +79,7 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
     ntask = len(tasks)
 
     # For each unit over all tasks.
-    for uid in uids:
+    for uid in uids[24:]:
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=ntask,
@@ -87,19 +88,19 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
         task_rate_axs, task_polar_axs, task_tuning_axs = [], [], []
 
         # Plot direction response of unit in each task.
-        for i, u in enumerate(UA.iter_thru(tasks, [uid],
-                                           miss=True, excl=True)):
+        ulist = list(UA.iter_thru(tasks, [uid], miss=True, excl=True))
+        for i, u in enumerate(ulist):
             sps = gsp[i]
 
-            if u.is_empty():
+            res = u.plot_rate_DS(nrate, fig, sps)
+            if res is not None:
+                rate_axs, ax_polar, ax_tuning = res
+                task_rate_axs.extend(rate_axs)
+                task_polar_axs.append(ax_polar)
+                task_tuning_axs.append(ax_tuning)
+            else:
                 mock_ax = putil.embed_gsp(sps, 1, 1)
                 putil.add_mock_axes(fig, mock_ax[0, 0])
-                continue
-
-            rate_axs, ax_polar, ax_tuning = u.plot_rate_DS(nrate, fig, sps)
-            task_rate_axs.extend(rate_axs)
-            task_polar_axs.append(ax_polar)
-            task_tuning_axs.append(ax_tuning)
 
         # Match scale of y axes across tasks.
         if match_scale:
@@ -116,8 +117,11 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
             putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
 
 
-def check_recording_stability(UA, fname):
+def rec_stability_test(UA, fname):
     """Check stability of recording session across tasks."""
+
+    # Init plotting theme.
+    putil.set_style('notebook', 'white')
 
     # Init params.
     periods = constants.tr_prd
@@ -126,13 +130,14 @@ def check_recording_stability(UA, fname):
     fig, gsp, ax_list = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
                                               subw=10, subh=2.5,
                                               as_array=False)
-    colors = putil.get_colors()
 
-    for prd, ax, color in zip(periods.index, ax_list, colors):
+    for prd, ax in zip(periods.index, ax_list):
 
         # Calculate and plot firing rate during given period in each trial
         # across session for all units.
-        for task in UA.rec_task_order():
+        colors = putil.get_colors()
+        task_stats = pd.DataFrame(columns=['t_start', 'label'])
+        for task, color in zip(UA.rec_task_order(), colors):
 
             # Get activity of all units in task.
             tr_rates = []
@@ -149,18 +154,12 @@ def check_recording_stability(UA, fname):
 
             # Plot mean +- sem rate.
             tr_time = tr_rates.columns
-            mean_rate, sem_rate = tr_rates.mean(), tr_rates.sem()
+            mean_rate, sem_rate = tr_rates.mean(), tr_rates.std()
             lower, upper = mean_rate-sem_rate, mean_rate+sem_rate
             lower[lower < 0] = 0  # remove negative values
-            ax.fill_between(tr_time, lower, upper, zorder=2,
-                            alpha=.5, facecolor='grey', edgecolor='grey')
+            ax.fill_between(tr_time, lower, upper, zorder=2, alpha=.5,
+                            facecolor='grey', edgecolor='grey')
             pplot.lines(tr_time, mean_rate, lw=2, color='k', ax=ax)
-
-            # Add task start marker lines.
-            start_evt = pd.Series()
-            start_evt[task] = tr_times.min() * s
-            putil.plot_events(start_evt, t_unit=s, lbl_height=0.75,
-                              lbl_ha='left', lbl_rotation=0, ax=ax)
 
             # Add task stats.
             task_lbl = '{}, {} units'.format(task, len(tr_rates.index))
@@ -175,9 +174,16 @@ def check_recording_stability(UA, fname):
             task_lbl += '\n$\delta$FR: {:.1f} sp/s/h'.format(slope)
             task_lbl += '\n{}'.format(pval)
 
-        # Set limits and add labels to plot.
+            task_stats.loc[task] = (tr_times.min(), task_lbl)
+
+        # Add task labels after all tasks have been plotted (limits are set).
+        putil.plot_events(task_stats, lbl_height=0.75, lbl_ha='left',
+                          lbl_rotation=0, ax=ax)
+
+        # Format plot.
         xlab = 'Recording time (s)' if prd == periods.index[-1] else None
-        putil.set_labels(ax, xlab=xlab, ylab=prd_name)
+        putil.set_labels(ax, xlab=xlab, ylab=prd)
+        putil.set_spines(ax, left=False)
 
     # Format and save figure.
     title = 'Recording stability of ' + UA.Name

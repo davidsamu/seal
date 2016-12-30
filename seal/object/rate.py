@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug 26 17:05:15 2016
-
 Class for storing firing rates and associated properties.
 
 @author: David Samu

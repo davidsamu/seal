@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  9 20:31:00 2016
-
 # Functions to plot tuning curve and stimulus selectivity.
 
 @author: David Samu
 """
 
 import numpy as np
+import pandas as pd
 from quantities import deg, rad, s
 
-from seal.analysis import tuning
+from seal.analysis import tuning, direction
 from seal.plot import putil, pplot
 from seal.object import constants
 
@@ -36,10 +35,15 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         a, b, x0, sigma, FWHM, R2, RMSE = DS.TP.loc[stim]
         DSI = DS.DSI.loc[stim, 'wDS']
         PD, cPD = DS.PD.loc[(stim, 'weighted'), ['PD', 'cPD']]
-        dirs, SR, SRstd, SRsem, dirsc, SRc, SRsemc = DS.DR.loc[stim]
+        dirs = np.array(DS.DR[stim].index) * deg
+        SR, SRsem = [DS.DR[stim][col] for col in ('mean', 'sem')]
+
+        # Center direction  and response stats.
+        dirsc, idx = direction.center_to_dir(dirs, PD)
+        SRc, SRsemc = SR.iloc[idx], SRsem.iloc[idx]
 
         # Generate data points for plotting fitted tuning curve.
-        x, y = tuning.gen_fit_curve(tuning.gaus, deg, -180*deg, 180*deg,
+        x, y = tuning.gen_fit_curve(tuning.gaus, -180, 180,
                                     a=a, b=b, x0=x0, sigma=sigma)
 
         # Plot DS polar plot.
@@ -52,7 +56,7 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         s_pd_c = str(int(cPD)) if not np.isnan(float(cPD)) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(stim, DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
-        polar_patches.append(putil.get_proxy_artist(lgd_lbl, color))
+        polar_patches.append(putil.get_artist(lgd_lbl, color))
 
         # Calculate and plot direction tuning curve.
         xlab = 'Difference from preferred direction (deg)' if labels else None
@@ -71,7 +75,7 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         lgd_lbl = '{}:{}{:>6}{}{:>6}'.format(stim, 5 * ' ', s_a, 5 * ' ', s_b)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(5 * ' ', s_x0, 8 * ' ', s_sigma)
         lgd_lbl += '{}{:>6}{}{:>6}'.format(8 * ' ', s_FWHM, 8 * ' ', s_R2)
-        tuning_patches.append(putil.get_proxy_artist(lgd_lbl, color))
+        tuning_patches.append(putil.get_artist(lgd_lbl, color))
 
     # Add zero reference line to tuning curve.
     putil.add_zero_line('y', ax=ax_tuning)
@@ -123,6 +127,10 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
     types.
     """
 
+    # Remove NaNs.
+    not_nan = np.array(~pd.isnull(dirs) & ~pd.isnull(resp))
+    dirs, resp = dirs[not_nan], np.array(resp[not_nan])
+
     # Prepare data.
     # Complete missing directions with 0 response.
     if complete_missing_dirs:
@@ -131,7 +139,7 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
                 dirs = np.insert(dirs, i, d) * dirs.units
                 resp = np.insert(resp, i, 0) * 1/s
 
-    rad_dirs = np.array([d.rescale(rad) for d in dirs])
+    rad_dirs = dirs.rescale(rad)
 
     # Plot response to each directions on polar plot.
     if plot_type == 'bar':  # sector plot

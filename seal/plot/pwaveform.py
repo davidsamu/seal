@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec 16 12:47:23 2016
-
 Functions to plot spike waveforms.
 
 @author: David Samu

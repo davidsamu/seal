@@ -35,7 +35,6 @@ Created on Fri Dec  9 16:55:34 2016
 #    in step 2)
 
 
-
 # %% Init
 import os
 import sys
@@ -80,13 +79,12 @@ init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels, region)
 # Plotting parameters.
 plot_QM = True       # plot quality metrics (SNR, ISI, rate, etc) of each unit?
 plot_SR = True       # plot stimulus response of each unit? (3x3 figure)
-plot_DS = True       # plot direction selectivity/tuning plot of each unit?
 plot_sum = True      # plot summary plot of each unit? (all trials + tuning + pref/anti trials)
 plot_stab = True     # plot recording stability plot of each recording?
 
 ua_name = os.path.split(proj_dir)[1]
-init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_DS,
-                       plot_sum, plot_stab)
+init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sum,
+                       plot_stab)
 
 # Output:
 # - quality control figures for each recording in

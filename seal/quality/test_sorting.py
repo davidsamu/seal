@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Sep  7 16:04:07 2016
-
 Functions to calculate and plot quality metrics of units  after spike sorting
 (SNR, ISIvr, etc), and to exclude trials / units not meeting QC criteria.
 
@@ -28,16 +26,14 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0 * ms          # ISI violation threshold
-MAX_DRIFT_RATIO = 2        # maximum tolerable drift ratio
+MAX_DRIFT_RATIO = 3        # maximum tolerable drift ratio
 MIN_BIN_LEN = 120 * s      # minimum window length for firing binned statistics
 
 # Constants related to unit exclusion.
-min_RF_coverage = 0.5  # min. receptive field coverage
 min_SNR = 1.0          # min. SNR
 min_FR = 1.0           # min. firing rate (sp/s)
 max_ISIvr = 1.0        # max. ISI violation ratio (%)
 min_inc_trs_rat = 50   # min. ratio of included trials out of all recorded (%)
-min_DSI = 0.1          # min. direction selectivity index (8-dir weighted)
 
 
 # %% Utility functions.
@@ -250,8 +246,8 @@ def test_qm(u, ftempl=None):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['mWFAmpl'] = np.mean(wf_amp)
-    u.QualityMetrics['mWFDur'] = np.mean(spk_dur[spk_inc])
+    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp)
+    u.QualityMetrics['mWfDur'] = np.mean(spk_dur[spk_inc])
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISI_vr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -288,10 +284,6 @@ def test_rejection(u):
     # Insufficient number of trials (ratio of included trials).
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
-
-    # Insufficient direction selectivity (DSI).
-    DSIs = u.DS.loc['DSI'].wDS   # 8-direction weighted DSI
-    test_passed['DSI'] = (DSIs > min_DSI).any()
 
     # Exclude unit if any of the criteria is not met.
     exclude = not test_passed.all()
@@ -335,8 +327,8 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
 
     # Trial markers.
     trial_starts = u.TrialParams.TrialStart
-    trms = trial_starts[9::10]
-    tr_markers = {tr_i+1: tr_t for tr_i, tr_t in zip(trms.index, trms)}
+    tr_markers = pd.DataFrame({'time': trial_starts[9::10]})
+    tr_markers['label'] = tr_markers.index+1
 
     # Common variables, limits and labels.
     spk_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
@@ -450,13 +442,13 @@ def plot_qm(u, mean_rate, ISI_vr, true_spikes, unit_type, tbin_vmid, tbins,
     for ax in [ax_snr, ax_rate]:
 
         # Trial markers.
-        putil.plot_events(tr_markers, t_unit=s, lw=0.5, ls='--', alpha=0.35,
+        putil.plot_events(tr_markers, lw=0.5, ls='--', alpha=0.35,
                           lbl_height=0.96, ax=ax)
 
         # Included period.
         if not np.all(np.invert(tr_inc)):  # check if there is any trials
             incl_segment = [('selected', t1_inc, t2_inc)]
-            putil.plot_periods(incl_segment, t_unit=s, ymax=0.96, ax=ax)
+            putil.plot_periods(incl_segment, ymax=0.96, ax=ax)
 
     # %% Save figure and metrics.
 

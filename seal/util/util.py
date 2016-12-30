@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Aug 24 10:33:15 2016
-
 Collection of utility functions.
 
 @author: David Samu
@@ -20,10 +18,8 @@ import scipy as sp
 import pandas as pd
 import multiprocessing as mp
 from collections import Iterable
-from collections import OrderedDict as OrdDict
 
-from quantities import Quantity, deg, rad, ms
-from elephant.kernels import GaussianKernel, RectangularKernel
+from quantities import Quantity, s
 
 
 # %% Input / output and object manipulation functions.
@@ -330,16 +326,11 @@ def find_nearest(arr, v):
     return nearest
 
 
-def make_df(row_list, col_names=None):
-    """Return Pandas dataframes made of data passed."""
-
-    od_rows = OrdDict(row_list)
-    df = pd.DataFrame(od_rows, index=col_names).T
-    return df
-
-
 def series_from_tuple_list(tuple_list):
     """Create Pandas series from list of (name, value) tuples."""
+
+    if not len(tuple_list):
+        return pd.Series()
 
     sp_names, sp_vals = zip(*tuple_list)
     series = pd.Series(sp_vals, index=sp_names)
@@ -497,93 +488,6 @@ def add_quant_col(df, col, colname):
     df[colname] = add_dim_to_series(df[colname], col.units)
 
 
-# %% Function for analyzing directions.
-
-def deg2rad(v_deg):
-    """Convert degrees to radians."""
-
-    v_rad = np.pi * v_deg / 180
-    return v_rad
-
-
-def rad2deg(v_rad):
-    """Convert radians to degrees."""
-
-    v_deg = 180 * v_rad / np.pi
-    return v_deg
-
-
-def cart2pol(x, y):
-    """Perform convertion from Cartesian to polar coordinates."""
-
-    rho = np.sqrt(x**2 + y**2)
-    phi = np.arctan2(y, x)
-    return rho, phi
-
-
-def pol2cart(rho, phi):
-    """Perform convertion from polar to Cartesian coordinates."""
-
-    x = rho * np.cos(phi)
-    y = rho * np.sin(phi)
-    return x, y
-
-
-def deg_mod(d, max_d=360*deg):
-    """Converts cirulcar value (degree) into modulo interval."""
-
-    d = d.rescale(deg)
-    d_mod = np.mod(d, max_d)
-    return d_mod
-
-
-def deg_diff(d1, d2):
-    """Return difference between two angles in degrees."""
-
-    d1 = deg_mod(d1)
-    d2 = deg_mod(d2)
-    d = abs(d1-d2)
-    d = d if d < 180*deg else 360*deg - d
-    return d
-
-
-def coarse_dir(origd, dirs):
-    """Return direction from list that is closest to provided one."""
-
-    deg_diffs = np.array([deg_diff(d, origd) for d in dirs])
-    cd = dirs[np.argmin(deg_diffs)]
-
-    return cd
-
-
-def polar_wmean(dirs, weights=None):
-    """Return weighted mean of unit length polar coordinate vectors."""
-
-    if weights is None:
-        weights = np.ones(len(dirs))
-
-    # Remove values correspinding to NaN weights.
-    idxs = np.logical_not(np.isnan(weights))
-    dirs, weights = dirs[idxs], weights[idxs]
-
-    # Uniform zero weights (eg. no response).
-    if dirs.size == 0 or np.all(weights == 0):
-        return 0, np.nan*deg
-
-    # Convert directions to Cartesian unit vectors.
-    dirs_xy = np.array([pol2cart(1, d.rescale(rad)) for d in dirs])
-
-    # Calculate mean along x and y dimensions.
-    x_mean = np.average(dirs_xy[:, 0], weights=weights)
-    y_mean = np.average(dirs_xy[:, 1], weights=weights)
-
-    # Re-convert into angle in degrees.
-    rho, phi = cart2pol(x_mean, y_mean)
-    phi_deg = deg_mod(phi*rad)
-
-    return rho, phi_deg
-
-
 # %% General statistics and analysis functions.
 
 def zscore_timeseries(timeseries, axis=0):
@@ -701,17 +605,12 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
 def sign_diff(ts1, ts2, p, test, test_kwargs):
     """
     Return times of significant difference between two sets of time series.
+
+    ts1, ts2: time series stored in DataFrames, columns are time samples.
     """
 
-    # Make sure we can use standard Numpy indexing.
-    ts1 = np.array(ts1)
-    ts2 = np.array(ts2)
-
-    lr1 = ts1.shape[1]
-    lr2 = ts2.shape[1]
-
-    if lr1 != lr2:
-        warnings.warn('Unequal lengths ({} and {}).'.format(lr1, lr2))
+    # Get intersection of time vector.
+    tvec = np.intersect1d(ts1.columns, ts2.columns)
 
     # Select test.
     if test == 't-test':
@@ -723,22 +622,22 @@ def sign_diff(ts1, ts2, p, test, test_kwargs):
         test_func = t_test
 
     # Calculate p-values and times of significant difference.
-    pvals = np.array([test_func(ts1[:, i], ts2[:, i], **test_kwargs)[1]
-                      for i in range(min(lr1, lr2))])
+    pvals = pd.Series([test_func(ts1[t], ts2[t], **test_kwargs)[1]
+                       for t in tvec], index=tvec)
     tsign = pvals < p
 
     return pvals, tsign
 
 
-def periods(t_on, time=None, min_len=None):
+def periods(t_on_ser, min_len=None):
     """Return list of periods where t_on is True and with minimum length."""
 
-    if time is None:
-        time = np.array(range(len(t_on)))
+    if not len(t_on_ser.index):
+        return []
 
-    if len(t_on) != len(time):
-        warnings.warn('Lengths of t_on ({}) and time differ ({})!'
-                      .format(len(t_on), len(time)))
+    # Init data.
+    tvec = np.array(t_on_ser.index)
+    t_on = np.array(t_on_ser)
 
     # Starts of periods.
     tstarts = np.insert(t_on, 0, False)
@@ -749,16 +648,16 @@ def periods(t_on, time=None, min_len=None):
     iends = np.logical_and(tends[:-1] == True, tends[1:] == False)
 
     # Zip (start, end) pairs of periods.
-    pers = [(t1, t2) for t1, t2 in zip(time[istarts], time[iends])]
+    pers = [(t1, t2) for t1, t2 in zip(tvec[istarts], tvec[iends])]
 
-    # Drop too short periods.
+    # Drop periods shorter than minimum length.
     if min_len is not None:
         pers = [(t1, t2) for t1, t2 in pers if t2-t1 >= min_len]
 
     return pers
 
 
-def sign_periods(ts1, ts2, tvec, p, test, test_kwargs):
+def sign_periods(ts1, ts2, p, test, test_kwargs):
     """
     Return list of periods of significantly difference
     between sets of time series.
@@ -766,76 +665,30 @@ def sign_periods(ts1, ts2, tvec, p, test, test_kwargs):
 
     # Indices of significant difference.
     tsign = sign_diff(ts1, ts2, p, test, test_kwargs)[1]
+
     # Periods of significant difference.
-    sign_periods = periods(tsign, tvec)
+    sign_periods = periods(tsign)
 
     return sign_periods
 
 
-# %% Functions to create kernels for firing rate estimation.
+def calc_stim_resp_stats(stim_resp):
+    """Calculate stimulus response statistics from raw response values."""
 
-def rect_width_from_sigma(sigma):
-    """Return rectangular kernel width from sigma."""
+    null_resp = np.nan * 1/s
+    resp_stats = pd.DataFrame(columns=['mean', 'std', 'sem'])
+    for v, v_grp in stim_resp.groupby(['vals']):
+        resp = np.array(v_grp['resp'])
+        # Calculate statistics.
+        if resp.size:
+            mean_resp = np.mean(resp)
+            std_resp = np.std(resp)
+            sem_resp = std_resp / np.sqrt(resp.size)
+        else:  # in case of no response
+            mean_resp = null_resp
+            std_resp = null_resp
+            sem_resp = null_resp
 
-    width = 2 * np.sqrt(3) * sigma.rescale(ms)
-    return width
+        resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
 
-
-def sigma_from_rect_width(width):
-    """Return sigma from rectangular kernel width."""
-
-    sigma = width.rescale(ms) / 2 / np.sqrt(3)
-    return sigma
-
-
-def rect_kernel(width):
-    """Create rectangular kernel with given width."""
-
-    sigma = sigma_from_rect_width(width)
-    rk = RectangularKernel(sigma=sigma)
-    return rk
-
-
-def gaus_kernel(sigma):
-    """Create Gaussian kernel with given sigma."""
-
-    gk = GaussianKernel(sigma=sigma)
-    return gk
-
-
-def create_kernel(kerneltype, width):
-    """Create kernel of given type with given width."""
-
-    if kerneltype in ('G', 'Gaussian'):
-        fkernel = gaus_kernel
-
-    elif kerneltype in ('R', 'Rectangular'):
-        fkernel = rect_kernel
-
-    else:
-        warnings.warn('Unrecognised kernel type %s'.format(kerneltype) +
-                      ', returning Rectangular kernel.')
-        fkernel = rect_kernel
-
-    krnl = fkernel(width)
-
-    return krnl
-
-
-def kernel(kname):
-    """
-    Return kernel created with parameters encoded in name (type and width).
-    """
-
-    kerneltype = kname[0]
-    width = int(kname[1:]) * ms
-    kern = create_kernel(kerneltype, width)
-
-    return kern
-
-
-def kernel_set(knames):
-    """Return set of kernels specified in list of knames."""
-
-    kset = OrdDict((kname, kernel(kname)) for kname in knames)
-    return kset
+    return resp_stats

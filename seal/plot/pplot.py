@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  9 20:35:17 2016
-
 Collection of general purpose plotting functions.
 
 @author: David Samu

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  9 20:27:41 2016
-
 Functions to plot raster and rate plots.
 
 @author: David Samu
 """
 
 import numpy as np
+import pandas as pd
+
 from quantities import ms
 
 from seal.util import util
@@ -54,22 +54,23 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
     return fig, raster_axs, rate_ax
 
 
-def raster(spk_trains, t_unit=ms, prds=None, size=1.5, c='b', xlim=None,
+def raster(spk_trains, t_unit=ms, prds=None, size=2.0, c='b', xlim=None,
            title=None, xlab=None, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
     # Init.
     ax = putil.axes(ax)
 
-    putil.plot_periods(prds, t_unit, ax=ax)
+    putil.plot_periods(prds, ax=ax)
 
     if not len(spk_trains):
         return ax
 
     # Plot raster.
     for i, spk_tr in enumerate(spk_trains):
-        t = spk_tr.rescale(t_unit)
-        ax.scatter(t, (i+1) * np.ones_like(t), c=c, s=size, edgecolor='w')
+        x = spk_tr.rescale(t_unit)
+        y = (i+1) * np.ones_like(x)
+        ax.scatter(x, y, c=c, s=size, edgecolor='w')
 
     # Format plot.
     ylim = [0.5, len(spk_trains)+0.5] if len(spk_trains) else [0, 1]
@@ -126,8 +127,9 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
 
     # Set ticks, labels and axis limits.
     if xlim is None:
-        xlim = (min([rts.columns.min() for rts in rate_list]),
-                max([rts.columns.max() for rts in rate_list]))
+        # Use Pandas Series to deal with all sort of extreme cases.
+        xlim = (pd.Series([rts.columns.min() for rts in rate_list]).min(),
+                pd.Series([rts.columns.max() for rts in rate_list]).max())
     if ylim is None:
         ylim = (0, None)
     if xlab is not None:
@@ -145,9 +147,8 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
     # Add significance line to top of axes.
     if (pval is not None) and (len(rate_list) == 2):
         r1, r2 = rate_list
-        if r1.shape[0] and r2.shape[0]:
-            putil.plot_signif_prds(r1, r2, pval, test, test_kws,
-                                   color='m', linewidth=4.0, ax=ax)
+        putil.plot_signif_prds(r1, r2, pval, test, test_kws,
+                               color='m', linewidth=4.0, ax=ax)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

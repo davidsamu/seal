@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Aug 20 14:06:14 2016
-
 Class representing a (spike sorted) unit (single or multi).
 
 @author: David Samu
@@ -42,8 +40,8 @@ class Unit:
         self.Answer = pd.DataFrame()
         self.Events = pd.DataFrame()
         self.TrialParams = pd.DataFrame()
-        self.Spikes = Spikes([])
-        self.Rates = pd.Series()
+        self._Spikes = Spikes([])
+        self._Rates = pd.Series()
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
 
@@ -189,15 +187,15 @@ class Unit:
                       for i, spk_train in enumerate(TPLCell.TrialSpikes)]
         t_starts = self.ev_times('fixate')  # start of trial
         t_stops = self.ev_times('saccade')  # end of trial
-        self.Spikes = Spikes(spk_trains, t_starts, t_stops)
+        self._Spikes = Spikes(spk_trains, t_starts, t_stops)
 
         # %% Rates.
 
         # Estimate firing rate in each trial.
-        spikes = self.Spikes.get_spikes()
+        spikes = self._Spikes.get_spikes()
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, kernel in kernels.items()]
-        self.Rates = pd.Series(rate_list, index=kernels.keys())
+        self._Rates = pd.Series(rate_list, index=kernels.keys())
 
         # %% Unit params.
 
@@ -217,6 +215,16 @@ class Unit:
 
         im_excluded = self.UnitParams['excluded']
         return im_excluded
+
+    def n_inc_trials(self):
+        """Return number of included trials."""
+
+        if 'NTrialsInc' in self.QualityMetrics:
+            n_inc_trs = self.QualityMetrics['NTrialsInc']
+        else:
+            n_inc_trs = len(self.TrialParams.index)
+
+        return n_inc_trs
 
     def get_region(self):
         """Return unit's region of origin."""
@@ -298,6 +306,8 @@ class Unit:
         # Direction selectivity.
         upars['DS'] = ''
         for pname, pdf in self.DS.items():
+            if pname == 'DR':
+                continue
             upars[pname] = ''
             pdf_melt = pd.melt(pdf)
             idxs = list(pdf.index)
@@ -356,10 +366,10 @@ class Unit:
         def_nrate = constants.def_nrate
 
         if nrate is None:
-            nrate = (def_nrate if def_nrate in self.Rates
-                     else self.Rates.index[0])
+            nrate = (def_nrate if def_nrate in self._Rates
+                     else self._Rates.index[0])
 
-        elif nrate not in self.Rates:
+        elif nrate not in self._Rates:
             warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
             self.init_nrate()  # return default (or first available) rate name
 
@@ -413,6 +423,8 @@ class Unit:
         """Filter out excluded trials."""
 
         ftrs_ser = trs_ser.apply(np.intersect1d, args=(self.inc_trials(),))
+        ftrs_ser = ftrs_ser[[len(ftrs) > 0 for ftrs in ftrs_ser]]
+
         return ftrs_ser
 
     def correct_incorrect_trials(self):
@@ -442,7 +454,7 @@ class Unit:
 
         return pvals
 
-    def trials_by_pvals(self, stim, feat, vals=None, comb_values=False):
+    def trials_by_pvals(self, stim, feat, vals=None, comb_vals=False):
         """Return trials grouped by (selected) values of stimulus param."""
 
         # Group indices by stimulus feature value.
@@ -461,7 +473,7 @@ class Unit:
         tr_grps = util.series_from_tuple_list(v_trs)
 
         # Optionally, combine trials across feature values.
-        if comb_values:
+        if comb_vals:
             tr_grps = util.union_lists(tr_grps)
 
         return tr_grps
@@ -478,7 +490,7 @@ class Unit:
         trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)
 
         # Get rates.
-        rates = self.Spikes.rates(trs, t1s, t2s)
+        rates = self._Spikes.rates(trs, t1s, t2s)
 
         # Change index from trial index to trials start times.
         if tr_time_idx:
@@ -494,7 +506,8 @@ class Unit:
         """Return trials with some direction +- offset during S1 and/or S2."""
 
         # Init list of directions.
-        direcs = [float(util.deg_mod(direc + offset)) for offset in offsets]
+        direcs = [float(direction.deg_mod(direc + offset))
+                  for offset in offsets]
 
         # Get trials for direction + each offset value.
         sd_trs = [((stim, d), self.trials_by_pvals(stim, 'Dir', [d]).loc[d])
@@ -561,78 +574,72 @@ class Unit:
 
     # %% Methods to calculate tuning curves and preferred values of features.
 
-    def calc_stim_resp_stats(self, stim, feat, t1s=None, t2s=None,
-                             add_latency=True):
-        """Calculate mean response to different values of stimulus feature."""
+    def get_stim_resp_vals(self, stim, feat, t1s=None, t2s=None,
+                           add_latency=True):
+        """Return response to different values of stimulus feature."""
 
         # Init time period (stimulus on).
         if t1s is None and t2s is None:
-            tprd = self.pr_times(stim, add_latency)
-            t1s, t2s = [tvec for tname, tvec in tprd.items()]
+            t1s, t2s = self.pr_times(stim, add_latency, concat=False)
 
-        # Get trials for each parameter value.
+        # Get response (firing rates) in each trial.
         trs = self.trials_by_pvals(stim, feat)
+        if not len(trs):
+            return pd.DataFrame(columns=['vals', 'resp'])
+        vals = pd.concat([pd.Series(v, index=tr)
+                          for v, tr in trs.iteritems()])
+        resp = self._Spikes.rates(self.inc_trials(), t1s, t2s)
+        stim_resp = pd.DataFrame({'vals': vals, 'resp': resp})
+        stim_resp.resp = util.remove_dim_from_series(stim_resp.resp)
 
-        # Calculate spike count and stats for each value of parameter.
-        sp_stats = pd.DataFrame([self.Spikes.spike_rate_stats(tr, t1s, t2s)
-                                 for tr in trs.values], index=trs.index)
-
-        return sp_stats
-
-    def calc_DR(self, stim, **kwargs):
-        """Return direction response stats."""
-
-        # Get direction response stats.
-        resp_stats = self.calc_stim_resp_stats(stim, 'Dir', **kwargs)
-
-        # Convert each result to Numpy array.
-        dirs = np.array(resp_stats.index) * deg
-        meanFR, stdFR, semFR = [util.dim_series_to_array(resp_stats[stat])
-                                for stat in ('mean', 'std', 'sem')]
-
-        # Put results into Series.
-        DR_stats = pd.Series([dirs, meanFR, stdFR, semFR],
-                             index=['dirs', 'mean', 'std', 'sem'])
-
-        return DR_stats
+        return stim_resp
 
     def calc_DS(self, stim, **kwargs):
         """Calculate direction selectivity (DS)."""
 
-        # Get response stats to each direction.
-        DR = self.calc_DR(stim, **kwargs)
-        dirs, meanFR, stdFR, semFR = DR
+        # Get direction response values and stats.
+        stim_resp = self.get_stim_resp_vals(stim, 'Dir', **kwargs)
+        resp_stats = util.calc_stim_resp_stats(stim_resp)
+
+        # Convert each result to Numpy array.
+        dirs = np.array(resp_stats.index) * deg
+        rstats = [np.array(resp_stats[stat])
+                  for stat in ('mean', 'std', 'sem')]
+        mean_resp, std_resp, sem_resp = rstats
 
         # DS based on maximum rate only (legacy method).
-        mPDres, mDS = direction.max_DS(dirs, meanFR)
+        mPDres, mDS = direction.max_DS(dirs, mean_resp)
 
         # DS based on weighted sum of all rates & directions.
-        wPDres, wDS = direction.weighted_DS(dirs, meanFR)
+        wPDres, wDS = direction.weighted_DS(dirs, mean_resp)
 
         # DS based on Gaussian tuning curve fit.
         dir0 = wPDres.PD  # reference direction (to start curve fitting from)
-        tPDres, tun_res = direction.tuned_DS(dirs, meanFR, dir0, semFR)
+        dirs = stim_resp['vals']
+        resp = util.remove_dim_from_series(stim_resp['resp'])
+        tPDres, tune_pars, tune_res = direction.tuned_DS(dirs, resp, dir0)
 
         # Prepare results.
         PD = pd.concat([mPDres, wPDres, tPDres], axis=1,
                        keys=('max', 'weighted', 'tuned'))
         DSI = pd.Series([mDS, wDS], index=['mDS', 'wDS'])
 
-        return DR, PD, DSI, tun_res
+        return resp_stats, PD, DSI, tune_pars, tune_res
 
     def test_DS(self, stims=['S1', 'S2'], **kwargs):
         """Test unit's direction selectivit."""
+
+        if not self.n_inc_trials():
+            return
 
         # Init field to store DS results.
         lDR, lDSI, lPD, lTP = [], [], [], []
         for stim in stims:
 
             # Calculate DS during stimulus.
-            DR, PD, DSI, tun_res = self.calc_DS(stim, **kwargs)
+            DR, PD, DSI, tune_pars, tune_res = self.calc_DS(stim, **kwargs)
 
             # Collect DR values.
-            for v in ['dirs_ctrd', 'mean_ctrd', 'sem_ctrd']:
-                DR[v] = tun_res[v]
             lDR.append(DR)
 
             # Collect DS params.
@@ -640,15 +647,15 @@ class Unit:
             lPD.append(PD)
 
             # Collect tuning params.
-            tun_fit = tun_res['fit_pars'].loc['fit']
-            lTP.append(tun_fit.append(tun_res['fit_res']))
+            tun_fit = tune_pars.loc['fit']
+            lTP.append(tun_fit.append(tune_res))
 
         # Convert each to a DataFrame.
         DR, DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
                            for rlist in (lDR, lDSI, lPD, lTP)]
 
         # Save DS results.
-        self.DS['DR'] = DR
+        self.DS['DR'] = DR.T
         self.DS['DSI'] = DSI
         self.DS['PD'] = PD
         self.DS['TP'] = TP
@@ -670,7 +677,7 @@ class Unit:
     def plot_DS(self, no_labels=False, ftempl=None, **kwargs):
         """Plot direction selectivity results."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Test DS if it hasn't been yet.
@@ -701,11 +708,11 @@ class Unit:
             trs = self.ser_inc_trials()
 
         # Get spikes.
-        spikes = [self.Spikes.get_spikes(tr, t1s, t2s, ref_ts) for tr in trs]
+        spikes = [self._Spikes.get_spikes(tr, t1s, t2s, ref_ts) for tr in trs]
 
         # Get rates and rate times.
         nrate = self.init_nrate(nrate)
-        rates = [self.Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
+        rates = [self._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
                  for tr in trs]
 
         # Get stimulus periods.
@@ -719,7 +726,7 @@ class Unit:
     def plot_raster(self, prd, ref, nrate=None, trs=None, **kwargs):
         """Plot raster plot of unit for specific trials."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Set up params.
@@ -735,7 +742,7 @@ class Unit:
     def plot_rate(self, prd, ref, nrate=None, trs=None, **kwargs):
         """Plot rate plot of unit for specific trials."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Set up params.
@@ -752,7 +759,7 @@ class Unit:
                 rate_kws=dict(), **kwargs):
         """Plot raster and rate plot of unit for selected sets of trials."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Set up params.
@@ -778,7 +785,7 @@ class Unit:
                 add_stim_name=True, fig=None, sps=None, **kwargs):
         """Plot stimulus response (raster and rate) for mutliple stimuli."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Init figure and gridspec.
@@ -826,7 +833,7 @@ class Unit:
             if add_stim_name:
                 color = (putil.stim_colors[stim]
                          if vals is None or len(vals) == 1 else 'k')
-                rate_ax.text(0.02, 1, stim, fontsize=10, color=color,
+                rate_ax.text(0.02, 0.95, stim, fontsize=10, color=color,
                              va='top', ha='left',
                              transform=rate_ax.transAxes)
 
@@ -846,7 +853,7 @@ class Unit:
     def plot_DR(self, nrate=None, fig=None, sps=None):
         """Plot 3x3 direction response plot, with polar plot in center."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Set up stimulus parameters.
@@ -864,7 +871,9 @@ class Unit:
         # Polar plot.
         ax_polar = fig.add_subplot(gsp[4], polar=True)
         for stim in stims.index:  # for each stimuli
-            dirs, resp, _, _ = self.calc_DR(stim)
+            stim_resp = self.get_stim_resp_vals(stim, 'Dir')
+            resp_stats = util.calc_stim_resp_stats(stim_resp)
+            dirs, resp = np.array(resp_stats.index) * deg, resp_stats['mean']
             c = putil.stim_colors[stim]
             ptuning.plot_DR(dirs, resp, color=c, ax=ax_polar)
         putil.hide_ticks(ax_polar, 'y')
@@ -906,7 +915,7 @@ class Unit:
     def plot_rate_DS(self, nrate=None, fig=None, sps=None):
         """Plot rate and direction selectivity summary plot."""
 
-        if self.is_empty():
+        if self.is_empty() or not self.n_inc_trials():
             return
 
         # Set up stimulus parameters.

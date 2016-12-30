@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Aug 20 16:27:05 2016
-
 Collection of plotting-related utility functions.
 
 @author: David Samu
@@ -35,10 +33,10 @@ FR_lbl = 'Firing rate (sp/s)'
 
 t_ticks = np.arange(-1000, 5000+1, 1000) * ms
 
-my_color_list = ['m', 'g', 'r', 'c', 'b', 'y']
+my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus colors.
-stim_colors = pd.Series(['g', 'b'], index=['S1', 'S2'])
+stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
 
 
 # %% Functions to plot group and unit level properties.
@@ -53,20 +51,24 @@ def unit_info(u, fs='large', ax=None):
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
     fvals = [(meas, form.format(upars[meas]) if meas in upars else 'N/A')
-             for meas, form in [('SNR', '{:.2f}'), ('WfDur', '{:.0f} $\mu$s'),
-                                ('FR', '{:.1f} sp/s')]]
+             for meas, form in [('SNR', '{:.2f}'), ('mWfDur', '{:.0f} $\mu$s'),
+                                ('mFR', '{:.1f} sp/s')]]
     fvals = util.series_from_tuple_list(fvals)
 
     # Plot each label.
-    yloc = .0
+    yloc = .05
     xloc = np.linspace(.10, .85, len(fvals))
     for xloci, (lbl, val) in zip(xloc, fvals.items()):
         lbl_str = '{}: {}'.format(lbl, val)
         ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
 
     # Set title.
-    set_labels(ax, title=upars['task'], ytitle=.75,
-               title_kws={'fontsize': 'x-large'})
+    title = upars['task'] + (' (excluded)' if u.is_excluded() else '')
+    set_labels(ax, title=title, ytitle=.6, title_kws={'fontsize': 'x-large'})
+
+    # Highlight excluded unit.
+    if u.is_excluded():
+        highlight_axes(ax)
 
     return ax
 
@@ -82,12 +84,8 @@ def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
     if ypos is None:
         ypos = ax.get_ylim()[1]
 
-    # Get intersection of time axes of rates.
-    tvec = np.intersect1d(rates1.columns, rates2.columns)
-
     # Get intervals of significant differences between rates.
-    sign_periods = util.sign_periods(rates1[tvec], rates2[tvec], tvec, pval,
-                                     test, test_kws)
+    sign_periods = util.sign_periods(rates1, rates2, pval, test, test_kws)
 
     # Assamble line segments and add them to axes.
     line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_periods]
@@ -116,7 +114,16 @@ def move_signif_lines(ax=None, ypos=None):
             c.set_segments(segments)
 
 
-def plot_periods(prds, t_unit=ms, alpha=0.2, color='grey', ax=None, **kwargs):
+def highlight_axes(ax=None, color='red', alpha=0.5, **kwargs):
+    """Highlight axes."""
+
+    ax = axes(ax)
+    rect = mpl.patches.Rectangle(xy=(0, 0), width=1, height=1, color=color,
+                                 transform=ax.transAxes, alpha=alpha, **kwargs)
+    ax.add_artist(rect)
+
+
+def plot_periods(prds, alpha=0.2, color='grey', ax=None, **kwargs):
     """Highlight segments (periods)."""
 
     if prds is None:
@@ -124,13 +131,10 @@ def plot_periods(prds, t_unit=ms, alpha=0.2, color='grey', ax=None, **kwargs):
 
     ax = axes(ax)
     for name, t_start, t_stop in prds:
-        if t_unit is not None:
-            t_start = t_start.rescale(t_unit)
-            t_stop = t_stop.rescale(t_unit)
         ax.axvspan(t_start, t_stop, alpha=alpha, color=color, **kwargs)
 
 
-def plot_events(events, t_unit=ms, add_names=True, color='black', alpha=1.0,
+def plot_events(events, add_names=True, color='black', alpha=1.0,
                 ls='--', lw=1, lbl_rotation=90, lbl_height=0.98,
                 lbl_ha='center', ax=None, **kwargs):
     """Plot all events of unit."""
@@ -138,9 +142,7 @@ def plot_events(events, t_unit=ms, add_names=True, color='black', alpha=1.0,
     ax = axes(ax)
 
     # Add each event to plot as a vertical line.
-    for key, time in events.items():
-        if t_unit is not None:
-            time = time.rescale(t_unit)
+    for ev_name, (time, label) in events.iterrows():
         ymax = lbl_height-0.02 if add_names else 1
         ax.axvline(time, color=color, alpha=alpha, lw=lw, ls=ls,
                    ymax=ymax, **kwargs)
@@ -149,7 +151,7 @@ def plot_events(events, t_unit=ms, add_names=True, color='black', alpha=1.0,
         if add_names:
             ylim = ax.get_ylim()
             yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
-            ax.text(time, yloc, key, rotation=lbl_rotation, fontsize='small',
+            ax.text(time, yloc, label, rotation=lbl_rotation, fontsize='small',
                     va='bottom', ha=lbl_ha)
 
 
@@ -570,8 +572,8 @@ def get_cmat(to_color, fcol='blue', bcol='grey', rgba=False):
     return col_mat
 
 
-def get_proxy_artist(label, color, artist_type='patch', **kwargs):
-    """Return a proxy artist. Useful for creating custom legends."""
+def get_artist(label, color, artist_type='patch', **kwargs):
+    """Return an artist. Useful for creating custom legends."""
 
     if artist_type == 'patch':
         artist = mpl.patches.Patch(color=color, label=label, **kwargs)

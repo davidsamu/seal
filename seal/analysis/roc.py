@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep  6 10:17:45 2016
-
 Functions for performing and processing ROC analyses.
 
 @author: David Samu

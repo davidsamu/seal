@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct  6 17:14:25 2016
-
 Class representing an array of units.
 
 @author: David Samu
@@ -13,7 +11,6 @@ import pandas as pd
 from collections import OrderedDict as OrdDict
 
 from seal.object import unit
-from seal.util import util
 
 
 class UnitArray:
@@ -50,6 +47,7 @@ class UnitArray:
     # %% Iterator methods.
 
     # Usage: e.g. [u for u in UnitArray.iter_thru(args)]
+    # to return units in list: list(UnitArray.iter_thru(args))
 
     def iter_thru(self, tasks=None, uids=None, miss=False, excl=False):
         """Custom iterator init over selected tasks and units."""
@@ -72,7 +70,8 @@ class UnitArray:
         """Return next Unit."""
 
         # Terminate iteration if we have run out of units.
-        if self._itask >= len(self._iter_tasks):
+        if (self._itask >= len(self._iter_tasks) or
+            self._iuid >= len(self._iter_uids)):
             raise StopIteration
 
         # Get current unit.
@@ -107,24 +106,14 @@ class UnitArray:
         task, subj, date, elec, chun, isort = uname.split()
         uid = (subj+'_'+date, int(chun[2:4]), int(chun[-1]))
         u = self.get_unit(uid, task)
+
         return u
 
-    def unit_list(self, tasks=None, uids=None, miss=False, excl=False):
-        """Return units in a list."""
+    def get_uids_of_rec(self, rec):
+        """Return list of units from specific recording."""
 
-        tasks, uids = self.init_tasks_uids(tasks, uids)
-
-        # Put selected units from selected tasks into a list.
-        unit_list = [u for row in self.Units[tasks].itertuples()
-                     for u in row[1:] if row[0] in uids]
-
-        # Exclude missing and excluded units.
-        if not miss:
-            unit_list = [u for u in unit_list if not u.is_empty()]
-        if not excl:
-            unit_list = [u for u in unit_list if not u.is_excluded()]
-
-        return unit_list
+        rec_uids = self.uids().loc[rec]
+        return rec_uids
 
     # %% Reporting methods.
 
@@ -160,8 +149,8 @@ class UnitArray:
 
         # Select only channel unit indices with all required tasks available.
         if req_tasks is not None:
-            idx = [len(self.unit_list(req_tasks, [cui])) == len(req_tasks)
-                   for cui in uids]
+            idx = [len(list(self.iter_thru(req_tasks, [ui]))) == len(req_tasks)
+                   for ui in uids]
             uids = uids[idx]
 
         return uids
@@ -174,7 +163,7 @@ class UnitArray:
 
         uids = self.uids(req_tasks)
         utids = [u.get_utid() for uid in uids
-                 for u in self.unit_list(req_tasks, [uid])]
+                 for u in list(self.iter_thru(req_tasks, [uid]))]
         names = ['rec', 'ch', 'unit', 'task']
         utids = pd.MultiIndex.from_tuples(utids, names=names).to_series()
 
@@ -200,7 +189,14 @@ class UnitArray:
         n_recordings = len(self.recordings())
         return n_recordings
 
-    # %% Methods to add units.
+    def unit_params(self):
+        """Return unit parameters in DataFrame."""
+
+        unit_params = [u.get_unit_params() for u in self.iter_thru()]
+        unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
+        return unit_params
+
+    # %% Methods to add sets of units.
 
     def add_task(self, task_name, task_units):
         """Add new task data as extra column to Units table of UnitArray."""
@@ -224,6 +220,59 @@ class UnitArray:
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
 
+    # %% Methods to remove sets of units.
+
+    def remove_unit(self, uid, task, clean_array=True):
+        """Remove a single unit."""
+
+        self.Units.loc[uid, task] = unit.Unit()
+
+        if clean_array:
+            self.clean_array()
+
+    def remove_recording(self, rec, tasks=None, clean_array=True):
+        """Remove a recording across all or selected tasks."""
+
+        if tasks is None:
+            tasks = self.tasks()
+
+        for uid in self.get_uids_of_rec(rec):
+            for task in tasks:
+                self.remove_unit(uid, task, False)
+
+        if clean_array:
+            self.clean_array()
+
+    def remove_task(self, task, recs=None, clean_array=True):
+        """Remove a task across all or selected recordings."""
+
+        if recs is None:
+            recs = self.recordings()
+
+        for rec in recs:
+            for uid in self.get_uids_of_rec(rec):
+                self.remove_unit(uid, task, False)
+
+        if clean_array:
+            self.clean_array()
+
+    def clean_array(self, keep_excl=True):
+        """Remove empty (and excluded) uids (rows) and tasks (columns)."""
+
+        # Clean uids.
+        empty_uids = [uid for uid in self.uids()
+                      if not len(list(self.iter_thru(uids=[uid],
+                                                     excl=keep_excl)))]
+        if len(empty_uids):
+            self.Units.drop(empty_uids, axis=0, inplace=True)
+
+        # Clean tasks.
+        empty_tasks = [task for task in self.tasks()
+                       if not len(list(self.iter_thru(tasks=[task],
+                                                      excl=keep_excl)))]
+        if len(empty_tasks):
+            self.Units.drop(empty_tasks, axis=1, inplace=True)
+
     # %% Methods to manipulate units.
 
     def index_units(self):
@@ -236,40 +285,3 @@ class UnitArray:
                 # of indexing across tasks.
                 if not u.is_empty():
                     u.add_index_to_name(i+1)
-
-    # %% Exporting methods.
-
-    def unit_params(self):
-        """Return unit parameters in DataFrame."""
-
-        unit_params = [u.get_unit_params() for u in self.iter_thru()]
-        unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
-        return unit_params
-
-    def export_params_table(self, fname):
-        """Export unit parameters as Excel table."""
-
-        unit_params = self.unit_params()
-        writer = pd.ExcelWriter(fname)
-        util.write_table(unit_params, writer)
-
-    def export_unit_trial_selection_table(self, fname):
-        """Export unit and trial selection as Excel table."""
-
-        # Gather selection dataframe.
-        columns = ['task', 'session', 'channel', 'unit index', 'unit included',
-                   'first included trial', 'last included trial']
-        SelectDF = pd.DataFrame(columns=columns)
-
-        for i, u in enumerate(self.iter_thru(excl=True)):
-            rec, ch, un, task = u.get_utid()
-            inc = int(not u.is_excluded())
-            inc_trs = u.inc_trials()
-            ftr, ltr = 0, 0
-            if len(inc_trs):
-                ftr, ltr = inc_trs.min()+1, inc_trs.max()+1
-            SelectDF.loc[i] = [task, rec, ch, un, inc, ftr, ltr]
-
-        # Write out selection dataframe.
-        writer = pd.ExcelWriter(fname)
-        util.write_table(SelectDF, writer)

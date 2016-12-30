@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 28 13:06:55 2016
-
-Functions for performing and processing decoding analyses.
+Functions to perform decoding analyses and process results.
 
 @author: David Samu
 """

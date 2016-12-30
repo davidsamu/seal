@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Dec  3 12:23:54 2016
-
 Functions related to importing recorded datasets.
 
 @author: David Samu
@@ -14,6 +12,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
+from seal.io import export
 from seal.util import util
 from seal.plot import putil
 from seal.quality import test_sorting, test_units
@@ -75,11 +74,11 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
 
 
 def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
-                      plot_DS=True, plot_sum=True, plot_stab=True):
+                      plot_sum=True, plot_stab=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),
-      - stimulus selectivity (DS) test,
+      - direction selectivity (DS) test,
       - recording stability test,
       - exporting automatic unit and trial selection results.
     """
@@ -88,6 +87,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
     combUA = unitarray.UnitArray(ua_name)
 
     print('\nStarting quality control...\n')
+    putil.inline_off()
 
     for recording in sorted(os.listdir(data_dir)):
 
@@ -108,44 +108,34 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         print('  Testing unit quality...')
         ftempl = qc_dir + 'quality_metrics/{}.png' if plot_QM else None
         for u in UA.iter_thru():
-            putil.inline_off()
             test_sorting.test_qm(u, ftempl=ftempl)
-        putil.inline_on()
+
+        # Exclude units with low recording quality.
+        exclude_units(UA)
 
         # Test stimulus response to all directions.
         if plot_SR:
             print('  Plotting direction response...')
             ftempl = qc_dir + 'direction_response/{}.png'
-            putil.inline_off()
             test_units.DS_test(UA, ftempl=ftempl, match_scale=True)
-            putil.inline_on()
 
         # Test direction selectivity.
-        print('  Testing direction selectivity...')
+        print('  Calculating direction selectivity...')
         ftempl = qc_dir + 'direction_tuning/{}.png'
-        for u in UA.iter_thru():
-            putil.inline_off()
-            u.plot_DS(ftempl=ftempl)
-        putil.inline_on()
+        for u in UA.iter_thru(excl=True):
+            u.test_DS()
 
         # Plot trial rate and direction selectivity summary plots.
         if plot_sum:
             print('  Plotting summary figures (rates and DS)...')
             ftempl = qc_dir + 'rate_DS_summary/{}.png'
-            putil.inline_off()
             test_units.rate_DS_summary(UA, ftempl=ftempl)
-            putil.inline_on()
-
-        # Exclude units with low quality or no direction selectivity.
-        exclude_units(UA)
 
         # Test stability of recording session across tasks.
         if plot_stab:
             print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
-            putil.inline_off()
-            test_units.check_recording_stability(UA, fname)
-            putil.inline_on()
+            test_units.rec_stability_test(UA, fname)
 
         # Add to combined UA
         combUA.add_recording(UA)
@@ -160,9 +150,13 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
     util.write_objects({'UnitArr': combUA}, fname)
 
     # Export unit and trial selection results.
-    print('  Exporting automatic unit and trial selection results...')
+    print('Exporting automatic unit and trial selection results...')
     fname = comb_data_dir + 'unit_trial_selection.xlsx'
-    combUA.export_unit_trial_selection_table(fname)
+    export.export_unit_trial_selection(combUA, fname)
+
+    # Export unit list.
+    print('Exporting combined unit list...')
+    export.export_unit_list(UA, comb_data_dir + 'unit_list.xlsx')
 
     # Re-enable inline plotting
     putil.inline_on()
@@ -173,7 +167,7 @@ def exclude_units(UA):
 
     print('  Excluding units...')
     exclude = []
-    for u in UA.iter_thru():
+    for u in UA.iter_thru(excl=True):
         to_excl = test_sorting.test_rejection(u)
         u.set_excluded(to_excl)
         exclude.append(to_excl)
@@ -187,7 +181,7 @@ def exclude_units(UA):
     print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
 
 
-def select_unit_and_trials(f_data, f_sel_table):
+def select_unit_and_trials(f_data, f_sel_table, clean_UA=True):
     """Exclude low quality units and trials."""
 
     # Import combined UnitArray and unit&trial selection file.
@@ -216,7 +210,7 @@ def select_unit_and_trials(f_data, f_sel_table):
         if last_tr == -1:  # -1: include all the way to the end
             last_tr = ntrs-1
 
-        # Check some simple data inconsistency.
+        # Check some simple cases of data inconsistency.
         if not u.is_excluded and first_tr >= last_tr:
             warnings.warn(u.Name + ': index of first included trial is' +
                           ' larger or equal to last! Excluding unit.')
@@ -229,10 +223,14 @@ def select_unit_and_trials(f_data, f_sel_table):
         tr_inc[tr_idx] = True
         u.update_included_trials(tr_inc)
 
+    # Clean array: remove uids and tasks with all units empty or excluded.
+    if clean_UA:
+        UA.clean_array(keep_excl=False)
+
     # Export updated UnitArray.
     util.write_objects({'UnitArr': UA}, f_data)
 
-#     # Write out unit list.
-#    This should be also added to above! (this step is optional)
-#    print('\nExporting combined unit list...')
-#    UA.export_params_table(data_dir + 'unit_list.xlsx')
+    # Export unit list.
+    print('\nExporting combined unit list...')
+    data_dir = os.path.split(f_data)[0] + '/'
+    export.export_unit_list(UA, data_dir + 'unit_list.xlsx')

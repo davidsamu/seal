@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct 20 11:50:39 2016
-
 Definition of constants relating to task and analysis.
 
 @author: David Samu
@@ -11,7 +9,7 @@ Definition of constants relating to task and analysis.
 import pandas as pd
 from quantities import ms, deg, cm
 
-from seal.util import util
+from seal.util import util, kernels
 
 
 # %% Task constants.
@@ -106,10 +104,10 @@ for ev, (rel_to, shift) in tr_evt.iterrows():
 # %% Analysis constants.
 
 # Kernel sets for firing rate estimation.
-R100_kernel = util.kernel_set(['R100'])
-RG_kernels = util.kernel_set(['G20', 'G40', 'R100', 'R200'])
-shrtR_kernels = util.kernel_set(['R50', 'R75', 'R100'])
-lngR_kernels = util.kernel_set(['R100', 'R200', 'R500'])
+R100_kernel = kernels.kernel_set(['R100'])
+RG_kernels = kernels.kernel_set(['G20', 'G40', 'R100', 'R200'])
+shrtR_kernels = kernels.kernel_set(['R50', 'R75', 'R100'])
+lngR_kernels = kernels.kernel_set(['R100', 'R200', 'R500'])
 
 step = 10*ms
 

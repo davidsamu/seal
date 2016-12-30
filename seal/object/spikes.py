@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep  1 14:56:46 2016
-
 Class for array of spike trains.
 
 @author: David Samu
@@ -66,6 +64,13 @@ class Spikes:
 
         return t1s, t2s, ref_ts
 
+    def init_trials(self, trs=None):
+        """Set trials to all trials if not specified."""
+
+        if trs is None:
+            trs = np.arange(self.n_trials())
+        return trs
+
     def n_trials(self):
         """Return number of trials."""
 
@@ -75,11 +80,8 @@ class Spikes:
     def get_spikes(self, trs=None, t1s=None, t2s=None, ref_ts=None):
         """Return spike times of given trials within time windows."""
 
-        # Default trial list.
-        if trs is None:
-            trs = np.arange(self.n_trials())
-
-        # Default time limits.
+        # Init trials and time limits.
+        trs = self.init_trials(trs)
         t1s, t2s, ref_ts = self.init_time_limits(t1s, t2s, ref_ts)
 
         # Assamble time-windowed spike trains.
@@ -114,6 +116,7 @@ class Spikes:
         """Return rates of given trials in time windows."""
 
         t1s, t2s, _ = self.init_time_limits(t1s, t2s)
+        trs = self.init_trials(trs)
 
         # Get number of spikes.
         n_spikes = self.n_spikes(trs, t1s, t2s)
@@ -126,28 +129,6 @@ class Spikes:
         rates = n_spikes / (t2s_sec - t1s_sec)
 
         return rates
-
-    def spike_rate_stats(self, trs=None, t1s=None, t2s=None):
-        """Return spike rate statistics across selected trials."""
-
-        # Get rates in given trials in time windows.
-        rates = np.array(self.rates(trs, t1s, t2s))
-
-        # Calculate statistics.
-        if rates.size:
-            mean_rate = np.mean(rates)
-            std_rate = np.std(rates)
-            sem_rate = std_rate / np.sqrt(rates.size)
-        else:  # in case there are no spike in interval
-            mean_rate = np.nan * 1/s
-            std_rate = np.nan * 1/s
-            sem_rate = np.nan * 1/s
-
-        # Put them into a Series.
-        spk_stats = pd.Series([mean_rate, std_rate, sem_rate],
-                              index=['mean', 'std', 'sem'])
-
-        return spk_stats
 
     def isi(self, trs=None, t1s=None, t2s=None):
         """Return interspike intervals per trial."""
