@@ -50,21 +50,24 @@ def unit_info(u, fs='large', ax=None):
 
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
-    fvals = [(meas, form.format(upars[meas]) if meas in upars else 'N/A')
-             for meas, form in [('SNR', '{:.2f}'), ('mWfDur', '{:.0f} $\mu$s'),
-                                ('mFR', '{:.1f} sp/s')]]
+    fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
+             for meas, f in [('SNR', '{:.2f}'), ('mWfDur', '{:.0f} $\mu$s'),
+                             ('mFR', '{:.1f} sp/s'), ('UnitType', '{}'),
+                             ('ISIvr', '{:.2f}%'), ('TrueSpikes', '{:.0f}%')]]
     fvals = util.series_from_tuple_list(fvals)
+    fvals = pd.DataFrame(fvals, index=fvals.index)
+    nrows, ncols = 2, 3
+    fvals['x'] = np.tile(np.linspace(.10, .85, ncols), nrows)
+    fvals['y'] = np.repeat(np.linspace(.4, .05, nrows), ncols)
 
     # Plot each label.
-    yloc = .05
-    xloc = np.linspace(.10, .85, len(fvals))
-    for xloci, (lbl, val) in zip(xloc, fvals.items()):
+    for lbl, (val, x, y) in fvals.iterrows():
         lbl_str = '{}: {}'.format(lbl, val)
-        ax.text(xloci, yloc, lbl_str, fontsize=fs, va='bottom', ha='center')
+        ax.text(x, y, lbl_str, fontsize=fs, va='bottom', ha='center')
 
     # Set title.
     title = upars['task'] + (' (excluded)' if u.is_excluded() else '')
-    set_labels(ax, title=title, ytitle=.6, title_kws={'fontsize': 'x-large'})
+    set_labels(ax, title=title, ytitle=.8, title_kws={'fontsize': 'x-large'})
 
     # Highlight excluded unit.
     if u.is_excluded():
@@ -91,7 +94,7 @@ def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
     line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_periods]
     lc = mc.LineCollection(line_segments, colors=ColConv.to_rgba(color),
                            linewidth=linewidth)
-    lc.sign_prd = True  # add label to find these LC objects for post-adjusting
+    lc.sign_prd = True  # add label to find these artists later
     ax.add_collection(lc)
 
 
@@ -130,7 +133,12 @@ def plot_periods(prds, alpha=0.2, color='grey', ax=None, **kwargs):
         return
 
     ax = axes(ax)
+    xmin, xmax = ax.get_xlim()
     for name, t_start, t_stop in prds:
+        if t_start is None:
+            t_start = xmin
+        if t_stop is None:
+            t_stop = xmax
         ax.axvspan(t_start, t_stop, alpha=alpha, color=color, **kwargs)
 
 
@@ -151,8 +159,26 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
         if add_names:
             ylim = ax.get_ylim()
             yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
-            ax.text(time, yloc, label, rotation=lbl_rotation, fontsize='small',
-                    va='bottom', ha=lbl_ha)
+            txt = ax.text(time, yloc, label, rotation=lbl_rotation,
+                          fontsize='small', va='bottom', ha=lbl_ha)
+            txt.event_lbl = True  # add label to find these artists
+
+
+def move_event_lbls(ax=None, ypos=None, yfac=0.96):
+    """
+    Move event labels to top of plot
+    (typically after resetting y-limit, e.g. to match across set of axes).
+    """
+
+    # Init.
+    ax = axes(ax)
+    if ypos is None:
+        ypos = yfac * ax.get_ylim()[1]  # move them to current top
+
+    # Find line segments in axes representing significant periods.
+    for txt in ax.texts:
+        if hasattr(txt, 'event_lbl'):
+            txt.set_y(ypos)
 
 
 def add_chance_level(ylevel=0.5, color='grey', ls='--', alpha=0.5, ax=None):
@@ -417,7 +443,7 @@ def gridspec(nrow, ncol, gsp=None, **kwargs):
 
 
 def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2, ax_kws_list=None,
-                    create_axes=True, as_array=True, fig=None, **kwargs):
+                    create_axes=False, as_array=True, fig=None, **kwargs):
     """Return list or array of GridSpec subplots."""
 
     # If ncol not specified: get approx'ly equal number of rows and columns.

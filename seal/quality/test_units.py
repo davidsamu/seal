@@ -7,17 +7,89 @@ for different sets of trials or trial periods.
 @author: David Samu
 """
 
+import os
+
 import scipy as sp
 import pandas as pd
 
 from seal.util import util
 from seal.plot import putil, pplot
 from seal.object import constants
+from seal.quality import test_sorting
+
+
+# Constants
+subw = 7
+w_pad = 5
 
 
 # %% Quality tests across tasks.
 
-def DS_test(UA, nrate=None, ftempl=None, match_scale=True):
+def quality_test(UA, ftempl=None, plot_QM=False, match_scale=True):
+    """Test and plot quality metrics of recording and spike sorting """
+
+    # Init plotting theme.
+    putil.set_style('notebook', 'white')
+
+    # Init data.
+    tasks, uids = UA.tasks(), UA.uids()
+
+    # For each unit over all tasks.
+    for uid in uids:
+
+        # Init figure.
+        if plot_QM:
+            fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
+                                                subw=subw, subh=1.6*subw)
+            wf_axs, amp_axs, dur_axs, amp_dur_axs, rate_axs = ([], [], [],
+                                                               [], [])
+
+        for i, task in enumerate(tasks):
+
+            # Do quality test.
+            u = UA.get_unit(uid, task)
+            res = test_sorting.test_qm(u)
+
+            # Plot QC results.
+            if plot_QM:
+
+                if res is not None:
+                    ax_res = test_sorting.plot_qm(u, fig=fig, sps=gsp[i],
+                                                  **res)
+
+                    # Collect axes.
+                    ax_wfs, ax_wf_amp, ax_wf_dur, ax_amp_dur, ax_rate = ax_res
+                    wf_axs.extend(ax_wfs)
+                    amp_axs.append(ax_wf_amp)
+                    dur_axs.append(ax_wf_dur)
+                    amp_dur_axs.append(ax_amp_dur)
+                    rate_axs.append(ax_rate)
+
+                else:
+                    mock_ax = putil.embed_gsp(gsp[i], 1, 1)
+                    putil.add_mock_axes(fig, mock_ax[0, 0])
+
+        if plot_QM:
+
+            # Match scale of y axes across tasks.
+            if match_scale:
+                putil.sync_axes(wf_axs, sync_x=True, sync_y=True)
+                putil.sync_axes(amp_axs, sync_y=True)
+                putil.sync_axes(dur_axs, sync_y=True)
+                putil.sync_axes(amp_dur_axs, sync_x=True, sync_y=True)
+                putil.sync_axes(rate_axs, sync_y=True)
+                [putil.move_event_lbls(ax, yfac=0.92) for ax in rate_axs]
+
+            # Save figure.
+            if ftempl is not None:
+                uid_str = util.format_uid(uid)
+                title = uid_str.replace('_', ' ')
+                fname = ftempl.format(uid_str)
+                putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
+                                      w_pad=w_pad)
+
+
+def DS_test(UA, ftempl=None, match_scale=True, nrate=None):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
@@ -31,14 +103,12 @@ def DS_test(UA, nrate=None, ftempl=None, match_scale=True):
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
-                                            subw=7, subh=7,
-                                            create_axes=False)
+                                            subw=subw, subh=subw)
         task_rate_axs, task_polar_axs = [], []
 
         # Plot direction response of unit in each task.
-        task_gsp_u = zip(tasks, gsp, UA.iter_thru(tasks, [uid], miss=True,
-                                                  excl=True))
-        for task, sps, u in task_gsp_u:
+        for task, sps in zip(tasks, gsp):
+            u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
             res = u.plot_DR(nrate, fig, sps)
@@ -50,25 +120,21 @@ def DS_test(UA, nrate=None, ftempl=None, match_scale=True):
                 mock_ax = putil.embed_gsp(sps, 1, 1)
                 putil.add_mock_axes(fig, mock_ax[0, 0])
 
-            # Add highlight to plots of excluded units.
-            if u.is_excluded():
-                putil.highlight_axes(ax_polar, alpha=0.2)
-
         # Match scale of y axes across tasks.
         if match_scale:
             putil.sync_axes(task_rate_axs, sync_y=True)
             putil.sync_axes(task_polar_axs, sync_y=True)
 
-        # Format and save figure.
+        # Save figure.
         if ftempl is not None:
             uid_str = util.format_uid(uid)
-            title = uid_str.replace('_', ' ')
+            title = None  # uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
             putil.save_gsp_figure(fig, gsp, fname, title,
-                                  rect_height=0.92, w_pad=5)
+                                  rect_height=0.92, w_pad=w_pad)
 
 
-def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
+def rate_DS_summary(UA, ftempl=None, match_scale=True, nrate=None):
     """Test unit responses within trails."""
 
     # Init plotting theme.
@@ -76,21 +142,18 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
 
     # Init data
     tasks, uids = UA.tasks(), UA.uids()
-    ntask = len(tasks)
 
     # For each unit over all tasks.
-    for uid in uids[24:]:
+    for uid in uids:
 
         # Init figure.
-        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=ntask,
-                                            subw=7, subh=12,
-                                            create_axes=False)
+        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
+                                            subw=subw, subh=12)
         task_rate_axs, task_polar_axs, task_tuning_axs = [], [], []
 
         # Plot direction response of unit in each task.
-        ulist = list(UA.iter_thru(tasks, [uid], miss=True, excl=True))
-        for i, u in enumerate(ulist):
-            sps = gsp[i]
+        for task, sps in zip(tasks, gsp):
+            u = UA.get_unit(uid, task)
 
             res = u.plot_rate_DS(nrate, fig, sps)
             if res is not None:
@@ -109,15 +172,61 @@ def rate_DS_summary(UA, nrate=None, ftempl=None, match_scale=True):
             putil.sync_axes(task_polar_axs, sync_y=True)
             putil.sync_axes(task_tuning_axs, sync_y=True)
 
-        # Format and save figure.
+        # Save figure.
         if ftempl is not None:
             uid_str = util.format_uid(uid)
-            title = uid_str.replace('_', ' ')
+            title = None  # uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
+            putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
+                                  w_pad=w_pad)
 
 
-def rec_stability_test(UA, fname):
+def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sum, ftempl_mont):
+    """Create montage image of figures created during preprocessing."""
+
+    # Init.
+    tasks = UA.tasks()
+
+    for uid in UA.uids():
+        uid_str = util.format_uid(uid)
+
+        # TODOs:
+        # - deal with missing QM figures
+        # - increase spacing between figures
+        # - deal with missing figures gracefully
+        # - delete temporary files
+
+        # Get file names.
+        fqms = []
+        for task in tasks:
+            u = UA.get_unit(uid, task)
+            if u.is_empty():
+                pass
+            else:
+                fqms.append(ftempl_qm.format(u.name_to_fname()))
+        fdr = ftempl_dr.format(uid_str)
+        fsum = ftempl_sum.format(uid_str)
+        fmont_qm = ftempl_mont.format(uid_str+'_qm')
+        fmont = ftempl_mont.format(uid_str)
+
+        # Create output folder.
+        util.create_dir(fmont)
+
+        # Concatenate QM figures first.
+        cmd = ('montage {}'.format(' '.join(fqms)) +
+               ' -tile x1 -geometry 1000x2000+10+10 {}'.format(fmont_qm))
+        os.system(cmd)
+
+        # Create full montage.
+        cmd = ('montage {}'.format(' '.join([fmont_qm, fdr, fsum])) +
+               ' -tile x3 -geometry 5000x2000+10+10 {}'.format(fmont))
+        os.system(cmd)
+
+        # Check if files exist.
+        os.path.isfile(fdr)
+
+
+def rec_stability_test(UA, fname=None):
     """Check stability of recording session across tasks."""
 
     # Init plotting theme.
@@ -128,8 +237,7 @@ def rec_stability_test(UA, fname):
 
     # Init figure.
     fig, gsp, ax_list = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
-                                              subw=10, subh=2.5,
-                                              as_array=False)
+                                              subw=10, subh=2.5)
 
     for prd, ax in zip(periods.index, ax_list):
 
@@ -185,6 +293,6 @@ def rec_stability_test(UA, fname):
         putil.set_labels(ax, xlab=xlab, ylab=prd)
         putil.set_spines(ax, left=False)
 
-    # Format and save figure.
+    # Save figure.
     title = 'Recording stability of ' + UA.Name
     putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)

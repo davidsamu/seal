@@ -929,14 +929,9 @@ class Unit:
         if sps is None:
             sps = putil.gridspec(1, 1)[0]
 
-        gsp = putil.embed_gsp(sps, 4, 1, height_ratios=[0.25, 1, 1, 1])
-        info_sps, all_rr_sps, ds_sps, pa_rr_sps = [g for g in gsp]
+        gsp = putil.embed_gsp(sps, 3, 1)
+        all_rr_sps, ds_sps, pa_rr_sps = [g for g in gsp]
         rate_axs = []
-
-        # Info header.
-        gsp_info = putil.embed_gsp(info_sps, 1, 1)
-        info_ax = fig.add_subplot(gsp_info[0, 0])
-        putil.unit_info(self, ax=info_ax)
 
         # Raster & rate over all trials.
         res = self.plot_SR(stims, nrate=nrate, fig=fig, sps=all_rr_sps,

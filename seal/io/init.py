@@ -74,7 +74,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
 
 
 def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
-                      plot_sum=True, plot_stab=True):
+                      plot_sum=True, plot_stab=True, creat_montage=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),
@@ -99,6 +99,11 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         bfr_qc_dir = rec_dir + '/before_qc/'
         qc_dir = rec_dir + '/qc_res/'
 
+        ftempl_qm = qc_dir + 'quality_metrics/{}.png'
+        ftempl_dr = qc_dir + 'direction_response/{}.png'
+        ftempl_sum = qc_dir + 'rate_DS_summary/{}.png'
+        ftempl_mont = qc_dir + 'montage/{}.png'
+
         # Read in Units.
         f_data = bfr_qc_dir + recording + '.data'
         UA = util.read_objects(f_data, 'UnitArr')
@@ -106,9 +111,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
         print('  Testing unit quality...')
-        ftempl = qc_dir + 'quality_metrics/{}.png' if plot_QM else None
-        for u in UA.iter_thru():
-            test_sorting.test_qm(u, ftempl=ftempl)
+        test_unit.test_quality(ftempl_qm, plot_QM)
 
         # Exclude units with low recording quality.
         exclude_units(UA)
@@ -116,20 +119,23 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         # Test stimulus response to all directions.
         if plot_SR:
             print('  Plotting direction response...')
-            ftempl = qc_dir + 'direction_response/{}.png'
-            test_units.DS_test(UA, ftempl=ftempl, match_scale=True)
+            test_units.DS_test(UA, ftempl_dr)
 
         # Test direction selectivity.
         print('  Calculating direction selectivity...')
-        ftempl = qc_dir + 'direction_tuning/{}.png'
         for u in UA.iter_thru(excl=True):
             u.test_DS()
 
         # Plot trial rate and direction selectivity summary plots.
         if plot_sum:
             print('  Plotting summary figures (rates and DS)...')
-            ftempl = qc_dir + 'rate_DS_summary/{}.png'
-            test_units.rate_DS_summary(UA, ftempl=ftempl)
+            test_units.rate_DS_summary(UA, ftempl_sum)
+
+        # Create montage image of all plots figures above.
+        if creat_montage:
+            print('  Creating montage images...')
+            test_units.create_montage(UA, ftempl_qm, ftempl_dr,
+                                      ftempl_sum, ftempl_mont)
 
         # Test stability of recording session across tasks.
         if plot_stab:
