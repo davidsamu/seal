@@ -258,6 +258,10 @@ def test_qm(u):
     # Trial removal info.
     u.update_included_trials(tr_inc)
 
+    # Run unit exclusion test.
+    to_excl = test_rejection(u)
+    u.set_excluded(to_excl)
+
     # Return all results.
     res = {'tbin_vmid': tbin_vmid, 'tbins': tbins, 'rate_t': rate_t,
            't1_inc': t1_inc, 't2_inc': t2_inc, 'prd_inc': prd_inc,

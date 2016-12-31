@@ -51,14 +51,13 @@ def unit_info(u, fs='large', ax=None):
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
     fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
-             for meas, f in [('SNR', '{:.2f}'), ('mWfDur', '{:.0f} $\mu$s'),
-                             ('mFR', '{:.1f} sp/s'), ('UnitType', '{}'),
-                             ('ISIvr', '{:.2f}%'), ('TrueSpikes', '{:.0f}%')]]
+             for meas, f in [('SNR', '{:.2f}'), ('ISIvr', '{:.2f}%'),
+                             ('TrueSpikes', '{:.0f}%')]]
     fvals = util.series_from_tuple_list(fvals)
     fvals = pd.DataFrame(fvals, index=fvals.index)
-    nrows, ncols = 2, 3
-    fvals['x'] = np.tile(np.linspace(.10, .85, ncols), nrows)
-    fvals['y'] = np.repeat(np.linspace(.4, .05, nrows), ncols)
+    nvals = len(fvals.index)
+    fvals['x'] = np.linspace(.10, .85, nvals)
+    fvals['y'] = nvals * [0.05]
 
     # Plot each label.
     for lbl, (val, x, y) in fvals.iterrows():
@@ -66,8 +65,9 @@ def unit_info(u, fs='large', ax=None):
         ax.text(x, y, lbl_str, fontsize=fs, va='bottom', ha='center')
 
     # Set title.
-    title = upars['task'] + (' (excluded)' if u.is_excluded() else '')
-    set_labels(ax, title=title, ytitle=.8, title_kws={'fontsize': 'x-large'})
+    title = upars['task'] + ', ' + upars['UnitType']
+    title += ' (excluded)' if u.is_excluded() else ''
+    set_labels(ax, title=title, ytitle=.6, title_kws={'fontsize': 'x-large'})
 
     # Highlight excluded unit.
     if u.is_excluded():

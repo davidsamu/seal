@@ -18,7 +18,7 @@ from seal.object import constants
 from seal.quality import test_sorting
 
 
-# Constants
+# Figure size constants
 subw = 7
 w_pad = 5
 
@@ -31,20 +31,17 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scale=True):
     # Init plotting theme.
     putil.set_style('notebook', 'white')
 
-    # Init data.
-    tasks, uids = UA.tasks(), UA.uids()
-
     # For each unit over all tasks.
-    for uid in uids:
+    for uid in UA.uids():
 
         # Init figure.
         if plot_QM:
-            fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
+            fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                                 subw=subw, subh=1.6*subw)
             wf_axs, amp_axs, dur_axs, amp_dur_axs, rate_axs = ([], [], [],
                                                                [], [])
 
-        for i, task in enumerate(tasks):
+        for i, task in enumerate(UA.tasks()):
 
             # Do quality test.
             u = UA.get_unit(uid, task)
@@ -95,19 +92,16 @@ def DS_test(UA, ftempl=None, match_scale=True, nrate=None):
     # Init plotting theme.
     putil.set_style('notebook', 'white')
 
-    # Init data.
-    tasks, uids = UA.tasks(), UA.uids()
-
     # For each unit over all tasks.
-    for uid in uids:
+    for uid in UA.uids():
 
         # Init figure.
-        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
+        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=subw)
         task_rate_axs, task_polar_axs = [], []
 
         # Plot direction response of unit in each task.
-        for task, sps in zip(tasks, gsp):
+        for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
@@ -140,19 +134,16 @@ def rate_DS_summary(UA, ftempl=None, match_scale=True, nrate=None):
     # Init plotting theme.
     putil.set_style('notebook', 'white')
 
-    # Init data
-    tasks, uids = UA.tasks(), UA.uids()
-
     # For each unit over all tasks.
-    for uid in uids:
+    for uid in UA.uids():
 
         # Init figure.
-        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
+        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=12)
         task_rate_axs, task_polar_axs, task_tuning_axs = [], [], []
 
         # Plot direction response of unit in each task.
-        for task, sps in zip(tasks, gsp):
+        for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
             res = u.plot_rate_DS(nrate, fig, sps)
@@ -184,46 +175,25 @@ def rate_DS_summary(UA, ftempl=None, match_scale=True, nrate=None):
 def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sum, ftempl_mont):
     """Create montage image of figures created during preprocessing."""
 
-    # Init.
-    tasks = UA.tasks()
-
     for uid in UA.uids():
         uid_str = util.format_uid(uid)
 
-        # TODOs:
-        # - deal with missing QM figures
-        # - increase spacing between figures
-        # - deal with missing figures gracefully
-        # - delete temporary files
-
         # Get file names.
-        fqms = []
-        for task in tasks:
-            u = UA.get_unit(uid, task)
-            if u.is_empty():
-                pass
-            else:
-                fqms.append(ftempl_qm.format(u.name_to_fname()))
+        fqm = ftempl_qm.format(uid_str)
         fdr = ftempl_dr.format(uid_str)
         fsum = ftempl_sum.format(uid_str)
-        fmont_qm = ftempl_mont.format(uid_str+'_qm')
         fmont = ftempl_mont.format(uid_str)
+
+        # Check if figures exist.
+        flist = [f for f in (fqm, fdr, fsum) if os.path.isfile(f)]
 
         # Create output folder.
         util.create_dir(fmont)
 
-        # Concatenate QM figures first.
-        cmd = ('montage {}'.format(' '.join(fqms)) +
-               ' -tile x1 -geometry 1000x2000+10+10 {}'.format(fmont_qm))
+        # Create montage image.
+        cmd = ('montage {}'.format(' '.join(flist)) +
+               ' -tile x3 -geometry +50+100 {}'.format(fmont))
         os.system(cmd)
-
-        # Create full montage.
-        cmd = ('montage {}'.format(' '.join([fmont_qm, fdr, fsum])) +
-               ' -tile x3 -geometry 5000x2000+10+10 {}'.format(fmont))
-        os.system(cmd)
-
-        # Check if files exist.
-        os.path.isfile(fdr)
 
 
 def rec_stability_test(UA, fname=None):

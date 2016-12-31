@@ -15,7 +15,7 @@ import pandas as pd
 from seal.io import export
 from seal.util import util
 from seal.plot import putil
-from seal.quality import test_sorting, test_units
+from seal.quality import test_units
 from seal.object import constants, unit, unitarray
 
 
@@ -111,7 +111,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         # Test unit quality, save result figures,
         # add stats to units and exclude trials and units.
         print('  Testing unit quality...')
-        test_unit.test_quality(ftempl_qm, plot_QM)
+        test_units.quality_test(UA, ftempl_qm, plot_QM)
 
         # Exclude units with low recording quality.
         exclude_units(UA)
@@ -174,9 +174,7 @@ def exclude_units(UA):
     print('  Excluding units...')
     exclude = []
     for u in UA.iter_thru(excl=True):
-        to_excl = test_sorting.test_rejection(u)
-        u.set_excluded(to_excl)
-        exclude.append(to_excl)
+        exclude.append(u.is_excluded())
 
     # Report unit exclusion results.
     n_tot = len(exclude)
