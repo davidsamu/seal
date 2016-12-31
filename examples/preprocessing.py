@@ -7,6 +7,7 @@ Created on Fri Dec  9 16:55:34 2016
 """
 
 # Template script to
+#
 # 1) import SimpleTPLCell structures (created in Matlab),
 # 2) convert them into Seal Units and UnitArrays,
 # 3) test unit quality, recording drifts, stimulus response properties, and
@@ -33,6 +34,10 @@ Created on Fri Dec  9 16:55:34 2016
 # 3) OPTIONAL: init.select_unit_and_trials: update selected units and trials
 #    using Excel table modified manually by user (based on figures generated
 #    in step 2)
+
+# An annotated example of the composite figures generated during the second
+# step can be found here:
+# https://github.com/davidsamu/seal/blob/master/doc/Preprocessing%20methods/preprocessing_example.svg
 
 
 # %% Init
@@ -82,16 +87,25 @@ plot_SR = True       # plot stimulus response of each unit? (3x3 figure)
 plot_sum = True      # plot summary plot of each unit? (all trials + tuning + pref/anti trials)
 plot_stab = True     # plot recording stability plot of each recording?
 
+creat_montage = True  # create montage from all preprocessing figures created
+                      # need to have ImageMagick install for this option.
+                      # https://www.imagemagick.org/script/binary-releases.php
+
+
 ua_name = os.path.split(proj_dir)[1]
 init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sum,
-                       plot_stab)
+                       plot_stab, creat_montage)
 
 # Output:
+#
 # - quality control figures for each recording in
-#   [seal_dir]/[recording]/qc_res
+#   "[seal_dir]/[recording]/qc_res"
 # - aggregate UnitArray data combined across all recordings in
-#   combined_recordings/[project folder name]/[project folder name].data
-
+#   "all_recordings/all_recordings.data"
+# - unit and trial exclusion table in
+#   "all_recordings/unit_trial_selection.xlsx"
+# - unit parameter table
+#   "all_recordings/unit_list.xlsx"
 
 # %% OPTIONAL: Update automatically excluded units and trials.
 
@@ -107,12 +121,15 @@ init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sum,
 # 3. After editing, save table into the same folder under a different name,
 #    and set 'f_sel_table' to that file.
 
+clean_array = True  # remove uids and tasks with all units empty or excluded?
 data_dir = 'data/all_recordings/'  # folder with combined recordings
 f_data = data_dir + 'all_recordings.data'    # combined recordings data file
 f_sel_table = data_dir + 'unit_trial_selection_modified.xslx'  # unit&trial selection table
 
-init.select_unit_and_trials(f_data, f_sel_table)
+init.select_unit_and_trials(f_data, f_sel_table, clean_array)
 
 # Output:
 # - UnitArray data of all recordings, updated with unit&trial selection
 #   in combined_recordings/[project folder name]/[project folder name].data
+# - updated unit parameter table
+#   "all_recordings/unit_list.xlsx"
