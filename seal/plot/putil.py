@@ -56,7 +56,7 @@ def unit_info(u, fs='large', ax=None):
     fvals = util.series_from_tuple_list(fvals)
     fvals = pd.DataFrame(fvals, index=fvals.index)
     nvals = len(fvals.index)
-    fvals['x'] = np.linspace(.10, .85, nvals)
+    fvals['x'] = np.linspace(.10, .80, nvals)
     fvals['y'] = nvals * [0.05]
 
     # Plot each label.
