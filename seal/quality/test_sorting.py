@@ -459,7 +459,7 @@ def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
 
     # Excluded periods.
     excl_prds = []
-    tstart, tstop = spk_times.min(), spk_times.max()
+    tstart, tstop = ses_t_lim
     if tstart != t1_inc:
         excl_prds.append(('beg', tstart, t1_inc))
     if tstop != t2_inc:

@@ -48,8 +48,13 @@ def fit_gaus_curve(x, y, y_err=None, lower_bounds=None, upper_bounds=None,
 
         # Init input params.
         x, y = np.array(x), np.array(y)
+
+        # Based on the assumption that y values are samples over a small set
+        # of x values, so the mean of all y to a given x represent a
+        # stable response estimate (for initial values and bounds).
         xmin, xmax = np.min(x), np.max(x)
-        ymin, ymax = np.min(y), np.max(y)
+        ymeans = pd.Series(y, index=x).groupby(level=0).mean()
+        ymin, ymax = np.min(ymeans), np.max(ymeans)
 
         # Every element of y_err has to be positive.
         if y_err is not None:
