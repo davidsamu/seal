@@ -54,7 +54,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
     return fig, raster_axs, rate_ax
 
 
-def raster(spk_trains, t_unit=ms, prds=None, size=2.0, c='b', xlim=None,
+def raster(spk_trains, t_unit=ms, prds=None, size=2.5, c='b', xlim=None,
            title=None, xlab=None, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 

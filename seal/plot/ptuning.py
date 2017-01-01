@@ -170,8 +170,7 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
 
 
 def plot_tuning(xfit, yfit, v=None, meanr=None, semr=None, xticks=None,
-                xlim=None, ylim=None, color='b', title=None,
-                xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
+                color='b', ffig=None, ax=None, **kwargs):
     """Plot tuning curve, optionally with data samples."""
 
     # Plot fitted curve.
@@ -180,7 +179,7 @@ def plot_tuning(xfit, yfit, v=None, meanr=None, semr=None, xticks=None,
     # Plot data samples.
     if meanr is not None and semr is not None:
         pplot.errorbar(v, meanr, yerr=semr, fmt='o', color=color,
-                       title=title, xlab=xlab, ylab=ylab, ax=ax, **kwargs)
+                       ax=ax, **kwargs)
 
     # Set x axis ticks.
     if xticks is not None:

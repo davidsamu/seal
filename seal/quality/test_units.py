@@ -25,7 +25,7 @@ w_pad = 5
 
 # %% Quality tests across tasks.
 
-def quality_test(UA, ftempl=None, plot_QM=False, match_scale=True):
+def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
     """Test and plot quality metrics of recording and spike sorting """
 
     # Init plotting theme.
@@ -69,7 +69,7 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scale=True):
         if plot_QM:
 
             # Match scale of y axes across tasks.
-            if match_scale:
+            if match_scales:
                 putil.sync_axes(wf_axs, sync_x=True, sync_y=True)
                 putil.sync_axes(amp_axs, sync_y=True)
                 putil.sync_axes(dur_axs, sync_y=True)
@@ -86,7 +86,7 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scale=True):
                                       w_pad=w_pad)
 
 
-def DS_test(UA, ftempl=None, match_scale=True, nrate=None):
+def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
@@ -115,7 +115,7 @@ def DS_test(UA, ftempl=None, match_scale=True, nrate=None):
                 putil.add_mock_axes(fig, mock_ax[0, 0])
 
         # Match scale of y axes across tasks.
-        if match_scale:
+        if match_scales:
             putil.sync_axes(task_rate_axs, sync_y=True)
             putil.sync_axes(task_polar_axs, sync_y=True)
 
@@ -128,7 +128,7 @@ def DS_test(UA, ftempl=None, match_scale=True, nrate=None):
                                   rect_height=0.92, w_pad=w_pad)
 
 
-def rate_DS_summary(UA, ftempl=None, match_scale=True, nrate=None):
+def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
     """Test unit responses within trails."""
 
     # Init plotting theme.
@@ -157,7 +157,7 @@ def rate_DS_summary(UA, ftempl=None, match_scale=True, nrate=None):
                 putil.add_mock_axes(fig, mock_ax[0, 0])
 
         # Match scale of y axes across tasks.
-        if match_scale:
+        if match_scales:
             putil.sync_axes(task_rate_axs, sync_y=True)
             [putil.move_signif_lines(ax) for ax in task_rate_axs]
             putil.sync_axes(task_polar_axs, sync_y=True)

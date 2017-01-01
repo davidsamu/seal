@@ -1,16 +1,24 @@
 TODO list of Seal project
 -------------------------
 
-- write unit tests
-
 - go through master scripts, move functionality into Seal, collect TODOs
 
 - write Python script to automatically move and rename files after splitting sorted recording files
 
 
+init
+----
+  - add meta function to create collage figure, in order to drop requirement of ImageMagick
+
+
 spikes and rates
 ----------------
-- returning excluded trials should be made impossible in some way!
+  - returning excluded trials should be made impossible in some way!
+
+
+trial rejection
+---------------
+ - recalculate unit stats (mean FR, WF duration, etc) with updated included trials
 
 
 waveform duration calculation
