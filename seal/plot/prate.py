@@ -54,7 +54,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
     return fig, raster_axs, rate_ax
 
 
-def raster(spk_trains, t_unit=ms, prds=None, size=2.5, c='b', xlim=None,
+def raster(spk_trains, t_unit=ms, prds=None, size=3.0, c='b', xlim=None,
            title=None, xlab=None, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
@@ -108,6 +108,7 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
 
     # Iterate through list of rate arrays
     lbl = None
+    xmin, xmax, ymax = None, None, None
     for name, rts, col in zip(names, rate_list, cols):
 
         # Skip empty array (no trials).
@@ -125,19 +126,26 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
         ax.fill_between(tvec, meanr-semr, meanr+semr, alpha=0.2,
                         facecolor=col, edgecolor=col)
 
+        # Update limits.
+        tmin, tmax, rmax = min(tvec), max(tvec), max(meanr+semr)
+        xmin = min(xmin, tmin) if xmin is not None else tmin
+        xmax = max(xmax, tmax) if xmax is not None else tmax
+        ymax = max(ymax, rmax) if ymax is not None else rmax
+
     # Set ticks, labels and axis limits.
     if xlim is None:
-        # Use Pandas Series to deal with all sort of extreme cases.
-        xlim = (pd.Series([rts.columns.min() for rts in rate_list]).min(),
-                pd.Series([rts.columns.max() for rts in rate_list]).max())
+        if xmin == xmax:  # avoid setting identical limits
+            xmax = None
+        xlim = (xmin, xmax)
     if ylim is None:
-        ylim = (0, None)
+        ymax = 1.02 * ymax if (ymax is not None) and (ymax > 0) else None
+        ylim = (0, ymax)
     if xlab is not None:
         xlab = putil.t_lbl.format(xlab)
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title)
-    xlim = ax.get_xlim()  # in case it was set to NaN
-    xtcks = util.values_in_window(putil.t_ticks, xlim[0], xlim[1])
-    putil.set_xtick_labels(ax, xtcks)
+    t1, t2 = ax.get_xlim()  # in case it was set to None
+    tmarks, tlbls = putil.get_tick_marks_and_labels(t1, t2)
+    putil.set_xtick_labels(ax, tmarks, tlbls)
     putil.set_max_n_ticks(ax, 7, 'y')
 
     # Add legend.

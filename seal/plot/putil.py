@@ -10,7 +10,6 @@ from itertools import cycle
 
 import numpy as np
 import pandas as pd
-from quantities import ms
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -31,12 +30,27 @@ ColConv = mpl.colors.ColorConverter()
 t_lbl = 'Time since {} (ms)'
 FR_lbl = 'Firing rate (sp/s)'
 
-t_ticks = np.arange(-1000, 5000+1, 1000) * ms
+# Period (frequency) of tick marks and tick labels for time axes. In ms!
+t_tick_mrks_prd = 500
+t_tick_lbls_prd = 1000  # this has to be multiple of marks period!
 
 my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
+
+# Default Matplotlib RC params.
+tick_pad = 3
+tick_size = 4
+tick_minor_fac = 0.75
+seal_rc_params = {'xtick.major.pad': tick_pad,
+                  'xtick.minor.pad': tick_minor_fac*tick_pad,
+                  'ytick.major.pad': tick_pad,
+                  'ytick.minor.pad': tick_minor_fac*tick_pad,
+                  'xtick.major.size': tick_size,
+                  'xtick.minor.size': tick_minor_fac*tick_size,
+                  'ytick.major.size': tick_size,
+                  'ytick.minor.size': tick_minor_fac*tick_size}
 
 
 # %% Functions to plot group and unit level properties.
@@ -330,13 +344,37 @@ def set_ticks_side(ax=None, xtick_pos='bottom', ytick_pos='left'):
 
 
 def hide_ticks(ax=None, show_x_ticks=False, show_y_ticks=False):
-    """Hide ticks on either or both axes."""
+    """Hide ticks (both marks and labels) on either or both axes."""
 
     ax = axes(ax)
     if not show_x_ticks:
         ax.get_xaxis().set_ticks([])
     if not show_y_ticks:
         ax.get_yaxis().set_ticks([])
+
+
+def hide_tick_marks(ax=None, show_x_tick_mrks=False, show_y_tick_mrks=False):
+    """Hide ticks marks (but not tick labels) on either or both axes."""
+
+    ax = axes(ax)
+    if not show_x_tick_mrks:
+        ax.tick_params(axis='x', which='both', length=0)
+    if not show_y_tick_mrks:
+        ax.tick_params(axis='y', which='both', length=0)
+
+
+def hide_tick_labels(ax=None, show_x_tick_lbls=False, show_y_tick_lbls=False):
+    """Hide tick labels (but not tick marks) on either or both axes."""
+
+    ax = axes(ax)
+    if not show_x_tick_lbls:
+        ax.tick_params(labelbottom='off')
+    if not show_y_tick_lbls:
+        ax.tick_params(labelleft='off')
+
+    # Alternatively:
+    # lbls = len(ax.get_xticklabels()) * ['']
+    # ax.set_xticklabels(lbls)
 
 
 def hide_axes(ax=None, show_x=False, show_y=False, show_polar=False):
@@ -359,6 +397,25 @@ def hide_axes(ax=None, show_x=False, show_y=False, show_polar=False):
             to_hide.extend(['left', 'right'])
 
     [ax.spines[side].set_visible(False) for side in to_hide]
+
+
+def get_tick_marks_and_labels(t1, t2, mrks_prd=t_tick_mrks_prd,
+                              lbls_prd=t_tick_lbls_prd):
+    """
+    Return tick marks and tick labels for time window.
+
+    t1 and t2 are assumed to be in ms.
+    """
+
+    # Calculate tick mark positions.
+    t1_limit = int(t1/mrks_prd) * mrks_prd
+    t2_limit = t2 + 1
+    tick_mrks = np.arange(t1_limit, t2_limit, mrks_prd)
+
+    # Create tick labels for marks.
+    tick_lbls = [str(int(t)) if not t % lbls_prd else '' for t in tick_mrks]
+
+    return tick_mrks, tick_lbls
 
 
 def set_xtick_labels(ax=None, pos=None, lbls=None, **kwargs):
@@ -626,7 +683,7 @@ def format_plot(ax=None, xlim=None, ylim=None, xlab=None, ylab=None,
 
 
 def set_style(context='notebook', style='darkgrid', palette='deep',
-              color_codes=True, rc=None):
+              color_codes=True, rc=seal_rc_params):
     """Set Seaborn style, context and other matplotlib style parameters."""
 
     # 'style': 'darkgrid', 'whitegrid', 'dark', 'white' or 'ticks'.

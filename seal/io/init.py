@@ -181,8 +181,8 @@ def exclude_units(UA):
     n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
     perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
     rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
-    print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
     print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
+    print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
 
 
 def select_unit_and_trials(f_data, f_sel_table, clean_UA=True):

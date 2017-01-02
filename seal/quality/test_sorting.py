@@ -318,9 +318,8 @@ def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
 
     # %% Init plots.
 
-    # Init plotting theme.
-    putil.set_style('notebook', 'ticks')
-    putil.inline_off()   # disable inline plotting to prevent memory leak
+    # Disable inline plotting to prevent memory leak.
+    putil.inline_off()
 
     # Init figure and gridspec.
     fig = putil.figure(fig)

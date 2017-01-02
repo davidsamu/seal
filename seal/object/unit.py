@@ -869,6 +869,7 @@ class Unit:
         gsp = putil.embed_gsp(sps, 3, 3)  # inner gsp with subplots
 
         # Polar plot.
+        putil.set_style('notebook', 'white')
         ax_polar = fig.add_subplot(gsp[4], polar=True)
         for stim in stims.index:  # for each stimuli
             stim_resp = self.get_stim_resp_vals(stim, 'Dir')
@@ -879,6 +880,7 @@ class Unit:
         putil.hide_ticks(ax_polar, 'y')
 
         # Raster-rate plots.
+        putil.set_style('notebook', 'ticks')
         rr_pos = [5, 2, 1, 0, 3, 6, 7, 8]  # Position of each direction.
         rr_dir_pos = pd.Series(constants.all_dirs, index=rr_pos)
 
@@ -896,14 +898,14 @@ class Unit:
             # Remove axis ticks.
             for i, ax in enumerate(drate_axs):
                 first_stim = (i == 0)
-                show_x_ticks = first_dir
-                show_y_ticks = first_dir & first_stim
-                putil.hide_ticks(ax, show_x_ticks, show_y_ticks)
+                show_x_tick_lbls = first_dir
+                show_y_tick_lbls = first_dir & first_stim
+                putil.hide_tick_labels(ax, show_x_tick_lbls, show_y_tick_lbls)
 
             # Add task name as title (to top center axes).
-            if isp == 1:
-                putil.set_labels(draster_axs[0], title=self.get_task(),
-                                 ytitle=1.10, title_kws={'loc': 'right'})
+            # if isp == 1:
+            #     putil.set_labels(draster_axs[0], title=self.get_task(),
+            #                      ytitle=1.10, title_kws={'loc': 'right'})
 
             rate_axs.extend(drate_axs)
 
@@ -940,7 +942,7 @@ class Unit:
         rate_axs.extend(srate_axs)
 
         # Direction tuning.
-        ds_gsp = putil.embed_gsp(ds_sps, 1, 2)
+        ds_gsp = putil.embed_gsp(ds_sps, 1, 2, wspace=0.3)
         ax_polar, ax_tuning = self.plot_DS(no_labels=True, fig=fig, gsp=ds_gsp)
 
         # Raster & rate in pref and anti trials.

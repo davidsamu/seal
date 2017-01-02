@@ -1,9 +1,28 @@
 TODO list of Seal project
 -------------------------
 
-- go through master scripts, move functionality into Seal, collect TODOs
+preprocessing pipeline
+----------------------
+  - write Python script to automatically move and rename files after splitting sorted recording files
+  - try automatic sorting using OpenElectrophys
 
-- write Python script to automatically move and rename files after splitting sorted recording files
+
+analyses to add from DD scirpts
+-------------------------------
+  - anticipatory delay activity
+  - Fano factor
+  - average tuning curve
+  - tuning during task periods(?), or better way to measure encoding during delay?
+  - decoding
+    - preprocessing
+    - run
+    - analysis
+  - comparison effect
+
+
+permutation tests
+-----------------
+  - consider using Numba
 
 
 init

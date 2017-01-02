@@ -29,7 +29,7 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
     """Test and plot quality metrics of recording and spike sorting """
 
     # Init plotting theme.
-    putil.set_style('notebook', 'white')
+    putil.set_style('notebook', 'ticks')
 
     # For each unit over all tasks.
     for uid in UA.uids():
@@ -90,7 +90,7 @@ def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
-    putil.set_style('notebook', 'white')
+    putil.set_style('notebook', 'ticks')
 
     # For each unit over all tasks.
     for uid in UA.uids():
@@ -132,7 +132,7 @@ def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
     """Test unit responses within trails."""
 
     # Init plotting theme.
-    putil.set_style('notebook', 'white')
+    putil.set_style('notebook', 'ticks')
 
     # For each unit over all tasks.
     for uid in UA.uids():
@@ -198,9 +198,6 @@ def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sum, ftempl_mont):
 
 def rec_stability_test(UA, fname=None):
     """Check stability of recording session across tasks."""
-
-    # Init plotting theme.
-    putil.set_style('notebook', 'white')
 
     # Init params.
     periods = constants.tr_prd
