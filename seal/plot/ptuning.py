@@ -16,13 +16,12 @@ from seal.object import constants
 
 
 def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
-            ffig=None, fig=None, gsp=None):
+            ffig=None, fig=None, sps=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
-    # Init plots.
-    if gsp is None:
-        fig, gsp, _ = putil.get_gs_subplots(1, 2, subw=6, subh=5,
-                                            create_axes=False, fig=fig)
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+    gsp = putil.embed_gsp(sps, 1, 2, wspace=0.3)
     ax_polar = fig.add_subplot(gsp[0], polar=True)
     ax_tuning = fig.add_subplot(gsp[1])
     polar_patches = []

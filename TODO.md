@@ -58,8 +58,6 @@ unit
 
 plot
 ----
-  - refactor get_gs_subplots
-  - refactor subplot passing to plotting functions all around
   - update colors and other theme elements after upgrading to matplotlib 2.0
 
 

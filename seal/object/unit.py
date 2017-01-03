@@ -788,10 +788,8 @@ class Unit:
         if self.is_empty() or not self.n_inc_trials():
             return
 
-        # Init figure and gridspec.
-        fig = putil.figure(fig)
-        if sps is None:
-            sps = putil.gridspec(1, 1)[0]
+        # Init subplots.
+        sps, fig = putil.sps_fig(sps, fig)
 
         # Create a gridspec for each stimulus.
         wratio = [float(dur) for dur in stims.dur]
@@ -812,7 +810,7 @@ class Unit:
         axes_raster, axes_rate = [], []
         for i, stim in enumerate(stims.index):
 
-            s_rr_gsp = stim_rr_gsp[i]
+            rr_sps = stim_rr_gsp[i]
             cols = colors.loc[stim]
 
             # Prepare plot params.
@@ -821,12 +819,10 @@ class Unit:
             else:
                 trs = self.ser_inc_trials()
 
-            rr_gsp = putil.embed_gsp(s_rr_gsp, 2, 1)
-
             # Plot response on raster and rate plots.
             prd, ref = stims.loc[stim, 'prd'], stim + ' on'
             res = self.plot_rr(prd, ref, nrate, trs, cols=cols,
-                               fig=fig, gsp=rr_gsp, **kwargs)
+                               fig=fig, sps=rr_sps, **kwargs)
             _, raster_axs, rate_ax = res
 
             # Add stimulus name to rate plot.
@@ -862,10 +858,8 @@ class Unit:
         stims['dur'] = [self.pr_dur(stims.loc[stim, 'prd'])
                         for stim in stims.index]
 
-        # Init figure and gridspec.
-        fig = putil.figure(fig)
-        if sps is None:
-            sps = putil.gridspec(1, 1)[0]
+        # Init subplots.
+        sps, fig = putil.sps_fig(sps, fig)
         gsp = putil.embed_gsp(sps, 3, 3)  # inner gsp with subplots
 
         # Polar plot.
@@ -926,11 +920,8 @@ class Unit:
         stims['dur'] = [self.pr_dur(stims.loc[stim, 'prd'])
                         for stim in stims.index]
 
-        # Init figure and gridspec.
-        fig = putil.figure(fig)
-        if sps is None:
-            sps = putil.gridspec(1, 1)[0]
-
+        # Init subplots.
+        sps, fig = putil.sps_fig(sps, fig)
         gsp = putil.embed_gsp(sps, 3, 1)
         all_rr_sps, ds_sps, pa_rr_sps = [g for g in gsp]
         rate_axs = []
@@ -942,8 +933,7 @@ class Unit:
         rate_axs.extend(srate_axs)
 
         # Direction tuning.
-        ds_gsp = putil.embed_gsp(ds_sps, 1, 2, wspace=0.3)
-        ax_polar, ax_tuning = self.plot_DS(no_labels=True, fig=fig, gsp=ds_gsp)
+        ax_polar, ax_tuning = self.plot_DS(no_labels=True, fig=fig, sps=ds_sps)
 
         # Raster & rate in pref and anti trials.
         stim = stims.index[0]

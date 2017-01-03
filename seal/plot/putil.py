@@ -460,7 +460,7 @@ def set_max_n_ticks(ax=None, max_n_ticks=5, axis='both'):
 # %% Functions to create, access and save axes and figures.
 
 def axes(ax=None, **kwargs):
-    """Return new or current axes instance."""
+    """Return new (or passed) axes."""
 
     if ax is None:
         ax = plt.gca(**kwargs)
@@ -468,7 +468,7 @@ def axes(ax=None, **kwargs):
 
 
 def is_polar(ax=None):
-    """Return True is axes is polar type, False otherwise."""
+    """Check if axes is polar type."""
 
     ax = axes(ax)
     im_polar = 'polar' in ax.spines
@@ -484,7 +484,7 @@ def add_mock_axes(fig, mock_gsp, **kwargs):
 
 
 def figure(fig=None, **kwargs):
-    """Return new figure instance."""
+    """Return new (or passed) figure."""
 
     if fig is None:
         fig = plt.figure(**kwargs)
@@ -497,6 +497,15 @@ def gridspec(nrow, ncol, gsp=None, **kwargs):
     if gsp is None:
         gsp = gs.GridSpec(nrow, ncol, **kwargs)
     return gsp
+
+
+def sps_fig(sps=None, fig=None):
+    """Return new (or passed) sps and figure."""
+
+    fig = figure(fig)
+    if sps is None:
+        sps = gridspec(1, 1)[0]
+    return sps, fig
 
 
 def get_gs_subplots(nrow=None, ncol=None, subw=2, subh=2, ax_kws_list=None,
@@ -550,6 +559,8 @@ def embed_gsp(outer_gsp, nrow, ncol, **kwargs):
     sub_gsp = gs.GridSpecFromSubplotSpec(nrow, ncol, outer_gsp, **kwargs)
     return sub_gsp
 
+
+# %% Functions to save figure.
 
 def save_fig(fig=None, ffig=None, dpi=150, bbox_extra_artists=None,
              close=True):

@@ -7,23 +7,21 @@ Functions to plot raster and rate plots.
 """
 
 import numpy as np
-import pandas as pd
 
 from quantities import ms
 
-from seal.util import util
 from seal.plot import putil
 
 
 def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
                 title=None, rs_ylab=True, rate_kws=dict(), fig=None,
-                ffig=None, gsp=None):
+                ffig=None, sps=None):
     """Plot raster and rate plots."""
 
-    # Create subplots (as nested gridspecs).
-    n_sets = max(len(spk_list), 1)  # let's create an empty axes if no data
-    fig = putil.figure(fig)
-    gsp = putil.gridspec(2, 1, gsp, height_ratios=[1, 1])
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+    gsp = putil.embed_gsp(sps, 2, 1, height_ratios=[.66, 1], hspace=.15)
+    n_sets = max(len(spk_list), 1)  # let's add an empty axes if no data
     gsp_raster = putil.embed_gsp(gsp[0], n_sets, 1, hspace=.15)
     gsp_rate = putil.embed_gsp(gsp[1], 1, 1)
 
