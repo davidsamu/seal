@@ -14,7 +14,6 @@ import pandas as pd
 from quantities import s, ms, us, deg, Hz
 
 from seal.util import util
-from seal.plot import prate, ptuning, putil
 from seal.object import constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
@@ -109,6 +108,14 @@ class Unit:
         # Extract stimulus parameters.
         self.StimParams = trpars[stim_params.name]
         self.StimParams.columns = stim_params.index
+
+        # Combine x and y stimulus coordinates into a single location variable.
+        stim_pars = self.StimParams.copy()
+        for stim in stim_pars.columns.levels[0]:
+            pstim = stim_pars[stim]
+            if ('LocX' in pstim.columns) and ('LocY' in pstim.columns):
+                stim_pars[stim, 'Loc'] = list(zip(pstim.LocX, pstim.LocY))
+        self.StimParams = stim_pars.sort_index(axis=1)
 
         # %% Subject answer parameters.
 
@@ -229,7 +236,7 @@ class Unit:
     def to_plot(self):
         """Can unit be plotted? (return 1 if plotable, 0 if not)"""
 
-        to_plot = (not self.is_empty()) and self.n_inc_trials()
+        to_plot = (not self.is_empty()) and bool(self.n_inc_trials())
         return to_plot
 
     def get_region(self):
@@ -444,24 +451,14 @@ class Unit:
 
         return ctrs
 
-    def pvals_in_trials(self, trs=None, pnames=None):
-        """
-        Return selected stimulus params during given trials.
-        pnames is list of (stim, feature) pairs.
-        """
-
-        # Defaults.
-        if trs is None:  # all trials
-            trs = self.inc_trials()
-        if pnames is None:  # all stimulus params
-            pnames = self.StimParams.columns.values
-
-        pvals = self.StimParams.loc[trs, pnames]
-
-        return pvals
-
-    def trials_by_pvals(self, stim, feat, vals=None, comb_vals=False):
+    def trials_by_features(self, stim, feat, vals=None, comb_vals=False):
         """Return trials grouped by (selected) values of stimulus param."""
+
+        # Error check.
+        if feat not in self.StimParams.columns.levels[1]:
+            warnings.warn('Requested feature "{}" '.format(feat) +
+                          'not found in StimParams table.')
+            return pd.Series()
 
         # Group indices by stimulus feature value.
         tr_grps = pd.Series(self.StimParams.groupby([(stim, feat)]).groups)
@@ -524,7 +521,7 @@ class Unit:
                   for offset in offsets]
 
         # Get trials for direction + each offset value.
-        sd_trs = [((stim, d), self.trials_by_pvals(stim, 'Dir', [d]).loc[d])
+        sd_trs = [((stim, d), self.trials_by_features(stim, 'Dir', [d]).loc[d])
                   for d in direcs for stim in stims]
         sd_trs = util.series_from_tuple_list(sd_trs)
 
@@ -597,7 +594,7 @@ class Unit:
             t1s, t2s = self.pr_times(stim, add_latency, concat=False)
 
         # Get response (firing rates) in each trial.
-        trs = self.trials_by_pvals(stim, feat)
+        trs = self.trials_by_features(stim, feat)
         if not len(trs):
             return pd.DataFrame(columns=['vals', 'resp'])
         vals = pd.concat([pd.Series(v, index=tr)
@@ -685,3 +682,12 @@ class Unit:
 
         adir = self.DS['PD'].loc[(stim, method), pd_type]
         return adir
+
+    # %% Functions to return unit parameters.
+
+    def get_baseline(self):
+        """Return baseline firing rate."""
+
+        baseline = (self.QualityMetrics['baseline']
+                    if 'baseline' in self.QualityMetrics else None)
+        return baseline

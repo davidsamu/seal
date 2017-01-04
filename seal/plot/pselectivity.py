@@ -16,7 +16,31 @@ from seal.plot import putil, ptuning, prate
 from seal.util import util
 
 
-# %% Plotting methods.
+# %% Functions to plot location selectivity.
+
+def plot_LR(u, nrate=None, fig=None, sps=None, **kwargs):
+    """Plot location response plot."""
+
+    if not u.to_plot():
+        return
+
+    # Set up stimulus parameters.
+    stims = pd.DataFrame(index=constants.stim_dur.index)
+    stims['prd'] = ['around ' + stim for stim in stims.index]
+    stims['dur'] = [u.pr_dur(stims.loc[stim, 'prd']) for stim in stims.index]
+
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+
+    # Raster & rate in trials sorted by stimulus location.
+    raster_axs, rate_axs = prate.plot_SR(u, stims, 'Loc', None, nrate, None,
+                                         True, fig, sps, no_labels=False,
+                                         **kwargs)
+
+    return raster_axs, rate_axs
+
+
+# %% Functions to plot stimulus selectivity.
 
 def plot_DR(u, nrate=None, fig=None, sps=None):
     """Plot 3x3 direction response plot, with polar plot in center."""
@@ -42,7 +66,7 @@ def plot_DR(u, nrate=None, fig=None, sps=None):
         resp_stats = util.calc_stim_resp_stats(stim_resp)
         dirs, resp = np.array(resp_stats.index) * deg, resp_stats['mean']
         c = putil.stim_colors[stim]
-        baseline = u.QualityMetrics['baseline']
+        baseline = u.get_baseline()
         ptuning.plot_DR(dirs, resp, color=c, baseline=baseline, ax=ax_polar)
     putil.hide_ticks(ax_polar, 'y')
 

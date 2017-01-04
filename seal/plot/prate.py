@@ -30,28 +30,25 @@ def plot_SR(u, stims, feat=None, vals=None, nrate=None, colors=None,
     stim_rr_gsp = putil.embed_gsp(sps, 1, len(stims.index),
                                   width_ratios=wratio, wspace=0.1)
 
-    # Init params.
-    if colors is None:
-        # One trial set: stimulus specific color.
-        if vals is None or len(vals) == 1:
-            colors = pd.DataFrame(putil.stim_colors[stims.index])
-        else:  # more than one trial set: value specific color
-            colcyc = putil.get_colors()
-            col_vec = [next(colcyc) for i in range(len(vals))]
-            colors = pd.DataFrame(np.tile(col_vec, (len(stims.index), 1)),
-                                  index=stims.index)
-
     axes_raster, axes_rate = [], []
     for i, stim in enumerate(stims.index):
 
         rr_sps = stim_rr_gsp[i]
-        cols = colors.loc[stim]
 
         # Prepare trial set.
-        if feat is not None and vals is not None:
-            trs = u.trials_by_pvals(stim, feat, vals)
+        if feat is not None:
+            trs = u.trials_by_features(stim, feat, vals)
         else:
             trs = u.ser_inc_trials()
+
+        # Init params.
+        if colors is None:
+            # One trial set: stimulus specific color.
+            if len(trs) == 1:
+                cols = putil.stim_colors[stim]
+            else:  # more than one trial set: value specific color
+                colcyc = putil.get_colors()
+                cols = [next(colcyc) for i in range(len(trs))]
 
         # Plot response on raster and rate plots.
         prd, ref = stims.loc[stim, 'prd'], stim + ' on'
@@ -106,7 +103,7 @@ def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
     names = trs.index
 
     # Get unit's baseline rate.
-    baseline = u.QualityMetrics['baseline']
+    baseline = u.get_baseline()
 
     return trs, spikes, rates, stim_prd, names, baseline
 

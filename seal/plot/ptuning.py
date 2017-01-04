@@ -25,7 +25,7 @@ def plot_DS(u, no_labels=False, ftempl=None, **kwargs):
     if not len(u.DS.index):
         u.test_DS()
 
-    baseline = u.QualityMetrics['baseline']
+    baseline = u.get_baseline()
 
     # Set up plot params.
     if no_labels:  # minimise labels on plot
