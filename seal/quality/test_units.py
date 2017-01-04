@@ -13,7 +13,7 @@ import scipy as sp
 import pandas as pd
 
 from seal.util import util
-from seal.plot import putil, pplot
+from seal.plot import putil, pplot, pcombined
 from seal.object import constants
 from seal.quality import test_sorting
 
@@ -105,7 +105,7 @@ def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
             u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
-            res = u.plot_DR(nrate, fig, sps)
+            res = pcombined.plot_DR(u, nrate, fig, sps)
             if res is not None:
                 ax_polar, rate_axs = res
                 task_rate_axs.extend(rate_axs)
@@ -140,16 +140,18 @@ def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=12)
-        task_rate_axs, task_polar_axs, task_tuning_axs = [], [], []
+        task_all_rate_axs, task_dir_rate_axs = [], []
+        task_polar_axs, task_tuning_axs = [], []
 
         # Plot direction response of unit in each task.
         for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
-            res = u.plot_rate_DS(nrate, fig, sps)
+            res = pcombined.plot_rate_DS(u, nrate, fig, sps)
             if res is not None:
-                rate_axs, ax_polar, ax_tuning = res
-                task_rate_axs.extend(rate_axs)
+                all_rate_ax, dir_rate_axs, ax_polar, ax_tuning = res
+                task_all_rate_axs.append(all_rate_ax)
+                task_dir_rate_axs.extend(dir_rate_axs)
                 task_polar_axs.append(ax_polar)
                 task_tuning_axs.append(ax_tuning)
             else:
@@ -158,8 +160,9 @@ def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
 
         # Match scale of y axes across tasks.
         if match_scales:
-            putil.sync_axes(task_rate_axs, sync_y=True)
-            [putil.move_signif_lines(ax) for ax in task_rate_axs]
+            for rate_axs in [task_all_rate_axs, task_dir_rate_axs]:
+                putil.sync_axes(rate_axs, sync_y=True)
+                [putil.move_signif_lines(ax) for ax in rate_axs]
             putil.sync_axes(task_polar_axs, sync_y=True)
             putil.sync_axes(task_tuning_axs, sync_y=True)
 
@@ -217,8 +220,7 @@ def rec_stability_test(UA, fname=None):
             # Get activity of all units in task.
             tr_rates = []
             for u in UA.iter_thru([task]):
-                t1s, t2s = u.pr_times(prd, concat=False)
-                rates = u.get_prd_rates(t1s=t1s, t2s=t2s, tr_time_idx=True)
+                rates = u.get_prd_rates(prd, tr_time_idx=True)
                 tr_rates.append(util.remove_dim_from_series(rates))
             tr_rates = pd.DataFrame(tr_rates)
 

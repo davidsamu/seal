@@ -15,16 +15,43 @@ from seal.plot import putil, pplot
 from seal.object import constants
 
 
-def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
-            ffig=None, fig=None, sps=None):
+def plot_DS(u, no_labels=False, ftempl=None, **kwargs):
+    """Plot direction selectivity results."""
+
+    if not u.to_plot():
+        return
+
+    # Test DS if it hasn't been yet.
+    if not len(u.DS.index):
+        u.test_DS()
+
+    baseline = u.QualityMetrics['baseline']
+
+    # Set up plot params.
+    if no_labels:  # minimise labels on plot
+        title = None
+        kwargs['labels'] = False
+        kwargs['DR_legend'] = True
+        kwargs['tuning_legend'] = False
+    else:
+        title = u.Name
+
+    ffig = None if ftempl is None else ftempl.format(u.name_to_fname())
+    ax_DR, ax_tuning = plot_DR_tuning(u.DS, title=title, baseline=baseline,
+                                      ffig=ffig, **kwargs)
+    return ax_DR, ax_tuning
+
+
+def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
+                   tuning_legend=True, ffig=None, fig=None, sps=None):
     """Plot direction selectivity on polar plot and tuning curve."""
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
     gsp = putil.embed_gsp(sps, 1, 2, wspace=0.3)
-    ax_polar = fig.add_subplot(gsp[0], polar=True)
+    ax_DR = fig.add_subplot(gsp[0], polar=True)
     ax_tuning = fig.add_subplot(gsp[1])
-    polar_patches = []
+    DR_patches = []
     tuning_patches = []
 
     stims = DS.DSI.index
@@ -44,21 +71,23 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         x, y = tuning.gen_fit_curve(tuning.gaus, -180, 180,
                                     a=a, b=b, x0=x0, sigma=sigma)
 
-        # Plot DS polar plot.
+        # Plot DR polar plot.
         color = putil.stim_colors.loc[stim]
         ttl = 'Direction response' if labels else None
-        plot_DR(dirs, SR, DSI, PD, title=ttl, color=color, ax=ax_polar)
+        plot_DR(dirs, SR, DSI, PD, baseline, title=ttl, color=color,
+                ax=ax_DR)
 
-        # Collect parameters of polar plot (stimulus - response).
+        # Collect parameters of DR plot (stimulus - response).
         s_pd = str(float(round(PD, 1)))
         s_pd_c = str(int(cPD)) if not np.isnan(float(cPD)) else 'nan'
         lgd_lbl = '{}:   {:.3f}'.format(stim, DSI)
         lgd_lbl += '     {:>5}$^\circ$ --> {:>3}$^\circ$ '.format(s_pd, s_pd_c)
-        polar_patches.append(putil.get_artist(lgd_lbl, color))
+        DR_patches.append(putil.get_artist(lgd_lbl, color))
 
         # Calculate and plot direction tuning curve.
         xticks = [-180, -90, 0, 90, 180]
-        plot_tuning(x, y, dirsc, SR, SRsem, color, xticks, ax=ax_tuning)
+        plot_tuning(x, y, dirsc, SR, SRsem, color, baseline, xticks,
+                    ax=ax_tuning)
 
         # Collect parameters tuning curve fit.
         s_a, s_b, s_x0, s_sigma, s_FWHM = [str(float(round(p, 1)))
@@ -89,12 +118,12 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
                     ('framealpha', 1.0), ('loc', 'lower center'),
                     ('bbox_to_anchor', [0., ylegend, 1., .0]),
                     ('prop', {'family': 'monospace'})])
-    polar_lgn_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
+    DR_lgn_ttl = 'DSI'.rjust(20) + 'PD'.rjust(14) + 'PD8'.rjust(14)
     tuning_lgd_ttl = ('a (sp/s)'.rjust(35) + 'b (sp/s)'.rjust(15) +
                       'x0 (deg)'.rjust(13) + 'sigma (deg)'.rjust(15) +
                       'FWHM (deg)'.rjust(15) + 'R-squared'.rjust(15))
 
-    lgn_params = [(polar_legend, polar_lgn_ttl, polar_patches, ax_polar),
+    lgn_params = [(DR_legend, DR_lgn_ttl, DR_patches, ax_DR),
                   (tuning_legend, tuning_lgd_ttl, tuning_patches, ax_tuning)]
 
     for (plot_legend, lgd_ttl, patches, ax) in lgn_params:
@@ -112,10 +141,10 @@ def plot_DS(DS, title=None, labels=True, polar_legend=True, tuning_legend=True,
         gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
     putil.save_fig(fig, ffig)
 
-    return ax_polar, ax_tuning
+    return ax_DR, ax_tuning
 
 
-def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
+def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
             complete_missing_dirs=False, color='b', title=None,
             ffig=None, ax=None):
     """
@@ -124,6 +153,12 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
     Use plot_type to change between sector ('bar') and connected ('line') plot
     types.
     """
+
+    ax = putil.axes(ax, polar=True)
+
+    # Plot baseline.
+    if baseline is not None:
+        putil.add_baseline(baseline, ax=ax)
 
     # Remove NaNs.
     not_nan = np.array(~pd.isnull(dirs) & ~pd.isnull(resp))
@@ -144,13 +179,12 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
         ndirs = constants.all_dirs.size
         left_rad_dirs = rad_dirs - np.pi/ndirs  # no need for this in MPL 2.0?
         w = 2*np.pi / ndirs                     # same with edgecolor and else?
-        ax = pplot.bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color,
-                        lw=1, edgecolor='w', title=title, ytitle=1.08,
-                        polar=True, ax=ax)
+        pplot.bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color, lw=1,
+                   edgecolor='w', title=title, ytitle=1.08, ax=ax)
     else:  # line plot
         rad_dirs, resp = [np.append(v, [v[0]]) for v in (rad_dirs, resp)]
-        ax = pplot.lines(rad_dirs, resp, color=color,  marker='o', lw=1, ms=4,
-                         mew=0, title=title, ytitle=1.08, polar=True, ax=ax)
+        pplot.lines(rad_dirs, resp, color=color,  marker='o', lw=1, ms=4,
+                    mew=0, title=title, ytitle=1.08, ax=ax)
         ax.fill(rad_dirs, resp, color=color, alpha=0.15)
 
     # Add arrow representing PD and weighted DSI.
@@ -170,9 +204,13 @@ def plot_DR(dirs, resp, DSI=None, PD=None, plot_type='line',
 
 
 def plot_tuning(xfit, yfit, vals=None, meanr=None, semr=None, color='b',
-                xticks=None, xlim=None, ylim=None, xlab=None, ylab=None,
-                title=None, ffig=None, ax=None, **kwargs):
+                baseline=None, xticks=None, xlim=None, ylim=None, xlab=None,
+                ylab=None, title=None, ffig=None, ax=None, **kwargs):
     """Plot tuning curve, optionally with data samples."""
+
+    # Plot baseline.
+    if baseline is not None:
+        putil.add_baseline(baseline, ax=ax)
 
     # Plot fitted curve.
     ax = pplot.lines(xfit, yfit, color=color, ax=ax)

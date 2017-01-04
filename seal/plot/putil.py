@@ -202,6 +202,17 @@ def add_chance_level(ylevel=0.5, color='grey', ls='--', alpha=0.5, ax=None):
     ax.axhline(ylevel, color=color, ls=ls, alpha=alpha)
 
 
+def add_baseline(baseline=0, color='grey', ls='--', lw=1, ax=None, **kwargs):
+    """Add baseline rate to plot."""
+
+    ax = axes(ax)
+    if is_polar(ax):  # polar plot
+        theta, radius = np.linspace(0, 2*np.pi, 100), baseline*np.ones(100)
+        ax.plot(theta, radius, color=color, ls=ls, lw=lw, **kwargs)
+    else:
+        ax.axhline(baseline, color=color, ls=ls, lw=lw, **kwargs)
+
+
 def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5, ax=None):
     """Add zero line to x and/or y axes."""
 

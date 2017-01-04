@@ -26,7 +26,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
     print('\nStarting unit import...\n')
 
     # Go through each session.
-    for recording in sorted(os.listdir(tpl_dir)):
+    for recording in sorted(os.listdir(tpl_dir))[:1]:
         print(recording)
 
         # Get all available task files.
@@ -61,7 +61,7 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
             tr_evt = constants.tr_evt
             params = [(TPLCell, kernels, step, stim_params, answ_params,
                        stim_dur, tr_evt, task, region)
-                      for TPLCell in TPLCells]
+                      for TPLCell in TPLCells[2:3]]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.

@@ -38,7 +38,7 @@ min_inc_trs_rat = 50   # min. ratio of included trials out of all recorded (%)
 
 # %% Utility functions.
 
-def get_base_data(u):
+def get_qm_data(u):
     """Return base data of unit for quality metrics calculation."""
 
     # Init values.
@@ -206,6 +206,13 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
     return t1, t2, prd_inc, tr_inc, spk_inc
 
 
+def calc_baseline_rate(u):
+    """Calculate baseline firing rate of unit."""
+
+    base_rate = u.get_prd_rates('baseline').mean()
+    return base_rate
+
+
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
 def test_qm(u):
@@ -222,7 +229,7 @@ def test_qm(u):
         return
 
     # Init values.
-    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_base_data(u)
+    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_qm_data(u)
 
     # Time binned statistics.
     tbinned_stats = time_bin_data(spk_times, waveforms)
@@ -235,6 +242,7 @@ def test_qm(u):
     tr_starts = u.TrialParams.TrialStart
     test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
     t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
+    u.update_included_trials(tr_inc)
 
     # Waveform statistics of included spikes only.
     snr, wf_amp, wf_dur = waveform_stats(waveforms[spk_inc], wavetime)
@@ -254,9 +262,7 @@ def test_qm(u):
     u.QualityMetrics['ISIvr'] = ISIvr
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['UnitType'] = unit_type
-
-    # Trial removal info.
-    u.update_included_trials(tr_inc)
+    u.QualityMetrics['baseline'] = calc_baseline_rate(u)
 
     # Run unit exclusion test.
     to_excl = test_rejection(u)
@@ -305,7 +311,7 @@ def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
 
     # Init values.
     mean_rate = u.QualityMetrics['mFR']
-    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_base_data(u)
+    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_qm_data(u)
 
     # Get waveform stats of included and excluded spikes.
     wf_inc = waveforms[spk_inc]

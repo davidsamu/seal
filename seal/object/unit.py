@@ -205,13 +205,13 @@ class Unit:
     # %% Utility methods.
 
     def is_empty(self):
-        """Return 1 if unit is empty, 0 if not empty."""
+        """Is unit empty? (return 1 if empty, 0 if not)"""
 
         im_empty = self.UnitParams['empty']
         return im_empty
 
     def is_excluded(self):
-        """Return 1 if unit is excluded, 0 if included."""
+        """Is unit excluded? (return 1 if excluded, 0 if not)"""
 
         im_excluded = self.UnitParams['excluded']
         return im_excluded
@@ -225,6 +225,12 @@ class Unit:
             n_inc_trs = len(self.TrialParams.index)
 
         return n_inc_trs
+
+    def to_plot(self):
+        """Can unit be plotted? (return 1 if plotable, 0 if not)"""
+
+        to_plot = (not self.is_empty()) and self.n_inc_trials()
+        return to_plot
 
     def get_region(self):
         """Return unit's region of origin."""
@@ -480,8 +486,8 @@ class Unit:
 
     # %% Methods that provide interface to Unit's Spikes data.
 
-    def get_prd_rates(self, trs=None, t1s=None, t2s=None, tr_time_idx=False):
-        """Return rates within time periods in given trials."""
+    def get_time_rates(self, trs=None, t1s=None, t2s=None, tr_time_idx=False):
+        """Return rates within time window in given trials."""
 
         if self.is_empty():
             return None
@@ -497,6 +503,14 @@ class Unit:
             tr_time = self.TrialParams.loc[trs, 'TrialStart']
             rates.index = util.remove_dim_from_series(tr_time)
 
+        return rates
+
+    def get_prd_rates(self, prd, trs=None, add_latency=False,
+                      tr_time_idx=False):
+        """Return rates within named period in given trials."""
+
+        t1s, t2s = self.pr_times(prd, add_latency, concat=False)
+        rates = self.get_time_rates(trs, t1s, t2s, tr_time_idx)
         return rates
 
     # %% Methods to get trials with specific stimulus directions.
@@ -671,280 +685,3 @@ class Unit:
 
         adir = self.DS['PD'].loc[(stim, method), pd_type]
         return adir
-
-    # %% Plotting methods.
-
-    def plot_DS(self, no_labels=False, ftempl=None, **kwargs):
-        """Plot direction selectivity results."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Test DS if it hasn't been yet.
-        if not len(self.DS.index):
-            self.test_DS()
-
-        # Set up plot params.
-        if no_labels:  # minimise labels on plot
-            title = None
-            kwargs['labels'] = False
-            kwargs['polar_legend'] = True
-            kwargs['tuning_legend'] = False
-        else:
-            title = self.Name
-
-        ffig = None if ftempl is None else ftempl.format(self.name_to_fname())
-        ax_polar, ax_tuning = ptuning.plot_DS(self.DS, title=title,
-                                              ffig=ffig, **kwargs)
-        return ax_polar, ax_tuning
-
-    def prep_rr_plot_params(self, prd, ref, nrate=None, trs=None):
-        """Prepare plotting parameters."""
-
-        # Get trial params.
-        t1s, t2s = self.pr_times(prd, concat=False)
-        ref_ts = self.ev_times(ref)
-        if trs is None:
-            trs = self.ser_inc_trials()
-
-        # Get spikes.
-        spikes = [self._Spikes.get_spikes(tr, t1s, t2s, ref_ts) for tr in trs]
-
-        # Get rates and rate times.
-        nrate = self.init_nrate(nrate)
-        rates = [self._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
-                 for tr in trs]
-
-        # Get stimulus periods.
-        stim_prd = constants.ev_stim.loc[ref]
-
-        # Get trial set names.
-        names = trs.index
-
-        return trs, spikes, rates, stim_prd, names
-
-    def plot_raster(self, prd, ref, nrate=None, trs=None, **kwargs):
-        """Plot raster plot of unit for specific trials."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Set up params.
-        plot_params = self.prep_rr_plot_params(prd, ref, nrate, trs)
-        trs, spikes, rates, stim_prd, names = plot_params
-
-        # Plot raster.
-        ax = prate.raster(spikes[0], prds=[stim_prd], xlab=ref,
-                          title=self.Name, **kwargs)
-
-        return ax
-
-    def plot_rate(self, prd, ref, nrate=None, trs=None, **kwargs):
-        """Plot rate plot of unit for specific trials."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Set up params.
-        plot_params = self.prep_rr_plot_params(prd, ref, nrate, trs)
-        trs, spikes, rates, stim_prd, names = plot_params
-
-        # Plot rate.
-        ax = prate.rate(rates, names, prds=[stim_prd], xlab=ref,
-                        title=self.Name, **kwargs)
-
-        return ax
-
-    def plot_rr(self, prd, ref, nrate=None, trs=None, no_labels=False,
-                rate_kws=dict(), **kwargs):
-        """Plot raster and rate plot of unit for selected sets of trials."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Set up params.
-        plot_params = self.prep_rr_plot_params(prd, ref, nrate, trs)
-        trs, spikes, rates, stim_prd, names = plot_params
-
-        # Set labels.
-        if no_labels:
-            title = None
-            rate_kws.update({'xlab': None, 'ylab': None, 'add_lgn': False})
-        else:
-            title = self.Name
-            rate_kws['xlab'] = prd
-
-        # Plot raster and rate.
-        res = prate.raster_rate(spikes, rates, names, prds=[stim_prd],
-                                title=title, rate_kws=rate_kws, **kwargs)
-        fig, raster_axs, rate_ax = res
-
-        return fig, raster_axs, rate_ax
-
-    def plot_SR(self, stims, feat=None, vals=None, nrate=None, colors=None,
-                add_stim_name=True, fig=None, sps=None, **kwargs):
-        """Plot stimulus response (raster and rate) for mutliple stimuli."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Init subplots.
-        sps, fig = putil.sps_fig(sps, fig)
-
-        # Create a gridspec for each stimulus.
-        wratio = [float(dur) for dur in stims.dur]
-        stim_rr_gsp = putil.embed_gsp(sps, 1, len(stims.index),
-                                      width_ratios=wratio, wspace=0.1)
-
-        # Init params.
-        if colors is None:
-            # One trial set: stimulus specific color.
-            if vals is None or len(vals) == 1:
-                colors = pd.DataFrame(putil.stim_colors[stims.index])
-            else:  # more than one trial set: value specific color
-                colcyc = putil.get_colors()
-                col_vec = [next(colcyc) for i in range(len(vals))]
-                colors = pd.DataFrame(np.tile(col_vec, (len(stims.index), 1)),
-                                      index=stims.index)
-
-        axes_raster, axes_rate = [], []
-        for i, stim in enumerate(stims.index):
-
-            rr_sps = stim_rr_gsp[i]
-            cols = colors.loc[stim]
-
-            # Prepare plot params.
-            if feat is not None and vals is not None:
-                trs = self.trials_by_pvals(stim, feat, vals)
-            else:
-                trs = self.ser_inc_trials()
-
-            # Plot response on raster and rate plots.
-            prd, ref = stims.loc[stim, 'prd'], stim + ' on'
-            res = self.plot_rr(prd, ref, nrate, trs, cols=cols,
-                               fig=fig, sps=rr_sps, **kwargs)
-            _, raster_axs, rate_ax = res
-
-            # Add stimulus name to rate plot.
-            if add_stim_name:
-                color = (putil.stim_colors[stim]
-                         if vals is None or len(vals) == 1 else 'k')
-                rate_ax.text(0.02, 0.95, stim, fontsize=10, color=color,
-                             va='top', ha='left',
-                             transform=rate_ax.transAxes)
-
-            axes_raster.extend(raster_axs)
-            axes_rate.append(rate_ax)
-
-        # Format rate plots.
-        for ax in axes_rate[1:]:  # second and later stimuli
-            putil.set_spines(ax, bottom=True, left=False)
-            putil.hide_ticks(ax, show_x_ticks=True, show_y_ticks=False)
-
-        # Match scale of y axes.
-        putil.sync_axes(axes_rate, sync_y=True)
-
-        return axes_raster, axes_rate
-
-    def plot_DR(self, nrate=None, fig=None, sps=None):
-        """Plot 3x3 direction response plot, with polar plot in center."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Set up stimulus parameters.
-        stims = pd.DataFrame(index=constants.stim_dur.index)
-        stims['prd'] = ['around ' + stim for stim in stims.index]
-        stims['dur'] = [self.pr_dur(stims.loc[stim, 'prd'])
-                        for stim in stims.index]
-
-        # Init subplots.
-        sps, fig = putil.sps_fig(sps, fig)
-        gsp = putil.embed_gsp(sps, 3, 3)  # inner gsp with subplots
-
-        # Polar plot.
-        putil.set_style('notebook', 'white')
-        ax_polar = fig.add_subplot(gsp[4], polar=True)
-        for stim in stims.index:  # for each stimuli
-            stim_resp = self.get_stim_resp_vals(stim, 'Dir')
-            resp_stats = util.calc_stim_resp_stats(stim_resp)
-            dirs, resp = np.array(resp_stats.index) * deg, resp_stats['mean']
-            c = putil.stim_colors[stim]
-            ptuning.plot_DR(dirs, resp, color=c, ax=ax_polar)
-        putil.hide_ticks(ax_polar, 'y')
-
-        # Raster-rate plots.
-        putil.set_style('notebook', 'ticks')
-        rr_pos = [5, 2, 1, 0, 3, 6, 7, 8]  # Position of each direction.
-        rr_dir_pos = pd.Series(constants.all_dirs, index=rr_pos)
-
-        rate_axs = []
-        for isp, d in rr_dir_pos.iteritems():
-
-            # Prepare plot formatting.
-            first_dir = (isp == 0)
-
-            # Plot stimulus response across stimuli.
-            res = self.plot_SR(stims, 'Dir', [d], nrate, None, first_dir,
-                               fig, gsp[isp], no_labels=True)
-            draster_axs, drate_axs = res
-
-            # Remove axis ticks.
-            for i, ax in enumerate(drate_axs):
-                first_stim = (i == 0)
-                show_x_tick_lbls = first_dir
-                show_y_tick_lbls = first_dir & first_stim
-                putil.hide_tick_labels(ax, show_x_tick_lbls, show_y_tick_lbls)
-
-            # Add task name as title (to top center axes).
-            # if isp == 1:
-            #     putil.set_labels(draster_axs[0], title=self.get_task(),
-            #                      ytitle=1.10, title_kws={'loc': 'right'})
-
-            rate_axs.extend(drate_axs)
-
-        # Match scale of y axes.
-        putil.sync_axes(rate_axs, sync_y=True)
-
-        return ax_polar, rate_axs
-
-    def plot_rate_DS(self, nrate=None, fig=None, sps=None):
-        """Plot rate and direction selectivity summary plot."""
-
-        if self.is_empty() or not self.n_inc_trials():
-            return
-
-        # Set up stimulus parameters.
-        stims = pd.DataFrame(index=constants.stim_dur.index)
-        stims['prd'] = ['around ' + stim for stim in stims.index]
-        stims['dur'] = [self.pr_dur(stims.loc[stim, 'prd'])
-                        for stim in stims.index]
-
-        # Init subplots.
-        sps, fig = putil.sps_fig(sps, fig)
-        gsp = putil.embed_gsp(sps, 3, 1)
-        all_rr_sps, ds_sps, pa_rr_sps = [g for g in gsp]
-        rate_axs = []
-
-        # Raster & rate over all trials.
-        res = self.plot_SR(stims, nrate=nrate, fig=fig, sps=all_rr_sps,
-                           no_labels=True)
-        sraster_axs, srate_axs = res
-        rate_axs.extend(srate_axs)
-
-        # Direction tuning.
-        ax_polar, ax_tuning = self.plot_DS(no_labels=True, fig=fig, sps=ds_sps)
-
-        # Raster & rate in pref and anti trials.
-        stim = stims.index[0]
-        pa_dir = [self.pref_dir(stim), self.anti_pref_dir(stim)]
-        res = self.plot_SR(stims, 'Dir', pa_dir, nrate, None, True, fig,
-                           pa_rr_sps, no_labels=True)
-        draster_axs, drate_axs = res
-        rate_axs.extend(drate_axs)
-
-        # Match scale of y axes.
-        putil.sync_axes(rate_axs, sync_y=True)
-        [putil.move_signif_lines(ax) for ax in rate_axs]
-
-        return rate_axs, ax_polar, ax_tuning

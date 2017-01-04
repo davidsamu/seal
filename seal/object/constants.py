@@ -34,6 +34,9 @@ stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 # All 8 directions.
 all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
 
+# Delay length.
+delay_lengths = [1500*ms, 2000*ms]
+
 
 # %% Neurophysiological constants.
 
@@ -61,7 +64,11 @@ tr_evt = [  # Basic task events.
 
           # Cue-related events.
           ('no cue', ('S1 off', 750*ms)),  # latest time without cue on
-          ('cue', ('S2 on', -750*ms))]
+          ('cue', ('S2 on', -750*ms)),
+
+          # Baseline period limits.
+          ('base on', ('S1 on', -700*ms)),
+          ('base off', ('S1 on', -300*ms))]
 
 tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'shift'], 'index')
 
@@ -84,7 +91,10 @@ tr_prd = [('whole trial', ('fixate', 'saccade')),
 
           # Delay sub-periods.
           ('early delay', ('S1 off', '1/3 delay')),
-          ('late delay', ('2/3 delay', 'S2 on'))]
+          ('late delay', ('2/3 delay', 'S2 on')),
+
+          # Baseline activity period.
+          ('baseline', ('base on', 'base off'))]
 
 tr_prd = pd.DataFrame.from_items(tr_prd, ['start', 'stop'], 'index')
 

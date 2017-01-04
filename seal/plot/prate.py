@@ -7,15 +7,140 @@ Functions to plot raster and rate plots.
 """
 
 import numpy as np
+import pandas as pd
 
 from quantities import ms
 
+from seal.object import constants
 from seal.plot import putil
 
 
+def plot_SR(u, stims, feat=None, vals=None, nrate=None, colors=None,
+            add_stim_name=True, fig=None, sps=None, **kwargs):
+    """Plot stimulus response (raster and rate) for mutliple stimuli."""
+
+    if not u.to_plot():
+        return
+
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+
+    # Create a gridspec for each stimulus.
+    wratio = [float(dur) for dur in stims.dur]
+    stim_rr_gsp = putil.embed_gsp(sps, 1, len(stims.index),
+                                  width_ratios=wratio, wspace=0.1)
+
+    # Init params.
+    if colors is None:
+        # One trial set: stimulus specific color.
+        if vals is None or len(vals) == 1:
+            colors = pd.DataFrame(putil.stim_colors[stims.index])
+        else:  # more than one trial set: value specific color
+            colcyc = putil.get_colors()
+            col_vec = [next(colcyc) for i in range(len(vals))]
+            colors = pd.DataFrame(np.tile(col_vec, (len(stims.index), 1)),
+                                  index=stims.index)
+
+    axes_raster, axes_rate = [], []
+    for i, stim in enumerate(stims.index):
+
+        rr_sps = stim_rr_gsp[i]
+        cols = colors.loc[stim]
+
+        # Prepare trial set.
+        if feat is not None and vals is not None:
+            trs = u.trials_by_pvals(stim, feat, vals)
+        else:
+            trs = u.ser_inc_trials()
+
+        # Plot response on raster and rate plots.
+        prd, ref = stims.loc[stim, 'prd'], stim + ' on'
+        res = plot_rr(u, prd, ref, nrate, trs, cols=cols, fig=fig, sps=rr_sps,
+                      **kwargs)
+        _, raster_axs, rate_ax = res
+
+        # Add stimulus name to rate plot.
+        if add_stim_name:
+            color = (putil.stim_colors[stim]
+                     if vals is None or len(vals) == 1 else 'k')
+            rate_ax.text(0.02, 0.95, stim, fontsize=10, color=color,
+                         va='top', ha='left',
+                         transform=rate_ax.transAxes)
+
+        axes_raster.extend(raster_axs)
+        axes_rate.append(rate_ax)
+
+    # Format rate plots.
+    for ax in axes_rate[1:]:  # second and later stimuli
+        putil.set_spines(ax, bottom=True, left=False)
+        putil.hide_ticks(ax, show_x_ticks=True, show_y_ticks=False)
+
+    # Match scale of y axes.
+    putil.sync_axes(axes_rate, sync_y=True)
+    [putil.move_signif_lines(ax) for ax in axes_rate]
+
+    return axes_raster, axes_rate
+
+
+def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
+    """Prepare plotting parameters."""
+
+    # Get trial params.
+    t1s, t2s = u.pr_times(prd, concat=False)
+    ref_ts = u.ev_times(ref)
+    if trs is None:
+        trs = u.ser_inc_trials()
+
+    # Get spikes.
+    spikes = [u._Spikes.get_spikes(tr, t1s, t2s, ref_ts) for tr in trs]
+
+    # Get rates and rate times.
+    nrate = u.init_nrate(nrate)
+    rates = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
+             for tr in trs]
+
+    # Get stimulus periods.
+    stim_prd = constants.ev_stim.loc[ref]
+
+    # Get trial set names.
+    names = trs.index
+
+    # Get unit's baseline rate.
+    baseline = u.QualityMetrics['baseline']
+
+    return trs, spikes, rates, stim_prd, names, baseline
+
+
+def plot_rr(u, prd, ref, nrate=None, trs=None, no_labels=False,
+            rate_kws=dict(), **kwargs):
+    """Plot raster and rate plot of unit for selected sets of trials."""
+
+    if not u.to_plot():
+        return
+
+    # Set up params.
+    plot_params = prep_rr_plot_params(u, prd, ref, nrate, trs)
+    trs, spikes, rates, stim_prd, names, baseline = plot_params
+
+    # Set labels.
+    if no_labels:
+        title = None
+        rate_kws.update({'xlab': None, 'ylab': None, 'add_lgn': False})
+    else:
+        title = u.Name
+        rate_kws['xlab'] = prd
+
+    # Plot raster and rate.
+    res = raster_rate(spikes, rates, names, prds=[stim_prd], baseline=baseline,
+                      title=title, rate_kws=rate_kws, **kwargs)
+    fig, raster_axs, rate_ax = res
+
+    return fig, raster_axs, rate_ax
+
+
 def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
-                title=None, rs_ylab=True, rate_kws=dict(), fig=None,
-                ffig=None, sps=None):
+                baseline=None, title=None, rs_ylab=True, rate_kws=dict(),
+                fig=None, ffig=None, sps=None):
     """Plot raster and rate plots."""
 
     # Init subplots.
@@ -41,7 +166,8 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rate_list, names, prds=prds, cols=cols, **rate_kws, ax=rate_ax)
+    rate(rate_list, names, prds=prds, cols=cols, baseline=baseline,
+         **rate_kws, ax=rate_ax)
 
     # Synchronize raster's x axis limits to rate.
     xlim = rate_ax.get_xlim()
@@ -87,14 +213,18 @@ def raster(spk_trains, t_unit=ms, prds=None, size=3.0, c='b', xlim=None,
 
 
 def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
-         test_kws={}, xlim=None, ylim=None, cols=None, title=None, xlab=None,
-         ylab=putil.FR_lbl, add_lgn=True, lgn_lbl='trs', ffig=None, ax=None):
+         test_kws={}, xlim=None, ylim=None, cols=None, baseline=None,
+         title=None, xlab=None, ylab=putil.FR_lbl, add_lgn=True, lgn_lbl='trs',
+         ffig=None, ax=None):
     """Plot firing rate."""
 
     # Init.
     ax = putil.axes(ax)
 
+    # Plot periods and baseline first.
     putil.plot_periods(prds, ax=ax)
+    if baseline is not None:
+        putil.add_baseline(baseline, ax=ax)
 
     if not len(rate_list):
         return ax
