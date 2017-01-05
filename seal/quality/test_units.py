@@ -13,7 +13,7 @@ import scipy as sp
 import pandas as pd
 
 from seal.util import util
-from seal.plot import putil, pplot, pcombined
+from seal.plot import putil, pplot, pselectivity
 from seal.object import constants
 from seal.quality import test_sorting
 
@@ -86,7 +86,7 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
                                       w_pad=w_pad)
 
 
-def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
+def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
@@ -105,7 +105,7 @@ def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
             u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
-            res = pcombined.plot_DR(u, nrate, fig, sps)
+            res = pselectivity.plot_DR_3x3(u, nrate, fig, sps)
             if res is not None:
                 ax_polar, rate_axs = res
                 task_rate_axs.extend(rate_axs)
@@ -128,7 +128,7 @@ def DS_test(UA, ftempl=None, match_scales=False, nrate=None):
                                   rect_height=0.92, w_pad=w_pad)
 
 
-def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
+def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
     """Test unit responses within trails."""
 
     # Init plotting theme.
@@ -140,31 +140,26 @@ def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=12)
-        task_all_rate_axs, task_dir_rate_axs = [], []
-        task_polar_axs, task_tuning_axs = [], []
+        task_ls_rate_axs, task_ds_rate_axs = [], []
 
-        # Plot direction response of unit in each task.
+        # Plot stimulus response summary plot of unit in each task.
         for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
-            res = pcombined.plot_rate_DS(u, nrate, fig, sps)
+            res = pselectivity.plot_LS_DS(u, nrate, fig, sps)
             if res is not None:
-                all_rate_ax, dir_rate_axs, ax_polar, ax_tuning = res
-                task_all_rate_axs.append(all_rate_ax)
-                task_dir_rate_axs.extend(dir_rate_axs)
-                task_polar_axs.append(ax_polar)
-                task_tuning_axs.append(ax_tuning)
+                ls_rate_axs, ds_rate_axs = res
+                task_ls_rate_axs.extend(ls_rate_axs)
+                task_ds_rate_axs.extend(ds_rate_axs)
             else:
                 mock_ax = putil.embed_gsp(sps, 1, 1)
                 putil.add_mock_axes(fig, mock_ax[0, 0])
 
         # Match scale of y axes across tasks.
         if match_scales:
-            for rate_axs in [task_all_rate_axs, task_dir_rate_axs]:
+            for rate_axs in [task_ls_rate_axs, task_ds_rate_axs]:
                 putil.sync_axes(rate_axs, sync_y=True)
                 [putil.move_signif_lines(ax) for ax in rate_axs]
-            putil.sync_axes(task_polar_axs, sync_y=True)
-            putil.sync_axes(task_tuning_axs, sync_y=True)
 
         # Save figure.
         if ftempl is not None:
@@ -175,7 +170,7 @@ def rate_DS_summary(UA, ftempl=None, match_scales=False, nrate=None):
                                   w_pad=w_pad)
 
 
-def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sum, ftempl_mont):
+def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sel, ftempl_mont):
     """Create montage image of figures created during preprocessing."""
 
     for uid in UA.uids():
@@ -184,11 +179,11 @@ def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sum, ftempl_mont):
         # Get file names.
         fqm = ftempl_qm.format(uid_str)
         fdr = ftempl_dr.format(uid_str)
-        fsum = ftempl_sum.format(uid_str)
+        fsel = ftempl_sel.format(uid_str)
         fmont = ftempl_mont.format(uid_str)
 
         # Check if figures exist.
-        flist = [f for f in (fqm, fdr, fsum) if os.path.isfile(f)]
+        flist = [f for f in (fqm, fdr, fsel) if os.path.isfile(f)]
 
         # Create output folder.
         util.create_dir(fmont)

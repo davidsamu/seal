@@ -114,7 +114,9 @@ class Unit:
         for stim in stim_pars.columns.levels[0]:
             pstim = stim_pars[stim]
             if ('LocX' in pstim.columns) and ('LocY' in pstim.columns):
-                stim_pars[stim, 'Loc'] = list(zip(pstim.LocX, pstim.LocY))
+                lx, ly = pstim.LocX.astype(str), pstim.LocY.astype(str)
+                stim_pars[stim, 'Loc'] = ['({}, {})'.format(x, y)
+                                          for x, y in zip(lx, ly)]
         self.StimParams = stim_pars.sort_index(axis=1)
 
         # %% Subject answer parameters.
@@ -181,10 +183,14 @@ class Unit:
         self.TrialParams['S1Len'] = evts['S1 off'] - evts['S1 on']
         self.TrialParams['S2Len'] = evts['S2 off'] - evts['S2 on']
         self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
-        self.TrialParams['DelayLen'] = [np.round(v, 1) for v in
-                                        self.TrialParams['DelayLenPrec']]
 
-        # Init included trials (all trials included).
+        # "Categorical" (rounded) delay length variable.
+        len_diff = [(i, np.abs(self.TrialParams['DelayLenPrec'] - dl))
+                    for i, dl in enumerate(constants.delay_lengths)]
+        min_diff = pd.DataFrame.from_items(len_diff).idxmax(1)
+        self.TrialParams['DelayLen'] = constants.delay_lengths[min_diff]
+
+        # Init included trials (all trials included initially).
         self.TrialParams['included'] = np.array(True, dtype=bool)
 
         # %% Spikes.
@@ -487,7 +493,7 @@ class Unit:
         """Return rates within time window in given trials."""
 
         if self.is_empty():
-            return None
+            return
 
         # Init trials.
         trs, t1s, t2s = self.get_trial_params(trs, t1s, t2s)

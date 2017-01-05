@@ -84,7 +84,7 @@ init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels, region)
 # Plotting parameters.
 plot_QM = True       # plot quality metrics (SNR, ISI, rate, etc) of each unit?
 plot_SR = True       # plot stimulus response of each unit? (3x3 figure)
-plot_sum = True      # plot summary plot of each unit? (all trials + tuning + pref/anti trials)
+plot_sel = True      # plot feature selectivity plot of each unit?
 plot_stab = True     # plot recording stability plot of each recording?
 
 creat_montage = True  # create montage from all preprocessing figures created
@@ -93,7 +93,7 @@ creat_montage = True  # create montage from all preprocessing figures created
 
 
 ua_name = os.path.split(proj_dir)[1]
-init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sum,
+init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sel,
                        plot_stab, creat_montage)
 
 # Output:

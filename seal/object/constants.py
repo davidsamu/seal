@@ -34,8 +34,8 @@ stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 # All 8 directions.
 all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
 
-# Delay length.
-delay_lengths = [1500*ms, 2000*ms]
+# Delay length(s).
+delay_lengths = pd.Series([1500*ms, 2000*ms])
 
 
 # %% Neurophysiological constants.

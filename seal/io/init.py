@@ -73,12 +73,12 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
         util.write_objects({'UnitArr': UA}, fname_seal)
 
 
-def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
-                      plot_sum=True, plot_stab=True, creat_montage=True):
+def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_DR=True,
+                      plot_sel=True, plot_stab=True, creat_montage=True):
     """
     Run preprocessing on Units and UnitArrays, including
       - standard quality control of each unit (SNR, rate drift, ISI, etc),
-      - direction selectivity (DS) test,
+      - location and direction selectivity tests,
       - recording stability test,
       - exporting automatic unit and trial selection results.
     """
@@ -101,7 +101,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
 
         ftempl_qm = qc_dir + 'quality_metrics/{}.png'
         ftempl_dr = qc_dir + 'direction_response/{}.png'
-        ftempl_sum = qc_dir + 'rate_DS_summary/{}.png'
+        ftempl_sel = qc_dir + 'stimulus_selectivity/{}.png'
         ftempl_mont = qc_dir + 'montage/{}.png'
 
         # Read in Units.
@@ -117,25 +117,25 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_SR=True,
         exclude_units(UA)
 
         # Test stimulus response to all directions.
-        if plot_SR:
+        if plot_DR:
             print('  Plotting direction response...')
-            test_units.DS_test(UA, ftempl_dr)
+            test_units.DR_plot(UA, ftempl_dr)
 
         # Test direction selectivity.
         print('  Calculating direction selectivity...')
         for u in UA.iter_thru(excl=True):
             u.test_DS()
 
-        # Plot trial rate and direction selectivity summary plots.
-        if plot_sum:
-            print('  Plotting summary figures (rates and DS)...')
-            test_units.rate_DS_summary(UA, ftempl_sum)
+        # Plot feature selectivity summary plots.
+        if plot_sel:
+            print('  Plotting selectivity summary figures...')
+            test_units.selectivity_summary(UA, ftempl_sel)
 
         # Create montage image of all plots figures above.
         if creat_montage:
             print('  Creating montage images...')
             test_units.create_montage(UA, ftempl_qm, ftempl_dr,
-                                      ftempl_sum, ftempl_mont)
+                                      ftempl_sel, ftempl_mont)
 
         # Test stability of recording session across tasks.
         if plot_stab:

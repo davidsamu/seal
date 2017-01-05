@@ -16,43 +16,116 @@ from seal.plot import putil, ptuning, prate
 from seal.util import util
 
 
-# %% Functions to plot location selectivity.
+# %% Utility functions.
 
-def plot_LR(u, nrate=None, fig=None, sps=None, **kwargs):
-    """Plot location response plot."""
+def get_stim_pars_to_plot(u):
+    """Get stimulus parameters to plot selectivity."""
+
+    stims = pd.DataFrame(index=constants.stim_dur.index)
+    stims['prd'] = ['around ' + stim for stim in stims.index]
+    stims['dur'] = [u.pr_dur(stims.loc[stim, 'prd']) for stim in stims.index]
+
+    return stims
+
+
+# %% Functions to plot stimlus feature selectivity.
+
+def plot_SR(u, feat=None, vals=None, stims=None, nrate=None, colors=None,
+            add_stim_name=True, fig=None, sps=None, title=None, **kwargs):
+    """Plot stimulus response (raster and rate) for mutliple stimuli."""
 
     if not u.to_plot():
         return
 
     # Set up stimulus parameters.
-    stims = pd.DataFrame(index=constants.stim_dur.index)
-    stims['prd'] = ['around ' + stim for stim in stims.index]
-    stims['dur'] = [u.pr_dur(stims.loc[stim, 'prd']) for stim in stims.index]
+    if stims is None:
+        stims = get_stim_pars_to_plot(u)
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
 
-    # Raster & rate in trials sorted by stimulus location.
-    raster_axs, rate_axs = prate.plot_SR(u, stims, 'Loc', None, nrate, None,
-                                         True, fig, sps, no_labels=False,
-                                         **kwargs)
+    # Create a gridspec for each stimulus.
+    wratio = [float(dur) for dur in stims.dur]
+    stim_rr_gsp = putil.embed_gsp(sps, 1, len(stims.index),
+                                  width_ratios=wratio, wspace=0.1)
 
-    return raster_axs, rate_axs
+    axes_raster, axes_rate = [], []
+    for i, stim in enumerate(stims.index):
+
+        rr_sps = stim_rr_gsp[i]
+
+        # Prepare trial set.
+        if feat is not None:
+            trs = u.trials_by_features(stim, feat, vals)
+        else:
+            trs = u.ser_inc_trials()
+
+        # Init params.
+        if colors is None:
+            colcyc = putil.get_colors()
+            cols = [next(colcyc) for i in range(len(trs))]
+
+        # Plot response on raster and rate plots.
+        prd, ref = stims.loc[stim, 'prd'], stim + ' on'
+        _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, nrate, trs,
+                                               cols=cols, fig=fig,
+                                               sps=rr_sps, **kwargs)
+
+        # Add stimulus name to rate plot.
+        if add_stim_name:
+            color = (putil.stim_colors[stim]
+                     if vals is None or len(vals) == 1 else 'k')
+            rate_ax.text(0.02, 0.95, stim, fontsize=10, color=color,
+                         va='top', ha='left', transform=rate_ax.transAxes)
+
+        # Add title to first plot.
+        if i == 0:
+            putil.set_labels(raster_axs[0], title=title)
+
+        axes_raster.extend(raster_axs)
+        axes_rate.append(rate_ax)
+
+    # Format rate plots.
+    for ax in axes_rate[1:]:  # second and later stimuli
+        putil.set_spines(ax, bottom=True, left=False)
+        putil.hide_ticks(ax, show_x_ticks=True, show_y_ticks=False)
+
+    # Match scale of y axes.
+    putil.sync_axes(axes_rate, sync_y=True)
+    [putil.move_signif_lines(ax) for ax in axes_rate]
+
+    return axes_raster, axes_rate
+
+
+def plot_LR(u, **kwargs):
+    """Plot location response plot."""
+
+    # Raster & rate in trials sorted by stimulus location.
+    title = 'Location selectivity'
+    res = plot_SR(u, 'Loc', title=title, **kwargs)
+    return res
+
+
+def plot_DR(u, **kwargs):
+    """Plot direction response plot."""
+
+    # Raster & rate in trials sorted by stimulus location.
+    pref_anti_dirs = [u.pref_dir(), u.anti_pref_dir()]
+    title = 'Direction selectivity'
+    res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, **kwargs)
+    return res
 
 
 # %% Functions to plot stimulus selectivity.
 
-def plot_DR(u, nrate=None, fig=None, sps=None):
+def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
     """Plot 3x3 direction response plot, with polar plot in center."""
 
     if not u.to_plot():
         return
 
     # Set up stimulus parameters.
-    stims = pd.DataFrame(index=constants.stim_dur.index)
-    stims['prd'] = ['around ' + stim for stim in stims.index]
-    stims['dur'] = [u.pr_dur(stims.loc[stim, 'prd'])
-                    for stim in stims.index]
+    stims = get_stim_pars_to_plot(u)
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
@@ -82,8 +155,9 @@ def plot_DR(u, nrate=None, fig=None, sps=None):
         first_dir = (isp == 0)
 
         # Plot stimulus response across stimuli.
-        res = prate.plot_SR(u, stims, 'Dir', [d], nrate, None, first_dir, fig,
-                            gsp[isp], no_labels=True)
+        res = plot_SR(u, feat='Dir', vals=[d], stims=stims, nrate=nrate,
+                      add_stim_name=first_dir, fig=fig, sps=gsp[isp],
+                      no_labels=True)
         draster_axs, drate_axs = res
 
         # Remove axis ticks.
@@ -106,38 +180,25 @@ def plot_DR(u, nrate=None, fig=None, sps=None):
     return ax_polar, rate_axs
 
 
-def plot_rate_DS(u, nrate=None, fig=None, sps=None):
+def plot_LS_DS(u, nrate=None, fig=None, sps=None):
     """Plot rate and direction selectivity summary plot."""
 
     if not u.to_plot():
         return
 
     # Set up stimulus parameters.
-    stims = pd.DataFrame(index=constants.stim_dur.index)
-    stims['prd'] = ['around ' + stim for stim in stims.index]
-    stims['dur'] = [u.pr_dur(stims.loc[stim, 'prd']) for stim in stims.index]
+    stims = get_stim_pars_to_plot(u)
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    gsp = putil.embed_gsp(sps, 3, 1)
-    all_rr_sps, ds_sps, pa_rr_sps = [g for g in gsp]
-    all_rate_ax, dir_rate_ax = [], []
+    ls_sps, ds_sps = putil.embed_gsp(sps, 2, 1)
 
-    # Raster & rate over all trials.
-    sraster_axs, srate_axs = prate.plot_SR(u, stims, nrate=nrate, fig=fig,
-                                           sps=all_rr_sps, no_labels=True)
-    all_rate_ax.extend(srate_axs)
+    kwargs = {'stims': stims, 'nrate': nrate, 'fig': fig, 'no_labels': False}
 
-    # Direction tuning.
-    ax_polar, ax_tuning = ptuning.plot_DS(u, no_labels=True, fig=fig,
-                                          sps=ds_sps)
+    # Plot location selectivity.
+    _, ls_rate_axs = plot_LR(u, sps=ls_sps, **kwargs)
 
-    # Raster & rate in pref and anti trials.
-    stim = stims.index[0]
-    pa_dir = [u.pref_dir(stim), u.anti_pref_dir(stim)]
-    res = prate.plot_SR(u, stims, 'Dir', pa_dir, nrate, None, True, fig,
-                        pa_rr_sps, no_labels=True)
-    draster_axs, drate_axs = res
-    dir_rate_ax.extend(drate_axs)
+    # Plot direction selectivity.
+    _, ds_rate_axs = plot_DR(u, sps=ds_sps, **kwargs)
 
-    return all_rate_ax, dir_rate_ax, ax_polar, ax_tuning
+    return ls_rate_axs, ds_rate_axs
