@@ -21,13 +21,14 @@ from seal.plot import putil, pplot, pwaveform
 
 # Recording constants.
 REC_GAIN = 4100                # gain of recording
-CENSORED_PRD_LEN = 0.675 * ms  # length of censored period
+CENSORED_PRD_LEN = 0.675*ms    # length of censored period
 WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
-ISI_TH = 1.0 * ms          # ISI violation threshold
-MAX_DRIFT_RATIO = 3        # maximum tolerable drift ratio
-MIN_BIN_LEN = 120 * s      # minimum window length for firing binned statistics
+ISI_TH = 1.0*ms               # ISI violation threshold
+MAX_DRIFT_RATIO = 3           # maximum tolerable drift ratio
+MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
+MIN_TASK_RELATED_DUR = 50*ms  # minimum window length of task related activity
 
 # Constants related to unit exclusion.
 min_SNR = 1.0          # min. SNR
@@ -213,6 +214,45 @@ def calc_baseline_rate(u):
     return base_rate
 
 
+def test_task_relatedness(u):
+    """Test if unit has task related activity."""
+
+    # Init.
+    prds_to_test = ['S1', 'early delay', 'late delay', 'S2', 'post-S2']
+    baseline = util.remove_dim_from_series(u.get_prd_rates('baseline'))
+    nrate = u.init_nrate()
+    trs = u.inc_trials()
+    test = 'wilcoxon'
+    p = 0.01
+    is_task_related = False
+
+    if not len(trs):
+        return False
+
+    # Go through each period to be tested
+    for prd in prds_to_test:
+
+        # Get rates during period.
+        t1s, t2s = u.pr_times(prd, add_latency=True, concat=False)
+        prd_rates = u._Rates[nrate].get_rates(trs, t1s, t2s)
+
+        # Create baseline rate data matrix.
+        base_rates = np.tile(baseline, (len(prd_rates.columns), 1)).T
+        base_rates = pd.DataFrame(base_rates, index=baseline.index,
+                                  columns=prd_rates.columns)
+
+        # Run test at each time sample across period.
+        sign_prds = util.sign_periods(prd_rates, base_rates, p, test,
+                                      min_len=MIN_TASK_RELATED_DUR)
+
+        # Check if there's any long-enough significant period.
+        if len(sign_prds):
+            is_task_related = True
+            break
+
+    return is_task_related
+
+
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
 def test_qm(u):
@@ -263,6 +303,7 @@ def test_qm(u):
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['UnitType'] = unit_type
     u.QualityMetrics['baseline'] = calc_baseline_rate(u)
+    u.QualityMetrics['TaskRelated'] = test_task_relatedness(u)
 
     # Run unit exclusion test.
     to_excl = test_rejection(u)
@@ -296,6 +337,8 @@ def test_rejection(u):
     # Insufficient number of trials (ratio of included trials).
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
+
+    test_passed['TaskRelated'] = qm['TaskRelated']
 
     # Exclude unit if any of the criteria is not met.
     exclude = not test_passed.all()

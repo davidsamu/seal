@@ -31,7 +31,7 @@ def get_stim_pars_to_plot(u):
 # %% Functions to plot stimlus feature selectivity.
 
 def plot_SR(u, feat=None, vals=None, stims=None, nrate=None, colors=None,
-            add_stim_name=True, fig=None, sps=None, title=None, **kwargs):
+            add_stim_name=False, fig=None, sps=None, title=None, **kwargs):
     """Plot stimulus response (raster and rate) for mutliple stimuli."""
 
     if not u.to_plot():
@@ -73,14 +73,16 @@ def plot_SR(u, feat=None, vals=None, stims=None, nrate=None, colors=None,
 
         # Add stimulus name to rate plot.
         if add_stim_name:
-            color = (putil.stim_colors[stim]
-                     if vals is None or len(vals) == 1 else 'k')
-            rate_ax.text(0.02, 0.95, stim, fontsize=10, color=color,
+            rate_ax.text(0.02, 0.95, stim, fontsize=10, color='k',
                          va='top', ha='left', transform=rate_ax.transAxes)
 
         # Add title to first plot.
         if i == 0:
             putil.set_labels(raster_axs[0], title=title)
+
+        # Remove y-axis label from second and later rate plots.
+        if i > 0:
+            rate_ax.set_ylabel('')
 
         axes_raster.extend(raster_axs)
         axes_rate.append(rate_ax)
@@ -109,7 +111,7 @@ def plot_LR(u, **kwargs):
 def plot_DR(u, **kwargs):
     """Plot direction response plot."""
 
-    # Raster & rate in trials sorted by stimulus location.
+    # Raster & rate in trials sorted by stimulus direction.
     pref_anti_dirs = [u.pref_dir(), u.anti_pref_dir()]
     title = 'Direction selectivity'
     res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, **kwargs)

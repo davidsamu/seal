@@ -76,18 +76,24 @@ tr_evt = pd.DataFrame.from_items(tr_evt, ['rel to', 'shift'], 'index')
 # Trial periods are defined relative to trial events (the exact timing of which
 # are relative themselves to the anchor events, see above).
 
+# ***: times do not match across trials for variable delay lengths!
+
 tr_prd = [('whole trial', ('fixate', 'saccade')),
 
           # Basic task periods.
           ('fixation', ('fixate', 'S1 on')),
           ('S1', ('S1 on', 'S1 off')),
-          ('delay', ('S1 off', 'S2 on')),
+          ('delay', ('S1 off', 'S2 on')),  # ***
           ('S2', ('S2 on', 'S2 off')),
           ('post-S2', ('S2 off', 'saccade')),
 
           # Extended stimulus periods.
           ('around S1', ('fixate', 'no cue')),
           ('around S2', ('cue', 'saccade')),
+
+          # Trial halves.
+          ('S1 half', ('fixate', 'S2 on ')),  # ***
+          ('S2 half', ('S2 on', 'saccade')),
 
           # Delay sub-periods.
           ('early delay', ('S1 off', '1/3 delay')),

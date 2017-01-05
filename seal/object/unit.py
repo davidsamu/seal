@@ -188,7 +188,7 @@ class Unit:
         len_diff = [(i, np.abs(self.TrialParams['DelayLenPrec'] - dl))
                     for i, dl in enumerate(constants.delay_lengths)]
         min_diff = pd.DataFrame.from_items(len_diff).idxmax(1)
-        self.TrialParams['DelayLen'] = constants.delay_lengths[min_diff]
+        self.TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
 
         # Init included trials (all trials included initially).
         self.TrialParams['included'] = np.array(True, dtype=bool)

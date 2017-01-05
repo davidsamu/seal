@@ -108,7 +108,7 @@ class Rate:
 
     # %% Methods to get rates for given trials and time periods.
 
-    def get_rates(self, trs=None, t1s=None, t2s=None, ref_ts=None):
+    def get_rates(self, trs, t1s, t2s, ref_ts=None):
         """
         Return firing rates of some trials within trial-specific time windows.
 
@@ -122,7 +122,9 @@ class Rate:
             trs = np.arange(len(self.rates))
 
         # Select times corresponding to selected trials.
-        t1s, t2s, ref_ts = t1s[trs], t2s[trs], ref_ts[trs]
+        t1s, t2s = t1s[trs], t2s[trs]
+        if ref_ts is not None:
+            ref_ts = ref_ts[trs]
 
         # Select rates from some trials between trial-specific time limits.
         rates = len(trs) * [[]]

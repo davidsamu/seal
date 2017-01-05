@@ -593,8 +593,12 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
           that n > 20.
     """
 
-    # Insufficient sample size.
-    if len(x) < 2 or len(y) < 2:
+    # Remove any NaN values.
+    idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    x, y = x[idx], y[idx]
+
+    # Insufficient sample size (also used by Scipy).
+    if len(x) < 10 or len(y) < 10:
         return np.nan, np.nan
 
     stat, pval = sp.stats.wilcoxon(x, y, zero_method=zero_method,
@@ -602,7 +606,7 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
     return stat, pval
 
 
-def sign_diff(ts1, ts2, p, test, test_kwargs):
+def sign_diff(ts1, ts2, p, test, **kwargs):
     """
     Return times of significant difference between two sets of time series.
 
@@ -622,7 +626,7 @@ def sign_diff(ts1, ts2, p, test, test_kwargs):
         test_func = t_test
 
     # Calculate p-values and times of significant difference.
-    pvals = pd.Series([test_func(ts1[t], ts2[t], **test_kwargs)[1]
+    pvals = pd.Series([test_func(ts1[t], ts2[t], **kwargs)[1]
                        for t in tvec], index=tvec)
     tsign = pvals < p
 
@@ -657,17 +661,17 @@ def periods(t_on_ser, min_len=None):
     return pers
 
 
-def sign_periods(ts1, ts2, p, test, test_kwargs):
+def sign_periods(ts1, ts2, p, test, min_len=None, **kwargs):
     """
     Return list of periods of significantly difference
-    between sets of time series.
+    between two sets of time series (row: samples, columns: time points).
     """
 
     # Indices of significant difference.
-    tsign = sign_diff(ts1, ts2, p, test, test_kwargs)[1]
+    tsign = sign_diff(ts1, ts2, p, test, **kwargs)[1]
 
     # Periods of significant difference.
-    sign_periods = periods(tsign)
+    sign_periods = periods(tsign, min_len)
 
     return sign_periods
 
