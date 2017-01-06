@@ -22,6 +22,10 @@ from collections import Iterable
 from quantities import Quantity, s
 
 
+# Constants.
+min_sample_size = 10
+
+
 # %% Input / output and object manipulation functions.
 
 def read_matlab_object(f, obj_names=None):
@@ -570,7 +574,7 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
 
     # Insufficient sample size.
-    if len(x) < 2 or len(y) < 2:
+    if len(x) < min_sample_size or len(y) < min_sample_size:
         return np.nan, np.nan
 
     if paired:
@@ -598,7 +602,7 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
     x, y = x[idx], y[idx]
 
     # Insufficient sample size (also used by Scipy).
-    if len(x) < 10 or len(y) < 10:
+    if len(x) < min_sample_size or len(y) < min_sample_size:
         return np.nan, np.nan
 
     stat, pval = sp.stats.wilcoxon(x, y, zero_method=zero_method,

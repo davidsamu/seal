@@ -121,7 +121,7 @@ def raster(spk_trains, t_unit=ms, prds=None, size=3.0, c='b', xlim=None,
     ax = putil.axes(ax)
 
     putil.plot_periods(prds, ax=ax)
-    putil.set_limit(ax, xlim)
+    putil.set_limits(ax, xlim)
 
     # There's nothing to plot.
     if not len(spk_trains):
@@ -164,7 +164,7 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
     putil.plot_periods(prds, ax=ax)
     if baseline is not None:
         putil.add_baseline(baseline, ax=ax)
-    putil.set_limit(ax, xlim)
+    putil.set_limits(ax, xlim)
 
     if not len(rate_list):
         return ax
@@ -217,7 +217,7 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
     putil.set_max_n_ticks(ax, 7, 'y')
 
     # Add legend.
-    if add_lgn and lbl is not None:
+    if add_lgn and (lbl is not None):
         putil.set_legend(ax, loc=1, borderaxespad=0.5, handletextpad=0.1)
 
     # Add significance line to top of axes.

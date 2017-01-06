@@ -91,7 +91,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
     # Remove (hide) legend from all but last rate plot.
     [ax.legend().set_visible(False) for ax in axes_rate[:-1]
-     if ax.legend() is not None]
+     if ax.legend_ is not None]
 
     # Set common x label.
     if ('no_labels' not in kwargs) or (not kwargs['no_labels']):
