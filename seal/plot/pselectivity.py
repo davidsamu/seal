@@ -118,6 +118,18 @@ def plot_DR(u, **kwargs):
     return res
 
 
+def plot_task_relatedness(u, **kwargs):
+    """Plot task-relatedness plot."""
+
+    tr_str = '?'
+    if 'TaskRelated' in u.QualityMetrics:
+        tr_str = ' ' if u.QualityMetrics['TaskRelated'] else 'NOT'
+    title = 'Unit is {} task-related'.format(tr_str)
+
+    res = plot_SR(u, title=title, **kwargs)
+    return res
+
+
 # %% Functions to plot stimulus selectivity.
 
 def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
@@ -182,8 +194,8 @@ def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
     return ax_polar, rate_axs
 
 
-def plot_LS_DS(u, nrate=None, fig=None, sps=None):
-    """Plot rate and direction selectivity summary plot."""
+def plot_selectivity(u, nrate=None, fig=None, sps=None):
+    """Plot selectivity summary plot."""
 
     if not u.to_plot():
         return
@@ -193,9 +205,12 @@ def plot_LS_DS(u, nrate=None, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    ls_sps, ds_sps = putil.embed_gsp(sps, 2, 1)
+    tr_sps, ls_sps, ds_sps = putil.embed_gsp(sps, 3, 1)
 
     kwargs = {'stims': stims, 'nrate': nrate, 'fig': fig, 'no_labels': False}
+
+    # Plot task-relatedness.
+    plot_task_relatedness(u, sps=tr_sps, **kwargs)
 
     # Plot location selectivity.
     _, ls_rate_axs = plot_LR(u, sps=ls_sps, **kwargs)

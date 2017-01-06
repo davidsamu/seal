@@ -146,7 +146,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
         for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
-            res = pselectivity.plot_LS_DS(u, nrate, fig, sps)
+            res = pselectivity.plot_selectivity(u, nrate, fig, sps)
             if res is not None:
                 ls_rate_axs, ds_rate_axs = res
                 task_ls_rate_axs.extend(ls_rate_axs)
