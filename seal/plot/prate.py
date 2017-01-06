@@ -31,7 +31,7 @@ def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
     rates = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts) for tr in trs]
 
     # Get stimulus periods.
-    stim_prd = constants.ev_stim.loc[ref]
+    stim_prd = constants.ev_stims.loc[ref]
 
     # Get trial set names.
     names = trs.index
@@ -104,7 +104,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
     rate(rate_list, names, prds=prds, cols=cols, baseline=baseline,
          **rate_kws, ax=rate_ax)
 
-    # Synchronize raster's x axis limits to rate.
+    # Synchronize raster's x axis limits to rate plot's limits.
     xlim = rate_ax.get_xlim()
     [ax.set_xlim(xlim) for ax in raster_axs]
 
@@ -121,7 +121,9 @@ def raster(spk_trains, t_unit=ms, prds=None, size=3.0, c='b', xlim=None,
     ax = putil.axes(ax)
 
     putil.plot_periods(prds, ax=ax)
+    putil.set_limit(ax, xlim)
 
+    # There's nothing to plot.
     if not len(spk_trains):
         return ax
 
@@ -162,6 +164,7 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
     putil.plot_periods(prds, ax=ax)
     if baseline is not None:
         putil.add_baseline(baseline, ax=ax)
+    putil.set_limit(ax, xlim)
 
     if not len(rate_list):
         return ax

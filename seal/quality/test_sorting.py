@@ -436,8 +436,9 @@ def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
         spk_idx = spk_inc if st == 'Included' else np.invert(spk_inc)
         tr_idx = tr_inc if st == 'Included' else np.invert(tr_inc)
 
-        title = '{} WFs, {} spikes, {} trials'.format(st, sum(spk_idx),
-                                                      sum(tr_idx))
+        nspsk, ntrs = sum(spk_idx), sum(tr_idx)
+        title = '{} WFs, {} spikes, {} trials'.format(st, nspsk, ntrs)
+
         # Select waveforms and colors.
         rand_spk_idx = spk_idx[spk_order]
         wfs = s_waveforms[rand_spk_idx, :]

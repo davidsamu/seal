@@ -114,7 +114,7 @@ class Rate:
 
         trs:      List with indices of trials to select.
         t1s, t2s: Time window per trial. They must contain all trials!
-        ref_ts:   Array of reference times to align rate vectors by..
+        ref_ts:   Array of reference times to align rate vectors by.
         """
 
         # Set default trials.

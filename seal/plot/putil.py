@@ -419,7 +419,7 @@ def get_tick_marks_and_labels(t1, t2, mrks_prd=t_tick_mrks_prd,
     """
 
     # Calculate tick mark positions.
-    t1_limit = int(t1/mrks_prd) * mrks_prd
+    t1_limit = np.ceil(t1/mrks_prd) * mrks_prd
     t2_limit = t2 + 1
     tick_mrks = np.arange(t1_limit, t2_limit, mrks_prd)
 

@@ -408,7 +408,7 @@ class Unit:
     def pr_times(self, prname, add_latency=False, concat=True):
         """Return timing of period (start event, stop event) across trials."""
 
-        ev1, ev2 = constants.tr_prd.loc[prname]
+        ev1, ev2 = constants.tr_prds.loc[prname]
         evt1 = self.ev_times(ev1, add_latency)
         evt2 = self.ev_times(ev2, add_latency)
 

@@ -198,7 +198,7 @@ def rec_stability_test(UA, fname=None):
     """Check stability of recording session across tasks."""
 
     # Init params.
-    periods = constants.tr_prd
+    periods = constants.tr_prds
 
     # Init figure.
     fig, gsp, ax_list = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
