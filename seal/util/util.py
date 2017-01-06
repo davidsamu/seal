@@ -573,8 +573,14 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     Run t-test between two related (paired) or independent (unpaired) samples.
     """
 
+    # Remove any NaN values.
+    if paired:
+        idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
+        x, y = x[idx], y[idx]
+
     # Insufficient sample size.
-    if len(x) < min_sample_size or len(y) < min_sample_size:
+    n_not_nan_x, n_not_nan_y = [sum(~np.isnan(v)) for v in (x, y)]
+    if n_not_nan_x < min_sample_size or n_not_nan_y < min_sample_size:
         return np.nan, np.nan
 
     if paired:
@@ -597,7 +603,7 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
           that n > 20.
     """
 
-    # Remove any NaN values.
+    # Remove any NaN values. Test is always paired!
     idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
     x, y = x[idx], y[idx]
 

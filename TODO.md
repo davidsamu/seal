@@ -1,13 +1,14 @@
 TODO list of Seal project
 -------------------------
 
+
 preprocessing pipeline
 ----------------------
   - write Python script to automatically move and rename files after splitting sorted recording files
   - try automatic sorting using OpenElectrophys
 
 
-analyses to add from DD scirpts
+analyses to add from DD scripts
 -------------------------------
   - anticipatory delay activity
   - Fano factor
@@ -18,6 +19,11 @@ analyses to add from DD scirpts
     - run
     - analysis
   - comparison effect
+
+
+unitarray / unit
+----------------
+  - add test and register whether unit's are matched across tasks
 
 
 permutation tests
@@ -43,7 +49,6 @@ trial rejection
 waveform duration calculation
 -----------------------------
 - calculate waveform duration in a way that deals with truncated WFs
-- exclude WFs from excluded trials from mean WF calculation
 
 
 export
@@ -52,8 +57,8 @@ export
 
 unit
 ----
+  - add target feature variable to each unit or each trial rather?
   - add RF coverage information
-  - "region" parameter should come from TPLCell (either file name, or unique data field)
 
 
 plot
@@ -69,7 +74,6 @@ plot.scatter
 
 util
 ----
-  - split into submodules
   - add non-parametric AND non-paired test!
 
 

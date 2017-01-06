@@ -223,7 +223,7 @@ def test_task_relatedness(u):
     nrate = u.init_nrate()
     trs = u.inc_trials()
     test = 'wilcoxon'
-    p = 0.01
+    p = 0.05
     is_task_related = False
 
     if not len(trs):
@@ -310,7 +310,7 @@ def test_qm(u):
     u.set_excluded(to_excl)
 
     # Return all results.
-    res = {'tbin_vmid': tbin_vmid, 'tbins': tbins, 'rate_t': rate_t,
+    res = {'tbin_vmid': tbin_vmid, 'rate_t': rate_t,
            't1_inc': t1_inc, 't2_inc': t2_inc, 'prd_inc': prd_inc,
            'tr_inc': tr_inc, 'spk_inc': spk_inc}
     return res
@@ -338,7 +338,8 @@ def test_rejection(u):
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
 
-    test_passed['TaskRelated'] = qm['TaskRelated']
+    # Not task-related. Criterion to be used later!
+    # test_passed['TaskRelated'] = qm['TaskRelated']
 
     # Exclude unit if any of the criteria is not met.
     exclude = not test_passed.all()
@@ -348,8 +349,8 @@ def test_rejection(u):
 
 # %% Plot quality metrics.
 
-def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
-            spk_inc, add_lbls=False, ftempl=None, fig=None, sps=None):
+def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
+            add_lbls=False, ftempl=None, fig=None, sps=None):
     """Plot quality metrics related figures."""
 
     # Init values.
@@ -514,6 +515,12 @@ def plot_qm(u, tbin_vmid, tbins, rate_t, t1_inc, t2_inc, prd_inc, tr_inc,
     if tstop != t2_inc:
         excl_prds.append(('end', t2_inc, tstop))
     putil.plot_periods(excl_prds, ymax=0.92, ax=ax_rate)
+
+    # %% Post-formatting.
+
+    # Maximize number of ticks on recording time axes to prevent covering.
+    for ax in (ax_wf_amp, ax_wf_dur, ax_rate):
+        putil.set_max_n_ticks(ax, 6, 'x')
 
     # %% Save figure.
     if ftempl is not None:
