@@ -217,7 +217,8 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
     return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
 
 
-def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times, tbins):
+def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times,
+                   tbin_vmid):
     """Set included trials by values provided."""
 
     # Included trial range.
@@ -228,9 +229,8 @@ def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times, tbins):
     t1_inc = tstart if first_tr == 0 else tr_starts[first_tr]
     t2_inc = tstop if last_tr == len(tr_starts) else tr_starts[last_tr]
 
-    # Included time period.
-    tbins = np.array(tbins)
-    prd_inc = (tbins[:, 0] >= t1_inc) & (tbins[:, 1] <= t2_inc)
+    # Included time periods.
+    prd_inc = (tbin_vmid >= t1_inc) & (tbin_vmid <= t2_inc)
 
     # Included spikes.
     spk_inc = util.indices_in_window(spk_times, t1_inc, t2_inc)
@@ -318,7 +318,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     if (first_tr is not None) and (last_tr is not None):
         # Use passed parameters.
         res = set_inc_trials(first_tr, last_tr, tr_starts, tr_stops,
-                             spk_times, tbins)
+                             spk_times, tbin_vmid)
     else:
         # Test drifts and reject trials if necessary.
         res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)

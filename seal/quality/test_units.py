@@ -27,22 +27,30 @@ w_pad = 5
 
 # %% Quality tests across tasks.
 
-def get_selection_params(uid, task, ntrials, UnTrSel=None):
+def get_selection_params(u, UnTrSel=None):
     """Return unit and trial selection parameters of unit provided by user."""
 
-    if UnTrSel is None:
+    if UnTrSel is None or u.is_empty():
         return {}
 
+    # Init.
+    rec, ch, idx, task = u.get_utid()
+    ntrials = len(u.TrialParams.index)
+
     # Find unit in selection table.
-    rec, ch, idx = uid
     row = UnTrSel.ix[((UnTrSel.recording == rec) & (UnTrSel.channel == ch) &
                       (UnTrSel['unit index'] == idx) & (UnTrSel.task == task))]
     uname = 'rec {}, ch {}, idx {}, task {}'.format(rec, ch, idx, task)
 
+    # Unit not in table.
+    if not len(row.index):
+        warnings.warn(uname + ': not found in selection table.')
+        return {}
+
     # If there's more than one match.
     if len(row.index) > 1:
-        warnings.warn(uname + ': multiple rows found for unit,' +
-                      'using first match.')
+        warnings.warn(uname + ': multiple rows found for unit ' +
+                      'in selection table, using first match.')
         row = row.iloc[0:1]
 
     # Get index of first and last trials to include.
@@ -58,8 +66,8 @@ def get_selection_params(uid, task, ntrials, UnTrSel=None):
 
     # Check some simple cases of data inconsistency.
     if include and first_tr >= last_tr:
-        warnings.warn(uname + ': index of first included trial is' +
-                      ' larger or equal to last! Excluding unit.')
+        warnings.warn(uname + ': index of first included trial is larger or' +
+                      ' equal to last in selection table! Excluding unit.')
         include = False
 
     sel_pars = {'include': include, 'first_tr': first_tr, 'last_tr': last_tr}
@@ -90,8 +98,7 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
 
             # Do quality test.
             u = UA.get_unit(uid, task)
-            ntrials = len(u.TrialParams.index)
-            sel_pars = get_selection_params(uid, task, ntrials, UnTrSel)
+            sel_pars = get_selection_params(u, UnTrSel)
             res = test_sorting.test_qm(u, **sel_pars)
 
             # Plot QC results.
