@@ -19,18 +19,25 @@ from seal.quality import test_units
 from seal.object import constants, unit, unitarray
 
 
-def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
-                        region=None):
-    """Convert TPLCells to Seal objects."""
+def convert_TPL_to_Seal(data_dir):
+    """Convert TPLCells to Seal objects in project directory."""
 
     print('\nStarting unit import...\n')
 
+    # Data directory with all recordings to be processed in subfolders.
+    rec_data_dir = data_dir + '/recordings/'
+
     # Go through each session.
-    for recording in sorted(os.listdir(tpl_dir)):
+    for recording in sorted(os.listdir(rec_data_dir)):
         print(recording)
 
+        # Init folders.
+        rec_dir = rec_data_dir + recording + '/'
+        tpl_dir = rec_dir + 'TPLCells/'
+        seal_dir = rec_dir + 'SealCells/'
+
         # Get all available task files.
-        f_rec_tasks = sorted(os.listdir(tpl_dir + recording))
+        f_rec_tasks = sorted(os.listdir(tpl_dir))
 
         # Extract task names and indices from file names.
         task_idxs = [rtdir.split('_')[2] for rtdir in f_rec_tasks]
@@ -52,24 +59,24 @@ def convert_TPL_to_Seal(tpl_dir, seal_dir, kernels=constants.R100_kernel,
             print('  ', itasks[i], task)
 
             # Load in Matlab structure (SimpleTPLCell).
-            fname_matlab = tpl_dir + recording + '/' + f_rec_tasks[i]
+            fname_matlab = tpl_dir + f_rec_tasks[i]
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
+            region = constants.task_info.loc[task, 'region']
+            kernels = constants.kset
             step, stim_params = constants.step, constants.stim_params,
             answ_params, stim_dur = constants.answ_params, constants.stim_dur
             tr_evts = constants.tr_evts
-            params = [(TPLCell, kernels, step, stim_params, answ_params,
-                       stim_dur, tr_evts, task, region)
-                      for TPLCell in TPLCells]
+            params = [(TPLCell, region, task, kernels, step, stim_params,
+                       answ_params, stim_dur, tr_evts) for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.
             UA.add_task(task, tUnits)
 
         # Save Units.
-        rec_dir_no_qc = seal_dir + recording + '/before_qc/'
-        fname_seal = rec_dir_no_qc + recording + '.data'
+        fname_seal = seal_dir + recording + '.data'
         util.write_objects({'UnitArr': UA}, fname_seal)
 
 
@@ -83,21 +90,24 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_DR=True,
       - exporting automatic unit and trial selection results.
     """
 
+    # Data directory with all recordings to be processed in subfolders.
+    rec_data_dir = data_dir + '/recordings/'
+
     # Init data structures.
     combUA = unitarray.UnitArray(ua_name)
 
     print('\nStarting quality control...\n')
     putil.inline_off()
 
-    for recording in sorted(os.listdir(data_dir)):
+    for recording in sorted(os.listdir(rec_data_dir)):
 
         # Report progress.
         print(recording)
 
         # Init folders.
-        rec_dir = data_dir + recording
-        bfr_qc_dir = rec_dir + '/before_qc/'
-        qc_dir = rec_dir + '/qc_res/'
+        rec_dir = rec_data_dir + recording + '/'
+        seal_dir = rec_dir + 'SealCells/'
+        qc_dir = rec_dir + '/quality_control/'
 
         ftempl_qm = qc_dir + 'quality_metrics/{}.png'
         ftempl_dr = qc_dir + 'direction_response/{}.png'
@@ -105,7 +115,7 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_DR=True,
         ftempl_mont = qc_dir + 'montage/{}.png'
 
         # Read in Units.
-        f_data = bfr_qc_dir + recording + '.data'
+        f_data = seal_dir + recording + '.data'
         UA = util.read_objects(f_data, 'UnitArr')
 
         # Test unit quality, save result figures,
@@ -151,18 +161,17 @@ def run_preprocessing(data_dir, ua_name, plot_QM=True, plot_DR=True,
 
     # Save selected Units with quality metrics and direction selectivity.
     print('\nExporting combined UnitArray...')
-    comb_data_dir = 'data/all_recordings/'
-    fname = comb_data_dir + 'all_recordings.data'
+    fname = data_dir + '/all_recordings.data'
     util.write_objects({'UnitArr': combUA}, fname)
 
     # Export unit and trial selection results.
     print('Exporting automatic unit and trial selection results...')
-    fname = comb_data_dir + 'unit_trial_selection.xlsx'
+    fname = data_dir + '/unit_trial_selection.xlsx'
     export.export_unit_trial_selection(combUA, fname)
 
     # Export unit list.
     print('Exporting combined unit list...')
-    export.export_unit_list(UA, comb_data_dir + 'unit_list.xlsx')
+    export.export_unit_list(UA, data_dir + '/unit_list.xlsx')
 
     # Re-enable inline plotting
     putil.inline_on()

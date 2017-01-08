@@ -24,9 +24,9 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell=None, kernels=None, step=None, stim_params=None,
-                 answ_params=None, stim_dur=None, tr_evts=None, task=None,
-                 region=None):
+    def __init__(self, TPLCell=None, region=None, task=None, kernels=None,
+                 step=None, stim_params=None, answ_params=None, stim_dur=None,
+                 tr_evts=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
@@ -57,8 +57,7 @@ class Unit:
 
         # Prepare session params.
         subj, date, probe, exp, isort = util.params_from_fname(TPLCell.File)
-        task, task_idx = exp[:-1], int(exp[-1])
-        task = task if task is None else task  # use provided name
+        task_idx = int(exp[-1])
         [chan, un] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
@@ -192,16 +191,16 @@ class Unit:
         self.TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
 
         # Add target feature to be reported.
-        if constants.task_info.loc[task, 'target'] is not None:
-            tr_type = constants.task_info.loc[task, 'target']
+        if constants.task_info.loc[task, 'toreport'] is not None:
+            to_report = constants.task_info.loc[task, 'toreport']
         elif 'TrialType' in trpars:
-            tr_type = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
-            self.TrialParams['TargetFeature'] = tr_type
+            to_report = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
         else:
             warnings.warn('TrialType info not found in TPLCell of unit ' +
                           self.Name + '. Forgot define target for task ' +
                           'in constants.task_info?')
-            self.TrialParams['TargetFeature'] = None
+            to_report = None
+        self.TrialParams['ToReport'] = to_report
 
         # Init included trials (all trials included initially).
         self.TrialParams['included'] = np.array(True, dtype=bool)

@@ -7,6 +7,8 @@ Functions to calculate and plot quality metrics of units  after spike sorting
 @author: David Samu
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us
@@ -61,7 +63,7 @@ def time_bin_data(spk_times, waveforms):
     tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
     tbin_vmid = np.array([np.mean([t1, t2]) for t1, t2 in tbins])*s
-    spk_idx_binned = [util.indices_in_window(spk_times, t1, t2)
+    spk_idx_binned = [util.indices_in_window(spk_times, float(t1), float(t2))
                       for t1, t2 in tbins]
     wf_binned = [waveforms[spk_idx] for spk_idx in spk_idx_binned]
     spk_times_binned = [spk_times[spk_idx] for spk_idx in spk_idx_binned]
@@ -242,8 +244,10 @@ def test_task_relatedness(u):
                                   columns=prd_rates.columns)
 
         # Run test at each time sample across period.
-        sign_prds = util.sign_periods(prd_rates, base_rates, p, test,
-                                      min_len=MIN_TASK_RELATED_DUR)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            sign_prds = util.sign_periods(prd_rates, base_rates, p, test,
+                                          min_len=MIN_TASK_RELATED_DUR)
 
         # Check if there's any long-enough significant period.
         if len(sign_prds):
@@ -296,7 +300,7 @@ def test_qm(u):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp)
+    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp) if len(wf_amp) else np.nan
     u.QualityMetrics['mWfDur'] = np.mean(spk_dur[spk_inc])
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISIvr

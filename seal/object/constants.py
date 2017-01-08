@@ -42,12 +42,13 @@ all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
 # in TPLCell's data (define in TrialType column of TrialParams)!
 # This is necessary for not combined tasks at the moment.
 # Possible target values: 'loc', 'dir' or None.
-task_info = [('com', (None, False)),
-             ('loc', ('loc', False)),
-             ('dd1', ('dir', False)),
-             ('dd2', ('dir', False)),
-             ('comPas', (None, True))]
-task_info = pd.DataFrame.from_items(task_info, ['target', 'passive'], 'index')
+task_info = [('com', ('PFC', None, False)),
+             ('loc', ('PFC', 'loc', False)),
+             ('dd1', ('PFC', 'dir', False)),
+             ('dd2', ('PFC', 'dir', False)),
+             ('comPas', ('PFC', None, True))]
+cols = ['region', 'toreport', 'ispassive']
+task_info = pd.DataFrame.from_items(task_info, cols, 'index')
 
 
 # %% Relative timing of different trial events and periods.
@@ -144,6 +145,9 @@ shrtR_kernels = kernels.kernel_set(['R50', 'R75', 'R100'])
 lngR_kernels = kernels.kernel_set(['R100', 'R200', 'R500'])
 
 step = 10*ms
+
+# Kernel set to be used for project.
+kset = R100_kernel
 
 # Default rate name (to be used when rate type is not specified).
 def_nrate = 'R100'
