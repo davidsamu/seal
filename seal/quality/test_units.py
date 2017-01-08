@@ -8,7 +8,9 @@ for different sets of trials or trial periods.
 """
 
 import os
+import warnings
 
+import numpy as np
 import scipy as sp
 import pandas as pd
 
@@ -25,11 +27,54 @@ w_pad = 5
 
 # %% Quality tests across tasks.
 
-def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
+def get_selection_params(uid, task, ntrials, UnTrSel=None):
+    """Return unit and trial selection parameters of unit provided by user."""
+
+    if UnTrSel is None:
+        return {}
+
+    # Find unit in selection table.
+    rec, ch, idx = uid
+    row = UnTrSel.ix[((UnTrSel.recording == rec) & (UnTrSel.channel == ch) &
+                      (UnTrSel['unit index'] == idx) & (UnTrSel.task == task))]
+    uname = 'rec {}, ch {}, idx {}, task {}'.format(rec, ch, idx, task)
+
+    # If there's more than one match.
+    if len(row.index) > 1:
+        warnings.warn(uname + ': multiple rows found for unit,' +
+                      'using first match.')
+        row = row.iloc[0:1]
+
+    # Get index of first and last trials to include.
+    include = bool(int(row['unit included']))
+    first_tr = int(row['first included trial']) - 1  # indexing starts with 0
+    last_tr = int(row['last included trial'])   # inclusive --> exclusive
+
+    # Set values outside of range to limits.
+    first_tr = max(first_tr, 0)
+    last_tr = min(last_tr, ntrials)
+    if last_tr == -1:  # -1: include all the way to the end
+        last_tr = ntrials
+
+    # Check some simple cases of data inconsistency.
+    if include and first_tr >= last_tr:
+        warnings.warn(uname + ': index of first included trial is' +
+                      ' larger or equal to last! Excluding unit.')
+        include = False
+
+    sel_pars = {'include': include, 'first_tr': first_tr, 'last_tr': last_tr}
+
+    return sel_pars
+
+
+def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
     """Test and plot quality metrics of recording and spike sorting """
 
     # Init plotting theme.
     putil.set_style('notebook', 'ticks')
+
+    # Import unit&trial selection file.
+    UnTrSel = pd.read_excel(fselection) if fselection is not None else None
 
     # For each unit over all tasks.
     for uid in UA.uids():
@@ -40,12 +85,15 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
                                                 subw=subw, subh=1.6*subw)
             wf_axs, amp_axs, dur_axs, amp_dur_axs, rate_axs = ([], [], [],
                                                                [], [])
-
+        print(uid)
         for i, task in enumerate(UA.tasks()):
 
             # Do quality test.
             u = UA.get_unit(uid, task)
-            res = test_sorting.test_qm(u)
+            ntrials = len(u.TrialParams.index)
+            sel_pars = get_selection_params(uid, task, ntrials, UnTrSel)
+            print(task, sel_pars)
+            res = test_sorting.test_qm(u, **sel_pars)
 
             # Plot QC results.
             if plot_QM:
@@ -68,22 +116,37 @@ def quality_test(UA, ftempl=None, plot_QM=False, match_scales=True):
 
         if plot_QM:
 
-            # Match scale of y axes across tasks.
-            if match_scales:
-                putil.sync_axes(wf_axs, sync_x=True, sync_y=True)
-                putil.sync_axes(amp_axs, sync_y=True)
-                putil.sync_axes(dur_axs, sync_y=True)
-                putil.sync_axes(amp_dur_axs, sync_x=True, sync_y=True)
-                putil.sync_axes(rate_axs, sync_y=True)
-                [putil.move_event_lbls(ax, yfac=0.92) for ax in rate_axs]
+            # Match axis scales across tasks.
+            putil.sync_axes(wf_axs, sync_x=True, sync_y=True)
+            putil.sync_axes(amp_axs, sync_y=True)
+            putil.sync_axes(dur_axs, sync_y=True)
+            putil.sync_axes(amp_dur_axs, sync_x=True, sync_y=True)
+            putil.sync_axes(rate_axs, sync_y=True)
+            [putil.move_event_lbls(ax, yfac=0.92) for ax in rate_axs]
 
             # Save figure.
-            if ftempl is not None:
+            if ftempl_qm is not None:
                 uid_str = util.format_uid(uid)
                 title = uid_str.replace('_', ' ')
-                fname = ftempl.format(uid_str)
+                fname = ftempl_qm.format(uid_str)
                 putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
                                       w_pad=w_pad)
+
+
+def exclude_units(UA):
+    """Exclude low quality units."""
+
+    exclude = []
+    for u in UA.iter_thru(excl=True):
+        exclude.append(u.is_excluded())
+
+    # Report unit exclusion results.
+    n_tot = len(exclude)
+    n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
+    perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
+    rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
+    print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
+    print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
 
 
 def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):

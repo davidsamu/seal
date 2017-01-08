@@ -40,11 +40,6 @@ spikes and rates
   - returning excluded trials should be made impossible in some way!
 
 
-trial rejection
----------------
- - recalculate unit stats (mean FR, WF duration, etc) with updated included trials
-
-
 waveform duration calculation
 -----------------------------
 - calculate waveform duration in a way that deals with truncated WFs

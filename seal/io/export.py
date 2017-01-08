@@ -22,7 +22,7 @@ def export_unit_trial_selection(UA, fname):
     """Export unit and trial selection as Excel table."""
 
     # Gather selection dataframe.
-    columns = ['task', 'session', 'channel', 'unit index', 'unit included',
+    columns = ['recording', 'channel', 'unit index', 'task', 'unit included',
                'first included trial', 'last included trial']
     SelectDF = pd.DataFrame(columns=columns)
 
@@ -33,7 +33,12 @@ def export_unit_trial_selection(UA, fname):
         ftr, ltr = 0, 0
         if len(inc_trs):
             ftr, ltr = inc_trs.min()+1, inc_trs.max()+1
-        SelectDF.loc[i] = [task, rec, ch, un, inc, ftr, ltr]
+        SelectDF.loc[i] = [rec, ch, un, task, inc, ftr, ltr]
+
+    # Sort table to facilitate reading by recording.
+    SelectDF.sort_values(['recording', 'channel', 'unit index', 'task'],
+                         inplace=True)
+    SelectDF.index = range(1, len(SelectDF.index)+1)
 
     # Write out selection dataframe.
     writer = pd.ExcelWriter(fname)

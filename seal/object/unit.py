@@ -355,7 +355,7 @@ class Unit:
     def update_included_trials(self, tr_inc):
         """Update fields related to included/excluded trials and spikes."""
 
-        # Init included and excluded trials.
+        # Init.
         tr_inc = np.array(tr_inc, dtype=bool)
         tr_exc = np.invert(tr_inc)
 

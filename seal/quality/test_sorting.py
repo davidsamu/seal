@@ -54,11 +54,14 @@ def get_qm_data(u):
     return waveforms, wavetime, spk_dur, spk_times, sampl_per
 
 
-def time_bin_data(spk_times, waveforms):
+def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
     """Return time binned data for statistics over session time."""
 
     # Time bins and binned waveforms and spike times.
-    t_start, t_stop = spk_times.min()*s, spk_times.max()*s
+    tfirst_spk, tlast_spk = spk_times.min()*s, spk_times.max()*s
+    tfirst_trl, tlast_trl = tr_starts.min(), tr_stops.max()
+    t_start, t_stop = min(tfirst_spk, tfirst_trl), max(tlast_spk, tlast_trl)
+
     nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
     tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
@@ -156,11 +159,9 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
 
     # Number of trials from beginning of session
     # until start and end of each period.
-    tr_starts = util.list_to_quantity(tr_starts)
-    n_tr_prd_start = [np.sum(util.indices_in_window(tr_starts, vmax=t1))
-                      for t1, t2 in tbins]
-    n_tr_prd_end = [np.sum(util.indices_in_window(tr_starts, vmax=t2))
-                    for t1, t2 in tbins]
+    tr_starts_arr = util.list_to_quantity(tr_starts)
+    n_tr_prd_start = [np.sum(tr_starts_arr < t1) for t1, t2 in tbins]
+    n_tr_prd_end = [np.sum(tr_starts_arr < t2) for t1, t2 in tbins]
 
     # Find period within acceptible drift range for each bin.
     cols = ['prd_start_i', 'prd_end_i', 'n_prd',
@@ -194,19 +195,39 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
     prd1 = prd_res.prd_start_i[idx]
     prd2 = prd_res.prd_end_i[idx]
     # Times of longest period.
-    t1 = prd_res.t_start[idx]
-    t2 = prd_res.t_end[idx]
+    t1_inc = prd_res.t_start[idx]
+    t2_inc = prd_res.t_end[idx]
     # Trial indices within longest period.
-    first_tr_inc = prd_res.tr_start_i[idx]
-    last_tr_inc = prd_res.tr_end_i[idx] - 1
+    first_tr = prd_res.tr_start_i[idx]
+    last_tr = prd_res.tr_end_i[idx]
 
     # Return included trials and spikes.
-    prd_inc = util.indices_in_window(np.array(range(len(tbins))), prd1, prd2)
-    tr_inc = util.indices_in_window(np.array(range(len(tr_starts))),
-                                    first_tr_inc, last_tr_inc)
-    spk_inc = util.indices_in_window(spk_times, t1, t2)
+    prd_inc = util.indices_in_window(np.arange(len(tbins)), prd1, prd2)
+    tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
+    spk_inc = util.indices_in_window(spk_times, t1_inc, t2_inc)
 
-    return t1, t2, prd_inc, tr_inc, spk_inc
+    return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
+
+
+def set_inc_trials(first_tr, last_tr, tr_starts, spk_times, tbins):
+    """Set included trials by values provided."""
+
+    # Included trial range.
+    tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
+
+    # Start and end time.
+    t1_inc = spk_times.iloc[0] if first_tr == 0 else tr_starts[first_tr]
+    t2_inc = (spk_times.iloc[-1] if last_tr == len(tr_starts)
+              else tr_starts[last_tr])
+
+    # Included time period.
+    tbins = np.array(tbins)
+    prd_inc = (tbins[:, 0] >= t1_inc) & (tbins[:, 1] <= t2_inc)
+
+    # Included spikes.
+    spk_inc = util.indices_in_window(spk_times, t1_inc, t2_inc)
+
+    return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
 
 
 def calc_baseline_rate(u):
@@ -259,7 +280,7 @@ def test_task_relatedness(u):
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
 
-def test_qm(u):
+def test_qm(u, include=None, first_tr=None, last_tr=None):
     """
     Test ISI, SNR and stationarity of FR and spike waveforms.
     Find trials with unacceptable drift.
@@ -267,6 +288,8 @@ def test_qm(u):
     Non-stationarities can happen due to e.g.:
     - electrode drift, or
     - change in the state of the neuron.
+
+    Optionally, user can provide whether to include unit and selected trials.
     """
 
     if u.is_empty():
@@ -274,18 +297,24 @@ def test_qm(u):
 
     # Init values.
     waveforms, wavetime, spk_dur, spk_times, sampl_per = get_qm_data(u)
+    tr_starts, tr_stops = u.TrialParams.TrialStart, u.TrialParams.TrialStop
 
     # Time binned statistics.
-    tbinned_stats = time_bin_data(spk_times, waveforms)
+    tbinned_stats = time_bin_data(spk_times, waveforms, tr_starts, tr_stops)
     tbins, tbin_vmid, wf_binned, spk_times_binned = tbinned_stats
 
     rate_t = np.array([spkt.size/(t2-t1).rescale(s)
                        for spkt, (t1, t2) in zip(spk_times_binned, tbins)]) / s
 
-    # Test drifts and reject trials if necessary.
-    tr_starts = u.TrialParams.TrialStart
-    test_res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
-    t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = test_res
+    # Trial exclusion.
+    if (first_tr is not None) and (last_tr is not None):
+        # Use passed parameters.
+        res = set_inc_trials(first_tr, last_tr, tr_starts, spk_times, tbins)
+    else:
+        # Test drifts and reject trials if necessary.
+        res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
+    t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = res
+
     u.update_included_trials(tr_inc)
 
     # Waveform statistics of included spikes only.
@@ -310,8 +339,9 @@ def test_qm(u):
     u.QualityMetrics['TaskRelated'] = test_task_relatedness(u)
 
     # Run unit exclusion test.
-    to_excl = test_rejection(u)
-    u.set_excluded(to_excl)
+    if include is None:
+        include = test_rejection(u)
+    u.set_excluded(not include)
 
     # Return all results.
     res = {'tbin_vmid': tbin_vmid, 'rate_t': rate_t,
@@ -345,10 +375,10 @@ def test_rejection(u):
     # Not task-related. Criterion to be used later!
     # test_passed['TaskRelated'] = qm['TaskRelated']
 
-    # Exclude unit if any of the criteria is not met.
-    exclude = not test_passed.all()
+    # Include unit if all criteria met.
+    include = test_passed.all()
 
-    return exclude
+    return include
 
 
 # %% Plot quality metrics.
