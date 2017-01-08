@@ -12,7 +12,7 @@ from quantities import ms, deg, cm
 from seal.util import util, kernels
 
 
-# %% Task constants.
+# %% Task constants and parameters.
 
 # Stimulus parameters.
 stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg),
@@ -34,8 +34,20 @@ stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 # Delay length(s). Predefined, actual lengths are coarsed to these values.
 delay_lengths = pd.Series([1500*ms, 2000*ms])
 
-# All 8 directions.
+# All presented directions.
 all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
+
+# Task information.
+# WARNING: Target value, if not None, overwrites any target feature information
+# in TPLCell's data (define in TrialType column of TrialParams)!
+# This is necessary for not combined tasks at the moment.
+# Possible target values: 'loc', 'dir' or None.
+task_info = [('com', (None, False)),
+             ('loc', ('loc', False)),
+             ('dd1', ('dir', False)),
+             ('dd2', ('dir', False)),
+             ('comPas', (None, True))]
+task_info = pd.DataFrame.from_items(task_info, ['target', 'passive'], 'index')
 
 
 # %% Relative timing of different trial events and periods.

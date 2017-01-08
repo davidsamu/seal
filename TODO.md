@@ -4,7 +4,6 @@ TODO list of Seal project
 
 preprocessing pipeline
 ----------------------
-  - write Python script to automatically move and rename files after splitting sorted recording files
   - try automatic sorting using OpenElectrophys
 
 
@@ -57,7 +56,6 @@ export
 
 unit
 ----
-  - add target feature variable to each unit or each trial rather?
   - add RF coverage information
 
 

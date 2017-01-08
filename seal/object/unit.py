@@ -25,7 +25,7 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, kernels=None, step=None, stim_params=None,
-                 answ_params=None, stim_dur=None, tr_evt=None, taskname=None,
+                 answ_params=None, stim_dur=None, tr_evts=None, task=None,
                  region=None):
         """Create Unit instance from TPLCell data structure."""
 
@@ -58,7 +58,7 @@ class Unit:
         # Prepare session params.
         subj, date, probe, exp, isort = util.params_from_fname(TPLCell.File)
         task, task_idx = exp[:-1], int(exp[-1])
-        task = task if taskname is None else taskname  # use provided name
+        task = task if task is None else task  # use provided name
         [chan, un] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
@@ -160,7 +160,7 @@ class Unit:
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
-                for evt, (rel, offset) in tr_evt.iterrows()]
+                for evt, (rel, offset) in tr_evts.iterrows()]
         evts = pd.DataFrame.from_items(evts)
 
         # Add dimension to timestamps (ms).
@@ -185,10 +185,23 @@ class Unit:
         self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
 
         # "Categorical" (rounded) delay length variable.
-        len_diff = [(i, np.abs(self.TrialParams['DelayLenPrec'] - dl))
+        delay_lens = util.dim_series_to_array(self.TrialParams['DelayLenPrec'])
+        len_diff = [(i, np.abs(delay_lens - dl))
                     for i, dl in enumerate(constants.delay_lengths)]
-        min_diff = pd.DataFrame.from_items(len_diff).idxmax(1)
+        min_diff = pd.DataFrame.from_items(len_diff).idxmin(1)
         self.TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
+
+        # Add target feature to be reported.
+        if constants.task_info.loc[task, 'target'] is not None:
+            tr_type = constants.task_info.loc[task, 'target']
+        elif 'TrialType' in trpars:
+            tr_type = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
+            self.TrialParams['TargetFeature'] = tr_type
+        else:
+            warnings.warn('TrialType info not found in TPLCell of unit ' +
+                          self.Name + '. Forgot define target for task ' +
+                          'in constants.task_info?')
+            self.TrialParams['TargetFeature'] = None
 
         # Init included trials (all trials included initially).
         self.TrialParams['included'] = np.array(True, dtype=bool)
