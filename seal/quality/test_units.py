@@ -85,14 +85,13 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
                                                 subw=subw, subh=1.6*subw)
             wf_axs, amp_axs, dur_axs, amp_dur_axs, rate_axs = ([], [], [],
                                                                [], [])
-        print(uid)
+
         for i, task in enumerate(UA.tasks()):
 
             # Do quality test.
             u = UA.get_unit(uid, task)
             ntrials = len(u.TrialParams.index)
             sel_pars = get_selection_params(uid, task, ntrials, UnTrSel)
-            print(task, sel_pars)
             res = test_sorting.test_qm(u, **sel_pars)
 
             # Plot QC results.

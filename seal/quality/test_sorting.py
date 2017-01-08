@@ -54,14 +54,22 @@ def get_qm_data(u):
     return waveforms, wavetime, spk_dur, spk_times, sampl_per
 
 
-def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
-    """Return time binned data for statistics over session time."""
+def get_start_stop_times(spk_times, tr_starts, tr_stops):
+    """Return start and stop times of recording."""
 
-    # Time bins and binned waveforms and spike times.
     tfirst_spk, tlast_spk = spk_times.min()*s, spk_times.max()*s
     tfirst_trl, tlast_trl = tr_starts.min(), tr_stops.max()
     t_start, t_stop = min(tfirst_spk, tfirst_trl), max(tlast_spk, tlast_trl)
 
+    return t_start, t_stop
+
+
+def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
+    """Return time binned data for statistics over session time."""
+
+    t_start, t_stop = get_start_stop_times(spk_times, tr_starts, tr_stops)
+
+    # Time bins and binned waveforms and spike times.
     nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
     tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
     tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
@@ -209,16 +217,16 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
     return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
 
 
-def set_inc_trials(first_tr, last_tr, tr_starts, spk_times, tbins):
+def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times, tbins):
     """Set included trials by values provided."""
 
     # Included trial range.
     tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
 
-    # Start and end time.
-    t1_inc = spk_times.iloc[0] if first_tr == 0 else tr_starts[first_tr]
-    t2_inc = (spk_times.iloc[-1] if last_tr == len(tr_starts)
-              else tr_starts[last_tr])
+    # Start and stop times of included period.
+    tstart, tstop = get_start_stop_times(spk_times, tr_starts, tr_stops)
+    t1_inc = tstart if first_tr == 0 else tr_starts[first_tr]
+    t2_inc = tstop if last_tr == len(tr_starts) else tr_starts[last_tr]
 
     # Included time period.
     tbins = np.array(tbins)
@@ -309,7 +317,8 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     # Trial exclusion.
     if (first_tr is not None) and (last_tr is not None):
         # Use passed parameters.
-        res = set_inc_trials(first_tr, last_tr, tr_starts, spk_times, tbins)
+        res = set_inc_trials(first_tr, last_tr, tr_starts, tr_stops,
+                             spk_times, tbins)
     else:
         # Test drifts and reject trials if necessary.
         res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
@@ -321,7 +330,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     snr, wf_amp, wf_dur = waveform_stats(waveforms[spk_inc], wavetime)
 
     # Firing rate.
-    mean_rate = float(np.sum(spk_inc) / (t2_inc - t1_inc))
+    mean_rate = np.sum(spk_inc) / float(t2_inc-t1_inc)
 
     # ISI statistics.
     true_spikes, ISIvr = isi_stats(np.array(spk_times[spk_inc])*s)
