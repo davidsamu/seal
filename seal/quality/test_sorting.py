@@ -82,37 +82,36 @@ def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
     return tbins, tbin_vmid, wf_binned, spk_times_binned
 
 
-# %% Core methods .
+# %% Core methods.
 
 def waveform_stats(wfs, wtime):
     """Calculates SNR, amplitude and durations of spike waveforms."""
 
     # No waveforms: waveform stats are uninterpretable.
     if not wfs.size:
-        return np.nan, np.array([]) * us, np.array([]) * us
+        return np.nan, pd.Series(), pd.Series()
 
     # SNR: std of mean waveform divided by std of residual waveform (noise).
     wf_mean = np.mean(wfs, 0)
     wf_std = wfs - wf_mean
-    if wfs.shape[0] > 1:
-        snr = np.std(wf_mean) / np.std(wf_std)
-    else:
-        snr = 10  # extreme case of only a single spike in Unit.
+    # Handling extreme case of only a single spike in Unit.
+    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else np.nan
 
     # Indices of minimum and maximum times.
     # imin = np.argmin(wfs, 1)  # actual minimum of waveform
     imin = wfs.shape[0] * [WF_T_START]  # crossing of threshold (Plexon value)
     imax = [np.argmax(w[imin[i]:]) + imin[i] for i, w in enumerate(wfs)]
 
+    # Amplitude and duration calculation below should be improved!
+
     # Duration: time difference between times of minimum and maximum values.
-    wf_tmin = wtime[imin]
-    wf_tmax = wtime[imax]
-    wf_dur = wf_tmax - wf_tmin
+    wf_tmin, wf_tmax = wtime[imin], wtime[imax]
+    wf_dur = pd.Series(wf_tmax - wf_tmin)
 
     # Amplitude: value difference between mininum and maximum values.
     wmin = wfs[np.arange(len(imin)), imin]
     wmax = wfs[np.arange(len(imax)), imax]
-    wf_amp = wmax - wmin
+    wf_amp = pd.Series(wmax - wmin)
 
     return snr, wf_amp, wf_dur
 
@@ -338,8 +337,8 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['mWfAmpl'] = np.mean(wf_amp) if len(wf_amp) else np.nan
-    u.QualityMetrics['mWfDur'] = np.mean(spk_dur[spk_inc])
+    u.QualityMetrics['mWfAmpl'] = wf_amp.mean()
+    u.QualityMetrics['mWfDur'] = spk_dur[spk_inc].mean()
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISIvr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -497,7 +496,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     # %% Waveform summary metrics.
 
     # Waveform amplitude across session time.
-    m_amp, sd_amp = float(np.mean(wf_amp_inc)), float(np.std(wf_amp_inc))
+    m_amp, sd_amp = wf_amp_inc.mean(), wf_amp_inc.std()
     title = 'WF amplitude: {:.1f} $\pm$ {:.1f}'.format(m_amp, sd_amp)
     xlab, ylab = (ses_t_lab, amp_lab) if add_lbls else (None, None)
     pplot.scatter(spk_times, wf_amp_all, spk_inc, c='m', bc='grey', s=ss,
@@ -507,7 +506,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     # Waveform duration across session time.
     wf_dur_all = spk_dur  # to use TPLCell's waveform duration
     wf_dur_inc = wf_dur_all[spk_inc]
-    mdur, sdur = float(np.mean(wf_dur_inc)), float(np.std(wf_dur_inc))
+    mdur, sdur = wf_dur_inc.mean(), wf_dur_inc.std()
     title = 'WF duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
     xlab, ylab = (ses_t_lab, dur_lab) if add_lbls else (None, None)
     pplot.scatter(spk_times, wf_dur_all, spk_inc, c='c', bc='grey', s=ss,

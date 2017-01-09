@@ -40,8 +40,8 @@ spikes and rates
   - returning excluded trials should be made impossible in some way!
 
 
-waveform duration calculation
------------------------------
+waveform duration and amplitude calculation
+-------------------------------------------
 - calculate waveform duration in a way that deals with truncated WFs
 
 
