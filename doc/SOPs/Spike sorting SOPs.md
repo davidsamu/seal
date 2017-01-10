@@ -36,7 +36,7 @@ In other words, just keeping the waveforms that look the best would be too subje
 ## Guidelines & Rules of Thumb
 
 - You should spend ~2-5 minutes per channel, so altogether between roughly 20 and 60 mins total per recording.
-- As a hard limit, the minimum number of spikes for an hour-long session should be 7200, meaning minimum 2 spikes/second.
+- As a hard limit, the minimum number of spikes for an hour-long session should be 3600, meaning minimum 1 spikes/second.
 - ISI v.r. should normally be much less than 1.5%, ideally 0.0-0.5%.
 - It is possible, but rare that there is no (separable) unit in a channel. You should attempt to find at least some multi-unit activity even if there is no obvious separation on any of the planes. Start by searching for regions with spike-like waveforms at certain segments of the big cloud. On the other hand, do not be afraid of deleting a unit you could not get to a satisfactory level of quality (in terms of SNR, ISI v.r., etc).
 
@@ -45,7 +45,6 @@ In other words, just keeping the waveforms that look the best would be too subje
 
 - You can do spike sorting much faster (and better) if you learn some of the keyboard shortcuts of the frequently used commands.
   - add cluster: Alt + draw circle using cursor
-  - subtract region: TBA
   - (TODO: add more shortcuts here!)
 - You can turn on the feature to show ISI violations on cluster view (View → Cluster View Options → Show Short ISI Lines) to help find regions/spikes to remove.
   - WARNING: DON’T OVERUSE THIS FEATURE! You can easily “overfit” the criterion of minimsing ISI v.r. by removing just the problematic spikes, but this would not result in a genuine removal of false positive spikes. ISI v.r. is just a statistical proxy metric we use to validate our selection of (peripheral) subregions to be removed from the cluster. Bottomline: do not rely ONLY on this feature, but use it as a guide in combination with other metrics (e.g. waveform shape and location on plane).
