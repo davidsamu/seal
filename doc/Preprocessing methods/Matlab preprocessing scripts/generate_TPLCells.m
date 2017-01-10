@@ -6,8 +6,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Init.
-my_wd = 'Y:\yesbackup\Users\DavidSamu\';
-addpath(genpath(strcat(my_wd, 'tools\matlab')))
+addpath(genpath(strcat('Y:\yesbackup\Users\DavidSamu\tools\matlab')))
 
 
 %% Which recordings to process?
