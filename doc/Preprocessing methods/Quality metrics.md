@@ -16,14 +16,12 @@ SNR is calculated by dividing the standard deviation of the mean waveform by the
 #### Waveform amplitude
 
 Waveform height, as measured from waveform onset (time of downward crossing of '0' level, aligned to 9th sample of waveform by Plexon).
-- TODO: This is currently not a dip-to-tip amplitude, which may be more informative. Consider changing this or adding that.
 
 
 #### Waveform duration
 
 Time for waveform to reach maximal value, relative to waveform onset (waveform amplitude).
 - Calculated during TPLCell creation using some spline model to increase precision of estimate.
-- TODO: Should we consider global or first local maximum of waveform? Relevant question for low quality recordings / sortings.
 
 
 ### Based on spike times
@@ -43,17 +41,23 @@ Percentage of spike-pairs with inter-spike-interval (ISI) smaller than 1 ms.
   - WARNING: This is **not** an estimate of the fraction of spikes coming from another neuron! We estimate that by True Spike Ratio (see below).
 
 
-#### True Spikes Ratio (TRS)
+#### True Spikes Ratio (TSR)
 
 Estimate of the percentage of spikes emitted by the single dominant neuron captured by the unit. The estimation fails (quadratic equation with both solutions being imaginary numbers) if there is no single dominant neuron (ISI violation ratio is too high, given the length of the recording). See [Hill et al., 2011](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3123734/).
 
 
 ## Stimulus Response Properties
 
+### Task-related activity
+
+Simply tests across all trials whether unit's activity deviates from baseline activity at any time during task.
+
+
 ### Receptive field coverage
 
 Receptive fields of each channel are mapped at the beginning of the experiments.
   - TODO: add this information to preprocessing.
+
 
 ### Direction selectivity
 
