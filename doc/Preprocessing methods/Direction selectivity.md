@@ -1,7 +1,8 @@
 # Direction selectivity
 
+Direction selectivity can be tested by several different methods. A method with intermediate complexity is presented below.
 
-The basic method to assess direction selectivity is to calculate the (normalised) average of the weighted 2D direction vectors, using unit activity (mean spike counts) during stimulus presentation as the weight of each direction. This method results in a mean directional activity vector (mDAV), that is used to derive further metrics about the direction specific response of the unit. mDAV is calculated to both (all) stimuli of the experiment (S1 and S2).
+One basic method to assess direction selectivity is to calculate the (normalised) average of the weighted 2D direction vectors, using unit activity (mean spike counts) during stimulus presentation as the weight of each direction. This method results in a mean directional activity vector (mDAV), that is used to derive further metrics about the direction specific response of the unit. mDAV is calculated to both (all) stimuli of the experiment (S1 and S2).
 
 
 ## Preferred direction (PD)
