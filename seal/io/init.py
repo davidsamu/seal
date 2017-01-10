@@ -78,14 +78,14 @@ def convert_TPL_to_Seal(data_dir):
         util.write_objects({'UnitArr': UA}, fname_seal)
 
 
-def run_quality_control(data_dir, ua_name, plot_QM=True, fselection=None):
+def run_quality_control(data_dir, proj_name, plot_QM=True, fselection=None):
     """Run quality control (SNR, rate drift, ISI, etc) on each recording."""
 
     # Data directory with all recordings to be processed in subfolders.
     rec_data_dir = data_dir + '/recordings/'
 
     # Init combined UnitArray object.
-    combUA = unitarray.UnitArray(ua_name)
+    combUA = unitarray.UnitArray(proj_name)
 
     print('\nStarting quality control...\n')
     putil.inline_off()
@@ -98,22 +98,18 @@ def run_quality_control(data_dir, ua_name, plot_QM=True, fselection=None):
         # Init folders.
         rec_dir = rec_data_dir + recording + '/'
         seal_dir = rec_dir + 'SealCells/'
-        qc_dir = rec_dir + '/quality_control/'
-
-        ftempl_qm = qc_dir + 'quality_metrics/{}.png'
+        ftempl_qm = rec_dir + '/quality_control/{}.png'
 
         # Read in Units.
         f_data = seal_dir + recording + '.data'
         UA = util.read_objects(f_data, 'UnitArr')
 
-        # Test unit quality, save result figures,
-        # add stats to units and exclude low quality trials and units.
+        # Test unit quality, save result figures, add stats to units and
+        # exclude low quality trials and units.
         test_units.quality_test(UA, ftempl_qm, plot_QM, fselection)
 
-        # Exclude units with low recording quality.
-        if fselection is None:
-            print('  Excluding units...')
-            test_units.exclude_units(UA)
+        # Report unit exclusion stats.
+        test_units.report_unit_exclusion_stats(UA)
 
         # Add to combined UA.
         combUA.add_recording(UA)
@@ -140,7 +136,7 @@ def run_quality_control(data_dir, ua_name, plot_QM=True, fselection=None):
     putil.inline_on()
 
 
-def run_preprocessing(data_dir, ua_name, plot_DR=True, plot_sel=True,
+def run_preprocessing(data_dir, proj_name, plot_DR=True, plot_sel=True,
                       plot_stab=True, creat_montage=True):
     """
     Run preprocessing on Units and UnitArrays, including
@@ -153,7 +149,7 @@ def run_preprocessing(data_dir, ua_name, plot_DR=True, plot_sel=True,
     rec_data_dir = data_dir + '/recordings/'
 
     # Init data structures.
-    combUA = unitarray.UnitArray(ua_name)
+    combUA = unitarray.UnitArray(proj_name)
 
     print('\nStarting quality control...\n')
     putil.inline_off()

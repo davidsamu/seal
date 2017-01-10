@@ -86,7 +86,7 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
 
     # For each unit over all tasks.
     for uid in UA.uids():
-
+        print(uid)
         # Init figure.
         if plot_QM:
             fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
@@ -139,7 +139,7 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
                                       w_pad=w_pad)
 
 
-def exclude_units(UA):
+def report_unit_exclusion_stats(UA):
     """Exclude low quality units."""
 
     exclude = []
