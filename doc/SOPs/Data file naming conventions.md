@@ -1,4 +1,4 @@
-# Naming convention for recorded files
+# Naming convention for recorded data files
 
 Recordings and generated data files should follow the following naming template:
 
