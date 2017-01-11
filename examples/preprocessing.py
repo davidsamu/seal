@@ -10,8 +10,9 @@ Created on Fri Dec  9 16:55:34 2016
 #
 # 1) import SimpleTPLCell structures (created in Matlab),
 # 2) convert them into Seal Units and UnitArrays,
-# 3) test unit quality, recording drifts, stimulus response properties, and
-# 4) exclude trials and units automatically and/or manually.
+# 3) test unit quality and recording drifts,
+# 4) exclude trials and units automatically and/or manually,
+# 5) plot some simple activity plots per unit.
 
 # To get the code run, you need to:
 #   - install all necessary Python packages
@@ -20,10 +21,7 @@ Created on Fri Dec  9 16:55:34 2016
 #   - pull from GitHub, and import, the latest version of Seal
 #     (see section "Import Seal" below),
 #   - set your paths:
-#       - project folder (proj_dir)
-#       - subfolder with .mat TPLCell objects (tpl_dir)
-#       - subfolder into which to output Seal Units (seal_dir)
-#   - set recording region name (region, "PFC" or "MT")
+#       - project name, folder and data dir (proj_name, proj_dir and data_dir)
 
 # Preprocessing analysis is done in three steps:
 # 1) init.convert_TPL_to_Seal: this simply converts the .mat objects
@@ -51,85 +49,91 @@ import sys
 # b) using a GUI tool, e.g. GitKraken
 
 # Set this to your Seal installation path.
-sys.path.insert(1, '/home/upf/Research/tools/python/Seal/')
+seal_installation_folder = '/home/upf/Research/tools/python/Seal/'
+sys.path.insert(1, seal_installation_folder)
 
-from seal.object import constants
 from seal.io import init
 
-# Set working directory.
-proj_dir = '/home/upf/Research/projects/Combined'  # DON'T add slash to end!
+
+# %% Set up project paths.
+
+# Set project parameters.
+proj_name = 'Combined'
+proj_dir = '/home/upf/Research/projects/' + proj_name
+data_dir = proj_dir + '/data/'
+
 os.chdir(proj_dir)
 
 
-# %% Convert all Matlab structs to Seal UnitArray.
+# %% Convert TPLCells to Seal UnitArrays, per recording.
 
-# Input/output folders.
-tpl_dir = 'data/matlab_cells/'     # folder containig MATLAB TPLCell objects per recording
-seal_dir = 'data/seal_units/'      # folder to write seal units into
-
-region = 'PFC'  # recording region: "PFC" or "MT"
-
-# Kernel set to be used for firing rate estimation,
-# see constants.py for available options.
-kernels = constants.R100_kernel
-
-init.convert_TPL_to_Seal(tpl_dir, seal_dir, kernels, region)
+init.convert_TPL_to_Seal(data_dir)
 
 # Output:
-# - Seal UnitArray data per recording inside 'seal_dir'
+# - Seal UnitArray data per recording in
+#     data/recordings/[recording]/SealCells
 
 
-# %% Run quality test on Units.
+# %% Run quality test on units, per recording.
 
-# Plotting parameters.
-plot_QM = True       # plot quality metrics (SNR, ISI, rate, etc) of each unit?
-plot_SR = True       # plot stimulus response of each unit? (3x3 figure)
-plot_sel = True      # plot feature selectivity plot of each unit?
-plot_stab = True     # plot recording stability plot of each recording?
+plot_qm = True    # plot quality metrics (SNR, ISI, rate, etc) of each unit?
+plot_stab = True  # plot recording stability plot of each recording?
+init.quality_control(data_dir, proj_name, plot_qm, plot_stab)
 
-creat_montage = True  # create montage from all preprocessing figures created
-                      # need to have ImageMagick install for this option.
-                      # https://www.imagemagick.org/script/binary-releases.php
-
-
-ua_name = os.path.split(proj_dir)[1]
-init.run_preprocessing(seal_dir, ua_name, plot_QM, plot_SR, plot_sel,
-                       plot_stab, creat_montage)
 
 # Output:
 #
-# - quality control figures for each recording in
-#   "[seal_dir]/[recording]/qc_res"
-# - aggregate UnitArray data combined across all recordings in
-#   "all_recordings/all_recordings.data"
+# - quality control figures for each unit in each recording in
+#    data/recordings/[recording]/quality_control/
+# - recording stability figure of each recording in
+#    data/recordings/[recording]/recording_stability.png
+# - combined UnitArray data containing all recordings in
+#    data/all_recordings.data
 # - unit and trial exclusion table in
-#   "all_recordings/unit_trial_selection.xlsx"
+#    data/unit_trial_selection.xlsx
 # - unit parameter table
-#   "all_recordings/unit_list.xlsx"
+#    data/unit_list.xlsx
 
-# %% OPTIONAL: Update automatically excluded units and trials.
+
+# %% Exclude low quality units and trials.
 
 # Before running this section:
-# 1. Check results from previous section (QM and DS plots of each unit)
-# 2. Based on these results, edit unit and trial selection table of combined
-#    UnitArray if necessary (table is saved into 'combined_recordings' folder).
+# 1. Check QM plot of each unit (generated in section above)
+# 2. Based on QM plots, edit unit and trial selection table of combined
+#    UnitArray if necessary (table is saved into folder data_dir).
 #    - unit included: 1: include unit, 0: excluded unit
 #    - first included trial [inclusive]: anything less or equal to 1 includes
 #      all trials from beginning of task
 #    - last included trial [inclusive]: anything larger or equal to # trials
 #      (or -1, as a shorthand) includes all trials till end of task
 # 3. After editing, save table into the same folder under a different name,
-#    and set 'f_sel_table' to that file.
+#    and set 'f_selection' to that file.
 
-clean_array = True  # remove uids and tasks with all units empty or excluded?
-data_dir = 'data/all_recordings/'  # folder with combined recordings
-f_data = data_dir + 'all_recordings.data'    # combined recordings data file
-f_sel_table = data_dir + 'unit_trial_selection_modified.xslx'  # unit&trial selection table
+fselection = data_dir + 'unit_trial_selection_modified.xlsx'
 
-init.select_unit_and_trials(f_data, f_sel_table, clean_array)
+plot_QM = True   # Replot quality metrics (SNR, ISI, rate, etc) of each unit?
+init.run_quality_control(data_dir, proj_name, plot_QM, fselection)
+
 
 # Output:
-# - UnitArray data of all recordings, updated with unit&trial selection
-#   in combined_recordings/[project folder name]/[project folder name].data
+# - UnitArray data of all recordings, updated with unit & trial selection in
+#    data/all_recordings.data
+# - updated quality control figures per unit in
+#    data/recordings/[recording]/quality_control/
+# - updated recording stability figure of each recording in
+#    data/recordings/[recording]/recording_stability.png
 # - updated unit parameter table
-#   "all_recordings/unit_list.xlsx"
+#    data/unit_list.xlsx
+
+
+# %% Plot basic activity plots.
+
+# Plotting options.
+plot_DR = True        # plot direction response of each unit? (3x3 figure)
+plot_sel = True       # plot feature selectivity plot of each unit?
+
+creat_montage = False  # create montage from all activity figures created
+                       # need to have ImageMagick install for this option.
+                       # https://www.imagemagick.org/script/binary-releases.php
+
+init.unit_activity(data_dir, proj_name, plot_DR, plot_sel, creat_montage)

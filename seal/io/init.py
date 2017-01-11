@@ -78,11 +78,12 @@ def convert_TPL_to_Seal(data_dir):
         util.write_objects({'UnitArr': UA}, fname_seal)
 
 
-def run_quality_control(data_dir, proj_name, plot_QM=True, fselection=None):
+def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
+                    fselection=None):
     """Run quality control (SNR, rate drift, ISI, etc) on each recording."""
 
     # Data directory with all recordings to be processed in subfolders.
-    rec_data_dir = data_dir + '/recordings/'
+    rec_data_dir = data_dir + 'recordings/'
 
     # Init combined UnitArray object.
     combUA = unitarray.UnitArray(proj_name)
@@ -98,7 +99,7 @@ def run_quality_control(data_dir, proj_name, plot_QM=True, fselection=None):
         # Init folders.
         rec_dir = rec_data_dir + recording + '/'
         seal_dir = rec_dir + 'SealCells/'
-        ftempl_qm = rec_dir + '/quality_control/{}.png'
+        qc_dir = rec_dir + 'quality_control/'
 
         # Read in Units.
         f_data = seal_dir + recording + '.data'
@@ -106,10 +107,17 @@ def run_quality_control(data_dir, proj_name, plot_QM=True, fselection=None):
 
         # Test unit quality, save result figures, add stats to units and
         # exclude low quality trials and units.
-        test_units.quality_test(UA, ftempl_qm, plot_QM, fselection)
+        ftempl = qc_dir + 'quality_metrics/{}.png'
+        test_units.quality_test(UA, ftempl, plot_qm, fselection)
 
         # Report unit exclusion stats.
         test_units.report_unit_exclusion_stats(UA)
+
+        # Test stability of recording session across tasks.
+        if plot_stab:
+            print('  Plotting recording stability...')
+            fname = qc_dir + 'recording_stability.png'
+            test_units.rec_stability_test(UA, fname)
 
         # Add to combined UA.
         combUA.add_recording(UA)
@@ -136,14 +144,9 @@ def run_quality_control(data_dir, proj_name, plot_QM=True, fselection=None):
     putil.inline_on()
 
 
-def run_preprocessing(data_dir, proj_name, plot_DR=True, plot_sel=True,
-                      plot_stab=True, creat_montage=True):
-    """
-    Run preprocessing on Units and UnitArrays, including
-      - location and direction selectivity tests,
-      - recording stability test,
-      - exporting automatic unit and trial selection results.
-    """
+def unit_activity(data_dir, proj_name, plot_DR=True, plot_sel=True,
+                  creat_montage=True):
+    """Plot basic unit activity figures."""
 
     # Data directory with all recordings to be processed in subfolders.
     rec_data_dir = data_dir + '/recordings/'
@@ -193,12 +196,6 @@ def run_preprocessing(data_dir, proj_name, plot_DR=True, plot_sel=True,
             print('  Creating montage images...')
             test_units.create_montage(UA, ftempl_qm, ftempl_dr,
                                       ftempl_sel, ftempl_mont)
-
-        # Test stability of recording session across tasks.
-        if plot_stab:
-            print('  Plotting recording stability...')
-            fname = qc_dir + 'recording_stability.png'
-            test_units.rec_stability_test(UA, fname)
 
         # Add to combined UA
         combUA.add_recording(UA)

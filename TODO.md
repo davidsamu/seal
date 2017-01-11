@@ -20,6 +20,11 @@ analyses to add from DD scripts
   - comparison effect
 
 
+constants
+---------
+  - define a constants/parameter file per project
+
+
 unitarray / unit
 ----------------
   - add test and register whether unit's are matched across tasks
@@ -48,6 +53,7 @@ waveform duration and amplitude calculation
 export
 ------
   - add export decoding data (from Anna's script) into pickle and mat
+
 
 unit
 ----

@@ -75,7 +75,7 @@ def get_selection_params(u, UnTrSel=None):
     return sel_pars
 
 
-def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
+def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
     """Test and plot quality metrics of recording and spike sorting """
 
     # Init plotting theme.
@@ -86,9 +86,9 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
 
     # For each unit over all tasks.
     for uid in UA.uids():
-        print(uid)
+
         # Init figure.
-        if plot_QM:
+        if plot_qm:
             fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                                 subw=subw, subh=1.6*subw)
             wf_axs, amp_axs, dur_axs, amp_dur_axs, rate_axs = ([], [], [],
@@ -102,7 +102,7 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
             res = test_sorting.test_qm(u, **sel_pars)
 
             # Plot QC results.
-            if plot_QM:
+            if plot_qm:
 
                 if res is not None:
                     ax_res = test_sorting.plot_qm(u, fig=fig, sps=gsp[i],
@@ -120,7 +120,7 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
                     mock_ax = putil.embed_gsp(gsp[i], 1, 1)
                     putil.add_mock_axes(fig, mock_ax[0, 0])
 
-        if plot_QM:
+        if plot_qm:
 
             # Match axis scales across tasks.
             putil.sync_axes(wf_axs, sync_x=True, sync_y=True)
@@ -131,10 +131,10 @@ def quality_test(UA, ftempl_qm=None, plot_QM=False, fselection=None):
             [putil.move_event_lbls(ax, yfac=0.92) for ax in rate_axs]
 
             # Save figure.
-            if ftempl_qm is not None:
+            if ftempl is not None:
                 uid_str = util.format_uid(uid)
                 title = uid_str.replace('_', ' ')
-                fname = ftempl_qm.format(uid_str)
+                fname = ftempl.format(uid_str)
                 putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
                                       w_pad=w_pad)
 
@@ -267,13 +267,14 @@ def rec_stability_test(UA, fname=None):
     """Check stability of recording session across tasks."""
 
     # Init params.
-    periods = constants.tr_prds
+    periods = constants.tr_prds.loc[['whole trial', 'fixation']]
 
     # Init figure.
-    fig, gsp, ax_list = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
-                                              subw=10, subh=2.5)
+    fig, gsp, axs = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
+                                          subw=10, subh=2.5, create_axes=True,
+                                          as_array=False)
 
-    for prd, ax in zip(periods.index, ax_list):
+    for prd, ax in zip(periods.index, axs):
 
         # Calculate and plot firing rate during given period in each trial
         # across session for all units.
@@ -328,4 +329,4 @@ def rec_stability_test(UA, fname=None):
 
     # Save figure.
     title = 'Recording stability of ' + UA.Name
-    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95)
+    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
