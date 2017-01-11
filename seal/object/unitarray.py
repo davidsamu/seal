@@ -132,12 +132,19 @@ class UnitArray:
     def rec_task_order(self):
         """Return original recording task order."""
 
-        tasks = pd.Series(self.tasks())
-        task_idxs = [[u.SessParams.loc['task #'] - 1
-                      for u in self.iter_thru([task])][0] for task in tasks]
+        tasks, recs = self.tasks(), self.recordings()
+        task_order = pd.DataFrame(index=recs, columns=tasks)
 
-        rec_task_ord = tasks[task_idxs]
-        return rec_task_ord
+        for rec in recs:
+            uids = list(self.get_uids_of_rec(rec))
+            for task in tasks:
+                ulist = list(self.iter_thru([task], uids, excl=True))
+                if not len(ulist):  # no non-empty unit in task recording
+                    continue
+                u = ulist[0]  # just take first unit (all should be the same)
+                task_order.loc[rec, task] = u.SessParams.loc['task #'] - 1
+
+        return task_order
 
     def uids(self, req_tasks=None):
         """

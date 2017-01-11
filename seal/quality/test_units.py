@@ -280,7 +280,7 @@ def rec_stability_test(UA, fname=None):
         # across session for all units.
         colors = putil.get_colors()
         task_stats = pd.DataFrame(columns=['t_start', 'label'])
-        for task, color in zip(UA.rec_task_order(), colors):
+        for task, color in zip(UA.tasks(), colors):
 
             # Get activity of all units in task.
             tr_rates = []
@@ -288,6 +288,10 @@ def rec_stability_test(UA, fname=None):
                 rates = u.get_prd_rates(prd, tr_time_idx=True)
                 tr_rates.append(util.remove_dim_from_series(rates))
             tr_rates = pd.DataFrame(tr_rates)
+
+            # Not (non-empty and included) unit during task.
+            if not len(tr_rates.index):
+                continue
 
             # Plot each rate in task.
             tr_times = tr_rates.columns
