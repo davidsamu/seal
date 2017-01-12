@@ -15,15 +15,15 @@ from seal.util import util, kernels
 # %% Task constants and parameters.
 
 # Stimulus parameters.
-stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg),
-                            ('S2', 'Dir'): ('markS2Dir', deg),
-                            ('S1', 'LocX'): ('markS1LocX', cm),
-                            ('S1', 'LocY'): ('markS1LocY', cm),
-                            ('S2', 'LocX'): ('MarkS2LocX', cm),
-                            ('S2', 'LocY'): ('MarkS2LocY', cm),
-                            ('S1', 'Rng'): ('markS1range', deg),
-                            ('S2', 'Rng'): ('markS2range', deg)},
-                           index=('name', 'dim')).T
+stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
+                            ('S2', 'Dir'): ('markS2Dir', deg, int),
+                            ('S1', 'LocX'): ('markS1LocX', cm, None),
+                            ('S1', 'LocY'): ('markS1LocY', cm, None),
+                            ('S2', 'LocX'): ('MarkS2LocX', cm, None),
+                            ('S2', 'LocY'): ('MarkS2LocY', cm, None),
+                            ('S1', 'Rng'): ('markS1range', deg, None),
+                            ('S2', 'Rng'): ('markS2range', deg, None)},
+                           index=('name', 'dim', 'type')).T
 
 # Subject answer reports.
 answ_params = pd.Series({'AnswCorr': 'subjectAnswer'})

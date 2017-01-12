@@ -45,7 +45,6 @@ def calc_auc(clf, x, y):
 def ROC(x, y, n_perm=None, clf=None):
     """Perform ROC analysis with optional permutation test."""
 
-    # Also checked in calc_auc, but put here to speed things up.
     if len(x.shape) < 2:
         x = np.array(x, ndmin=2).T
 

@@ -108,6 +108,14 @@ class Unit:
         self.StimParams = trpars[stim_params.name]
         self.StimParams.columns = stim_params.index
 
+        # Change type if required.
+        stim_pars = self.StimParams.copy()
+        for stim_par in stim_pars:
+            stim_type = stim_params.loc[stim_par, 'type']
+            if stim_type is not None:
+                stim_pars[stim_par] = stim_pars[stim_par].astype(stim_type)
+        self.StimParams = stim_pars
+
         # Combine x and y stimulus coordinates into a single location variable.
         stim_pars = self.StimParams.copy()
         for stim in stim_pars.columns.levels[0]:
