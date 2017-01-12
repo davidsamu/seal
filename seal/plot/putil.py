@@ -161,8 +161,8 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
             txt.event_lbl = True  # add label to find these artists later
 
 
-def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1, med='orange',
-                      mfc='None', ax=None, **kwargs):
+def plot_event_marker(events, ypos=0.96, marker='o', ms=10, mew=1,
+                      med='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 
     ax = axes(ax)

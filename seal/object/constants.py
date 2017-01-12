@@ -159,5 +159,8 @@ def_nrate = 'R100'
 
 # %% Neurophysiological constants.
 
-# Region-specific latency values (stimulus response delay).
-latency = pd.Series({'MT': 50*ms, 'PFC': 100*ms})
+nphy_cons = [('MT', (50*ms, 500*ms)),
+             ('PFC', (100*ms, 200*ms))]
+
+nphy_cons = pd.DataFrame.from_items(nphy_cons, ['latency', 'DSwindow'],
+                                    'index')

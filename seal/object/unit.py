@@ -413,7 +413,7 @@ class Unit:
 
         evt = self.Events[evname].copy()
         if add_latency:
-            evt += constants.latency[self.get_region()]
+            evt += constants.nphy_cons.latency[self.get_region()]
 
         return evt
 
@@ -436,7 +436,7 @@ class Unit:
 
         return dur
 
-    def init_analysis_prds(self, prds=None):
+    def get_analysis_prds(self, prds=None):
         """Get parameters of periods to analyse."""
 
         if prds is None:
@@ -446,6 +446,19 @@ class Unit:
         prds['dur'] = [self.pr_dur(prd) for prd in prds.index]
 
         return prds
+
+    def get_stim_prds(self):
+        """Get simulus periods from standard trial alignment."""
+
+        prd_pars = self.get_analysis_prds()
+        stim_prds = []
+        for stim in prd_pars.stim.unique():
+            stim_idx = (prd_pars.stim == stim) & (prd_pars.ref == (stim+' on'))
+            tstart = prd_pars.loc[stim_idx, 'lbl_shift'][0]
+            tend = tstart + constants.stim_dur[stim]
+            stim_prds.append((stim, float(tstart), float(tend)))
+
+        return stim_prds
 
     # %% Generic methods to get various set of trials.
 
@@ -645,11 +658,29 @@ class Unit:
 
         return stim_resp
 
-    def calc_DS(self, stim, **kwargs):
+    def calc_DS(self, stim):
         """Calculate direction selectivity (DS)."""
 
+        ltncy, wndw_len = constants.nphy_cons.loc[self.get_region()]
+
+        # Find maximal stimulus response across all directions combined.
+        # WARNING: This assumes DS id maximal at time of maximum response!
+        nrate, trs = self.init_nrate(), self.inc_trials()
+        t1s, t2s = self.pr_times(stim, add_latency=False, concat=False)
+        rates = self._Rates[nrate].get_rates(trs, t1s, t2s, t1s)
+        tmax = rates.mean().argmax()
+
+        # Get period around tmax (but within full time window of stimulus).
+        tvec = rates.columns
+        wndw_len = float(wndw_len)
+        left_overflow = max(tvec.min() - (tmax - wndw_len/2), 0)
+        right_overflow = max((tmax + wndw_len/2) - tvec.max(), 0)
+        tstart = max(tmax - wndw_len/2 - right_overflow, tvec.min()) * ms
+        tend = min(tmax + wndw_len/2 + left_overflow, tvec.max()) * ms
+        TW = pd.Series([tstart, tend], index=['tstart', 'tend'])
+
         # Get direction response values and stats.
-        stim_resp = self.get_stim_resp_vals(stim, 'Dir', **kwargs)
+        stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+tstart, t1s+tend)
         resp_stats = util.calc_stim_resp_stats(stim_resp)
 
         # Convert each result to Numpy array.
@@ -675,22 +706,23 @@ class Unit:
                        keys=('max', 'weighted', 'tuned'))
         DSI = pd.Series([mDS, wDS], index=['mDS', 'wDS'])
 
-        return resp_stats, PD, DSI, tune_pars, tune_res
+        return TW, resp_stats, PD, DSI, tune_pars, tune_res
 
-    def test_DS(self, stims=['S1', 'S2'], **kwargs):
+    def test_DS(self, stims=['S1', 'S2']):
         """Test unit's direction selectivit."""
 
         if not self.n_inc_trials():
             return
 
         # Init field to store DS results.
-        lDR, lDSI, lPD, lTP = [], [], [], []
+        lTW, lDR, lDSI, lPD, lTP = [], [], [], [], []
         for stim in stims:
 
             # Calculate DS during stimulus.
-            DR, PD, DSI, tune_pars, tune_res = self.calc_DS(stim, **kwargs)
+            TW, DR, PD, DSI, tune_pars, tune_res = self.calc_DS(stim)
 
             # Collect DR values.
+            lTW.append(TW)
             lDR.append(DR)
 
             # Collect DS params.
@@ -702,10 +734,11 @@ class Unit:
             lTP.append(tun_fit.append(tune_res))
 
         # Convert each to a DataFrame.
-        DR, DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
-                           for rlist in (lDR, lDSI, lPD, lTP)]
+        TW, DR, DSI, PD, TP = [pd.concat(rlist, axis=1, keys=stims).T
+                               for rlist in (lTW, lDR, lDSI, lPD, lTP)]
 
         # Save DS results.
+        self.DS['TW'] = TW
         self.DS['DR'] = DR.T
         self.DS['DSI'] = DSI
         self.DS['PD'] = PD

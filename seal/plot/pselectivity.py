@@ -28,7 +28,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
     # Set up stimulus parameters.
     if prd_pars is None:
-        prd_pars = u.init_analysis_prds()
+        prd_pars = u.get_analysis_prds()
     mid_idx = int((len(prd_pars.index)/2.0))
 
     # Init subplots.
@@ -116,6 +116,9 @@ def plot_LR(u, **kwargs):
 def plot_DR(u, **kwargs):
     """Plot direction response plot."""
 
+    if u.DS.empty:
+        u.test_DS()
+
     # Raster & rate in trials sorted by stimulus direction.
     pref_anti_dirs = [u.pref_dir(), u.anti_pref_dir()]
     title = 'Direction selectivity'
@@ -133,12 +136,12 @@ def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
     ax_mDSI, ax_wDSI = [fig.add_subplot(igsp) for igsp in gsp]
 
     # Calculate DSI using maximum - opposite and weighted measure.
+    prd_pars = u.get_analysis_prds()
     maxDSI, wghtDSI = [direction.calc_DSI(u, fDSI, prd_pars, nrate)
                        for fDSI in [direction.max_DS, direction.weighted_DS]]
 
     # Get stimulus periods.
-    # TODO: get rid of hardcoding!
-    stim_prds = [('S1', 0, 500), ('S2', 2000, 2500)]
+    stim_prds = u.get_stim_prds()
 
     # Plot DSIs.
     DSI_list = [pd.DataFrame(row).T for name, row in maxDSI.iterrows()]
@@ -175,7 +178,7 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    tr_sps, lr_sps = putil.embed_gsp(sps, 2, 1, hspace=0.4)
+    tr_sps, lr_sps, dr_sps = putil.embed_gsp(sps, 3, 1, hspace=0.4)
 
     kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
 
@@ -185,7 +188,10 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
     # Plot location-specific activity.
     _, lr_rate_axs = plot_LR(u, sps=lr_sps, **kwargs)
 
-    return lr_rate_axs
+    # Plot direction-specific activity.
+    _, dr_rate_axs = plot_DR(u, sps=dr_sps, **kwargs)
+
+    return lr_rate_axs, dr_rate_axs
 
 
 def plot_DR_3x3(u, nrate=None, fig=None, sps=None):

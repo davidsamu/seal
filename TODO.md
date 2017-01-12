@@ -19,7 +19,6 @@ analyses to add from DD scripts
     - analysis
   - comparison effect
 
-
 constants
 ---------
   - define a constants/parameter file per project
@@ -58,6 +57,7 @@ export
 unit
 ----
   - add RF coverage information
+  - add type information: suppressive?, broad spiking? motor? etc
 
 
 plot

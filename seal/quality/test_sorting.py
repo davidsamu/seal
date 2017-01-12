@@ -28,7 +28,7 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0*ms               # ISI violation threshold
-MAX_DRIFT_RATIO = 2           # maximum tolerable drift ratio
+MAX_DRIFT_PCT = 200         # maximum tolerable drift percentage (max/min FR)
 MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
 MIN_TASK_RELATED_DUR = 50*ms  # minimum window length of task related activity
 
@@ -183,7 +183,7 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
             vmin = min(vmin, v2)
             vmax = max(vmax, v2)
             # If difference becomes unacceptable, terminate period.
-            if vmax > MAX_DRIFT_RATIO*v2 or v2 > MAX_DRIFT_RATIO*vmin:
+            if vmax > MAX_DRIFT_PCT/100*v2 or v2 > MAX_DRIFT_PCT/100*vmin:
                 j -= 1
                 break
         end_i = i + j

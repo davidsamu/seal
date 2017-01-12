@@ -579,7 +579,7 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
         x, y = x[idx], y[idx]
 
     # Insufficient sample size.
-    xvalid, yvalid = [v(~np.isnan(v)) for v in (x, y)]
+    xvalid, yvalid = [v[~np.isnan(v)] for v in (x, y)]
     if sum(xvalid) < min_sample_size or sum(yvalid) < min_sample_size:
         return np.nan, np.nan
 

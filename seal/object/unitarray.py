@@ -20,7 +20,7 @@ class UnitArray:
     """
 
     # %% Constructor.
-    def __init__(self, name):
+    def __init__(self, name, task_order=None):
         """
         Create UnitArray empty instance.
 
@@ -29,7 +29,7 @@ class UnitArray:
 
         # Init instance.
         self.Name = name
-        self.Units = pd.DataFrame()
+        self.Units = pd.DataFrame(columns=task_order)
 
     # %% Utility methods.
 
@@ -222,7 +222,12 @@ class UnitArray:
     def add_recording(self, UA):
         """Add Units from new recording UA to UnitArray as extra rows."""
 
+        # Append new tasks to end.
+        new_tasks = UA.tasks().difference(self.tasks())
+        task_order = self.tasks().append(new_tasks)
+
         self.Units = pd.concat([self.Units, UA.Units], axis=0, join='outer')
+        self.Units = self.Units[task_order]
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())

@@ -211,7 +211,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=12)
-        task_ls_rate_axs = []
+        ls_axs, ds_axs = [], []
 
         # Plot stimulus response summary plot of unit in each task.
         for task, sps in zip(UA.tasks(), gsp):
@@ -220,8 +220,8 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
             res = (pselectivity.plot_selectivity(u, nrate, fig, sps)
                    if not u.is_excluded() and u.to_plot() else None)
             if res is not None:
-                ls_rate_axs = res
-                task_ls_rate_axs.extend(ls_rate_axs)
+                ls_axs.extend(res[0])
+                ds_axs.extend(res[1])
 
             else:
                 mock_ax = putil.embed_gsp(sps, 1, 1)
@@ -229,7 +229,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
 
         # Match scale of y axes across tasks.
         if match_scales:
-            for rate_axs in [task_ls_rate_axs]:
+            for rate_axs in [ls_axs, ds_axs]:
                 putil.sync_axes(rate_axs, sync_y=True)
                 [putil.adjust_decorators(ax) for ax in rate_axs]
 

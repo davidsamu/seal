@@ -86,7 +86,8 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
     rec_data_dir = data_dir + 'recordings/'
 
     # Init combined UnitArray object.
-    combUA = unitarray.UnitArray(proj_name)
+    task_order = constants.task_info.index
+    combUA = unitarray.UnitArray(proj_name, task_order)
 
     print('\nStarting quality control...\n')
     putil.inline_off()
