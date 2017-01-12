@@ -11,7 +11,7 @@ from quantities import ms
 import pandas as pd
 
 from sklearn.metrics import roc_auc_score
-from sklearn.cross_validation import ShuffleSplit
+from sklearn.model_selection import ShuffleSplit
 from sklearn.linear_model import LogisticRegression
 
 from seal.util import util
@@ -72,49 +72,22 @@ def ROC(x, y, n_perm=None, clf=None):
 
 # %% Wrapper functions.
 
-def run_unit_ROC(u, get_trials, get_trials_kwargs, nrate,
-                 t1=None, t2=None, n_perm=None):
-    """Run ROC analysis on single unit."""
+def run_ROC_over_time(u, rates1, rates2, nperm=None, clf=None):
+    """Run ROC analysis between two rate frames (trials by time)."""
 
-    # Get rates for two sets of trials.
-    # TODO: trial selection should be refactored!!! and moved to Trials??
-    all_trs = get_trials(u, **get_trials_kwargs)
-    if not isinstance(all_trs[0], list):  # BIIIIG HACK!!! Do above TODO!!
-        all_trs = [[trs] for trs in all_trs]
-    all_rates = np.array([[u.Rates[nrate].get_rates(tr.trials, t1, t2)
-                          for tr in trs] for trs in all_trs])
+    # Merge rates and create and target vector.
+    rates = pd.concat([rates1, rates2])
+    target_vec = np.hstack([i*np.ones(len(rates.index))
+                            for i, rates in enumerate([rates1, rates2])])
 
-    # Create rate matrix and target vector.
-    # Z-score across time in corresponding trial-pairs (e.g., per direction).
-    Rates = []
-    ZRates = []
-    Targets = []
-    for itr in range(all_rates.shape[1]):
+    # Default classifier.
+    if clf is None:
+        clf = LogisticRegression()
 
-        # Extract and stack rates.
-        rates1 = all_rates[0, itr]
-        rates2 = all_rates[1, itr]
+    # Run ROC across time.
+    roc_res = pd.Series([ROC(rates[t], target_vec, nperm, clf) for t in rates],
+                        index=rates.columns)
 
-        # Stack rates and target values across all trials.
-        rates = np.vstack((rates1, rates2))
-        target = np.array(rates1.shape[0]*[0] + rates2.shape[0]*[1])
-
-        # Z-score rates. axis=None: compute z-score over all trials!
-        zrates = util.zscore_timeseries(rates, axis=None)
-
-        Rates.append(rates)
-        ZRates.append(zrates)
-        Targets.append(target)
-
-    # Stack them together across trial-pairs.
-    Rates = np.vstack(Rates)
-    ZRates = np.vstack(ZRates)
-    Targets = np.hstack(Targets)
-
-    # Run ROC on rates and target.
-    # Can pass ZRates or Rates to ROC!!!
-    roc_res = np.array([ROC(ZRates[:, t_idx], Targets, n_perm)
-                        for t_idx in range(rates.shape[1])], dtype='float')
     return roc_res
 
 

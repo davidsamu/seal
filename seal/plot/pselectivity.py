@@ -20,8 +20,9 @@ from seal.util import util
 # %% Functions to plot stimlus feature selectivity.
 
 def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
-            add_prd_name=False, fig=None, sps=None, title=None, **kwargs):
-    """Plot stimulus response (raster and rate) for mutliple stimuli."""
+            add_roc=True, add_prd_name=False, fig=None, sps=None, title=None,
+            **kwargs):
+    """Plot stimulus response (raster, rate and ROC) for mutliple stimuli."""
 
     if not u.to_plot():
         return
@@ -40,8 +41,14 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
     gsp = putil.embed_gsp(sps, 1, len(prd_pars.index),
                           width_ratios=wratio, wspace=wspace)
 
-    axes_raster, axes_rate = [], []
+    axes_raster, axes_rate, axes_roc = [], [], []
     for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
+
+        # Init subplots.
+        if add_roc:
+            rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.3)
+        else:
+            rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)
 
         # Prepare trial set.
         if feat is not None:
@@ -58,19 +65,33 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
         # Plot response on raster and rate plots.
         _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, evnts, nrate, trs,
                                                cols=cols, fig=fig,
-                                               sps=gsp[i], **kwargs)
+                                               sps=rr_sps, **kwargs)
 
         # Add period name to rate plot.
         if add_prd_name:
             rate_ax.text(0.02, 0.95, prd, fontsize=10, color='k',
                          va='top', ha='left', transform=rate_ax.transAxes)
 
-        # Add title to to raster of middle period.
+        # Add title to raster of middle period.
         if i == mid_idx and title is not None:
             raster_axs[0].set_title(title, ha='right')
 
+        # Plot ROC curve.
+        if add_roc and len(trs) == 2:
+            # Init rates.
+            plot_params = prate.prep_rr_plot_params(u, prd, ref, nrate, trs)
+            _, _, (rates1, rates2), stim_prd, _, _ = plot_params
+
+
+            roc_sps
+
+        else:
+            mock_ax = putil.embed_gsp(roc_sps, 1, 1)
+            putil.add_mock_axes(fig, mock_ax[0, 0])
+
         axes_raster.extend(raster_axs)
         axes_rate.append(rate_ax)
+        axes_roc.append(roc_ax)
 
     # Format rate plots.
 
@@ -101,7 +122,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
     putil.sync_axes(axes_rate, sync_y=True)
     [putil.adjust_decorators(ax) for ax in axes_rate]
 
-    return axes_raster, axes_rate
+    return axes_raster, axes_rate, axes_roc
 
 
 def plot_LR(u, **kwargs):
@@ -186,10 +207,10 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
     plot_task_relatedness(u, sps=tr_sps, **kwargs)
 
     # Plot location-specific activity.
-    _, lr_rate_axs = plot_LR(u, sps=lr_sps, **kwargs)
+    _, lr_rate_axs, _ = plot_LR(u, sps=lr_sps, **kwargs)
 
     # Plot direction-specific activity.
-    _, dr_rate_axs = plot_DR(u, sps=dr_sps, **kwargs)
+    _, dr_rate_axs, _ = plot_DR(u, sps=dr_sps, **kwargs)
 
     return lr_rate_axs, dr_rate_axs
 
@@ -230,7 +251,7 @@ def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
         # Plot direction response across trial periods.
         res = plot_SR(u, feat='Dir', vals=[d], nrate=nrate, fig=fig,
                       sps=gsp[isp], no_labels=True)
-        draster_axs, drate_axs = res
+        draster_axs, drate_axs, _ = res
 
         # Remove axis ticks.
         for i, ax in enumerate(drate_axs):

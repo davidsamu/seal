@@ -77,7 +77,7 @@ class UnitArray:
         # Get current unit.
         task = self._iter_tasks[self._itask]
         uid = self._iter_uids[self._iuid]
-        u = self.Units.loc[uid, task]
+        u = self.get_unit(uid, task)
 
         # Update (increment) index variables to point to next unit.
         self._iuid += 1
@@ -97,7 +97,7 @@ class UnitArray:
     def get_unit(self, uid, task):
         """Return unit of given task and uid."""
 
-        u = self.Units.loc[uid, task]
+        u = self.Units.loc[[uid], task][0]
         return u
 
     def get_unit_by_name(self, uname):
@@ -288,7 +288,7 @@ class UnitArray:
     # %% Methods to manipulate units.
 
     def index_units(self):
-        """Add index to Units in UnitArray per each task."""
+        """Add index to Units in UnitArray per task."""
 
         for task in self.tasks():
             for i, u in enumerate(self.iter_thru(tasks=[task], miss=True,
