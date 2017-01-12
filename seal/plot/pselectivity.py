@@ -12,19 +12,9 @@ import pandas as pd
 from quantities import deg
 
 from seal.object import constants
+from seal.analysis import direction
 from seal.plot import putil, ptuning, prate
 from seal.util import util
-
-
-# %% Utility functions.
-
-def init_prd_pars_to_plot(u):
-    """Get parameters of periods to plot selectivity for."""
-
-    rr_prds = constants.rr_prds.copy()
-    rr_prds['dur'] = [u.pr_dur(prd) for prd in rr_prds.index]
-
-    return rr_prds
 
 
 # %% Functions to plot stimlus feature selectivity.
@@ -38,7 +28,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
     # Set up stimulus parameters.
     if prd_pars is None:
-        prd_pars = init_prd_pars_to_plot(u)
+        prd_pars = u.init_analysis_prds()
     mid_idx = int((len(prd_pars.index)/2.0))
 
     # Init subplots.
@@ -51,7 +41,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
                           width_ratios=wratio, wspace=wspace)
 
     axes_raster, axes_rate = [], []
-    for i, (prd, stim, ref, _, dur) in enumerate(prd_pars.itertuples()):
+    for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
 
         # Prepare trial set.
         if feat is not None:
@@ -60,12 +50,13 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
             trs = u.ser_inc_trials()
 
         # Init params.
+        evnts = [tcue] if tcue is not None else None
         if colors is None:
             colcyc = putil.get_colors()
             cols = [next(colcyc) for itrs in range(len(trs))]
 
         # Plot response on raster and rate plots.
-        _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, nrate, trs,
+        _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, evnts, nrate, trs,
                                                cols=cols, fig=fig,
                                                sps=gsp[i], **kwargs)
 
@@ -108,7 +99,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
     # Match scale of rate plots' y axes.
     putil.sync_axes(axes_rate, sync_y=True)
-    [putil.move_signif_lines(ax) for ax in axes_rate]
+    [putil.adjust_decorators(ax) for ax in axes_rate]
 
     return axes_raster, axes_rate
 
@@ -132,13 +123,43 @@ def plot_DR(u, **kwargs):
     return res
 
 
+def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
+             no_labels=False):
+    """Plot direction selectivity indices."""
+
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+    gsp = putil.embed_gsp(sps, 2, 1, hspace=0.6)
+    ax_mDSI, ax_wDSI = [fig.add_subplot(igsp) for igsp in gsp]
+
+    # Calculate DSI using maximum - opposite and weighted measure.
+    maxDSI, wghtDSI = [direction.calc_DSI(u, fDSI, prd_pars, nrate)
+                       for fDSI in [direction.max_DS, direction.weighted_DS]]
+
+    # Get stimulus periods.
+    # TODO: get rid of hardcoding!
+    stim_prds = [('S1', 0, 500), ('S2', 2000, 2500)]
+
+    # Plot DSIs.
+    DSI_list = [pd.DataFrame(row).T for name, row in maxDSI.iterrows()]
+    prate.rate(DSI_list, maxDSI.index, prds=stim_prds, pval=None, ylab='mDSI',
+               title='max - opposite DSI', add_lgn=True, lgn_lbl=None,
+               ax=ax_mDSI)
+
+    DSI_list = [pd.DataFrame(row).T for name, row in wghtDSI.iterrows()]
+    prate.rate(DSI_list, wghtDSI.index, prds=stim_prds, pval=None, ylab='wDSI',
+               title='weighted DSI', add_lgn=True, lgn_lbl=None, ax=ax_wDSI)
+
+    return ax_mDSI, ax_wDSI
+
+
 def plot_task_relatedness(u, **kwargs):
     """Plot task-relatedness plot."""
 
     tr_str = '? '
     if 'TaskRelated' in u.QualityMetrics:
         tr_str = '' if u.QualityMetrics['TaskRelated'] else 'NOT '
-    title = 'Unit is {}task-related'.format(tr_str)
+    title = '{}: unit is {}task-related'.format(u.SessParams.task, tr_str)
 
     res = plot_SR(u, title=title, **kwargs)
     return res
@@ -146,14 +167,32 @@ def plot_task_relatedness(u, **kwargs):
 
 # %% Functions to plot stimulus selectivity.
 
+def plot_selectivity(u, nrate=None, fig=None, sps=None):
+    """Plot selectivity summary plot."""
+
+    if not u.to_plot():
+        return
+
+    # Init subplots.
+    sps, fig = putil.sps_fig(sps, fig)
+    tr_sps, lr_sps = putil.embed_gsp(sps, 2, 1, hspace=0.4)
+
+    kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
+
+    # Plot task-relatedness.
+    plot_task_relatedness(u, sps=tr_sps, **kwargs)
+
+    # Plot location-specific activity.
+    _, lr_rate_axs = plot_LR(u, sps=lr_sps, **kwargs)
+
+    return lr_rate_axs
+
+
 def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
     """Plot 3x3 direction response plot, with polar plot in center."""
 
     if not u.to_plot():
         return
-
-    # Set up period parameters.
-    prd_pars = init_prd_pars_to_plot(u)
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
@@ -183,8 +222,8 @@ def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
         first_dir = (isp == 0)
 
         # Plot direction response across trial periods.
-        res = plot_SR(u, feat='Dir', vals=[d], prd_pars=prd_pars, nrate=nrate,
-                      fig=fig, sps=gsp[isp], no_labels=True)
+        res = plot_SR(u, feat='Dir', vals=[d], nrate=nrate, fig=fig,
+                      sps=gsp[isp], no_labels=True)
         draster_axs, drate_axs = res
 
         # Remove axis ticks.
@@ -203,33 +242,6 @@ def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
 
     # Match scale of y axes.
     putil.sync_axes(rate_axs, sync_y=True)
+    [putil.adjust_decorators(ax) for ax in rate_axs]
 
     return ax_polar, rate_axs
-
-
-def plot_selectivity(u, nrate=None, fig=None, sps=None):
-    """Plot selectivity summary plot."""
-
-    if not u.to_plot():
-        return
-
-    # Set up period parameters.
-    prd_pars = init_prd_pars_to_plot(u)
-
-    # Init subplots.
-    sps, fig = putil.sps_fig(sps, fig)
-    tr_sps, ls_sps, ds_sps = putil.embed_gsp(sps, 3, 1, hspace=0.4)
-
-    kwargs = {'prd_pars': prd_pars, 'nrate': nrate, 'fig': fig,
-              'no_labels': False}
-
-    # Plot task-relatedness.
-    plot_task_relatedness(u, sps=tr_sps, **kwargs)
-
-    # Plot location selectivity.
-    _, ls_rate_axs = plot_LR(u, sps=ls_sps, **kwargs)
-
-    # Plot direction selectivity.
-    _, ds_rate_axs = plot_DR(u, sps=ds_sps, **kwargs)
-
-    return ls_rate_axs, ds_rate_axs

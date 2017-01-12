@@ -20,10 +20,69 @@ from seal.util import util
 res_names = ['PD', 'cPD', 'AD', 'cAD']
 
 
-# %% Different functions to calculate DS and PD.
+# %% Functions to calculate direction selectivity over time.
+
+def calc_DSI(u, fDSI=None, prd_pars=None, nrate=None):
+    """Calculate DSI over trial periods."""
+
+    # Init periods to analyse and DSI function to use.
+    if prd_pars is None:
+        prd_pars = u.init_analysis_prd()
+    if fDSI is None:
+        fDSI = weighted_DS
+
+    # For each period.
+    DSI = []
+    for prd, (stim, ref, lbl_shift, dur) in prd_pars.iterrows():
+
+        # Get timing and trial params.
+        nrate = u.init_nrate(nrate)
+        t1s, t2s = u.pr_times(prd, concat=False)
+        ref_ts = u.ev_times(ref)
+        trs_by_tgt = u.to_report_trials()
+        trs_by_dir = u.trials_by_features(stim, 'Dir')
+
+        # For each target feature.
+        DSIprd = []
+        for tgt, trs in trs_by_tgt.iteritems():
+
+            # Subselect trials by target.
+            trg_dir_trs = trs_by_dir.apply(np.intersect1d, args=(trs,))
+
+            # Get mean rates per direction over time.
+            tr_ref_ts = ref_ts - lbl_shift
+            rates = [u._Rates[nrate].get_rates(trs, t1s, t2s, tr_ref_ts).mean()
+                     for trs in trg_dir_trs]
+            rates = pd.DataFrame(rates, index=trg_dir_trs.index)
+
+            # Calculate direction selectivity over time.
+            dirs = np.array(rates.index) * deg
+            dsi = pd.Series([fDSI(dirs, rates[t])[1] for t in rates],
+                            index=rates.columns)
+
+            # Collect results.
+            DSIprd.append(dsi)
+
+        # Aggregate data of period.
+        DSIprd = pd.concat(DSIprd, axis=1).T
+        DSIprd.index = trs_by_tgt.index
+
+        # Collect results.
+        DSI.append(DSIprd)
+
+    # Aggregate data across periods.
+    DSI = pd.concat(DSI, axis=1)
+
+    return DSI
+
+
+# %% Functions to calculate DS and PD.
 
 def max_DS(dirs, resp):
     """DS based on maximum rate only (legacy method)."""
+
+    # Init.
+    resp = np.array(resp)
 
     # Preferred and anti-preferred direction.
     PD = dirs[np.argmax(resp)]   # direction with maximal response
@@ -44,6 +103,9 @@ def max_DS(dirs, resp):
 def weighted_DS(dirs, resp):
     """DS based on weighted vector average method."""
 
+    # Init.
+    resp = np.array(resp)
+
     # DS and PD: length and direction of weighted average.
     DSI, PD = polar_wmean(dirs, resp)
     cPD = coarse_dir(PD, constants.all_dirs)
@@ -58,6 +120,9 @@ def weighted_DS(dirs, resp):
 
 def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
     """DS based on Gaussian tuning curve fit."""
+
+    # Init.
+    resp = np.array(resp)
 
     # Center stimulus - response.
     dirs_ctrd = center_to_dir(dirs, dir0)

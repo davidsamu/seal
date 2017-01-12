@@ -42,7 +42,7 @@ def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
     return trs, spikes, rates, stim_prd, names, baseline
 
 
-def plot_rr(u, prd, ref, nrate=None, trs=None, no_labels=False,
+def plot_rr(u, prd, ref, evts=None, nrate=None, trs=None, no_labels=False,
             rate_kws=None, title=None, **kwargs):
     """Plot raster and rate plot of unit for selected sets of trials."""
 
@@ -55,6 +55,7 @@ def plot_rr(u, prd, ref, nrate=None, trs=None, no_labels=False,
     # Set up params.
     plot_params = prep_rr_plot_params(u, prd, ref, nrate, trs)
     trs, spikes, rates, stim_prd, names, baseline = plot_params
+    prds = [stim_prd]
 
     # Set labels.
     if no_labels:
@@ -63,16 +64,16 @@ def plot_rr(u, prd, ref, nrate=None, trs=None, no_labels=False,
         rate_kws['xlab'] = prd
 
     # Plot raster and rate.
-    res = raster_rate(spikes, rates, names, prds=[stim_prd], baseline=baseline,
+    res = raster_rate(spikes, rates, names, prds, evts, baseline=baseline,
                       title=title, rate_kws=rate_kws, **kwargs)
     fig, raster_axs, rate_ax = res
 
     return fig, raster_axs, rate_ax
 
 
-def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
-                baseline=None, title=None, rs_ylab=True, rate_kws=None,
-                fig=None, ffig=None, sps=None):
+def raster_rate(spk_list, rate_list, names=None, prds=None, evts=None,
+                cols=None, baseline=None, title=None, rs_ylab=True,
+                rate_kws=None, fig=None, ffig=None, sps=None):
     """Plot raster and rate plots."""
 
     if rate_kws is None:
@@ -101,8 +102,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, cols=None,
 
     # Rate plot.
     rate_ax = fig.add_subplot(gsp_rate[0, 0])
-    rate(rate_list, names, prds=prds, cols=cols, baseline=baseline,
-         **rate_kws, ax=rate_ax)
+    rate(rate_list, names, prds, evts, cols, baseline, **rate_kws, ax=rate_ax)
 
     # Synchronize raster's x axis limits to rate plot's limits.
     xlim = rate_ax.get_xlim()
@@ -149,8 +149,8 @@ def raster(spk_trains, t_unit=ms, prds=None, size=3.0, c='b', xlim=None,
     return ax
 
 
-def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
-         test_kws=None, xlim=None, ylim=None, cols=None, baseline=None,
+def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
+         pval=0.05, test='t-test', test_kws=None, xlim=None, ylim=None,
          title=None, xlab=None, ylab=putil.FR_lbl, add_lgn=True, lgn_lbl='trs',
          ffig=None, ax=None):
     """Plot firing rate."""
@@ -222,9 +222,13 @@ def rate(rate_list, names=None, prds=None, pval=0.05, test='t-test',
 
     # Add significance line to top of axes.
     if (pval is not None) and (len(rate_list) == 2):
-        r1, r2 = rate_list
-        putil.plot_signif_prds(r1, r2, pval, test, test_kws,
+        rates1, rates2 = rate_list
+        putil.plot_signif_prds(rates1, rates2, pval, test, test_kws,
                                color='m', linewidth=4.0, ax=ax)
+
+    # Plot event markers.
+    if evts is not None:
+        putil.plot_event_marker(evts, ax=ax)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

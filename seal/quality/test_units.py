@@ -174,7 +174,8 @@ def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
             u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
-            res = pselectivity.plot_DR_3x3(u, nrate, fig, sps)
+            res = (pselectivity.plot_DR_3x3(u, nrate, fig, sps)
+                   if not u.is_excluded() and u.to_plot() else None)
             if res is not None:
                 ax_polar, rate_axs = res
                 task_rate_axs.extend(rate_axs)
@@ -185,13 +186,14 @@ def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
 
         # Match scale of y axes across tasks.
         if match_scales:
-            putil.sync_axes(task_rate_axs, sync_y=True)
             putil.sync_axes(task_polar_axs, sync_y=True)
+            putil.sync_axes(task_rate_axs, sync_y=True)
+            [putil.adjust_decorators(ax) for ax in task_rate_axs]
 
         # Save figure.
         if ftempl is not None:
             uid_str = util.format_uid(uid)
-            title = None  # uid_str.replace('_', ' ')
+            title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
             putil.save_gsp_figure(fig, gsp, fname, title,
                                   rect_height=0.92, w_pad=w_pad)
@@ -209,50 +211,53 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
                                             subw=subw, subh=12)
-        task_ls_rate_axs, task_ds_rate_axs = [], []
+        task_ls_rate_axs = []
 
         # Plot stimulus response summary plot of unit in each task.
         for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
-            res = pselectivity.plot_selectivity(u, nrate, fig, sps)
+            res = (pselectivity.plot_selectivity(u, nrate, fig, sps)
+                   if not u.is_excluded() and u.to_plot() else None)
             if res is not None:
-                ls_rate_axs, ds_rate_axs = res
+                ls_rate_axs = res
                 task_ls_rate_axs.extend(ls_rate_axs)
-                task_ds_rate_axs.extend(ds_rate_axs)
+
             else:
                 mock_ax = putil.embed_gsp(sps, 1, 1)
                 putil.add_mock_axes(fig, mock_ax[0, 0])
 
         # Match scale of y axes across tasks.
         if match_scales:
-            for rate_axs in [task_ls_rate_axs, task_ds_rate_axs]:
+            for rate_axs in [task_ls_rate_axs]:
                 putil.sync_axes(rate_axs, sync_y=True)
-                [putil.move_signif_lines(ax) for ax in rate_axs]
+                [putil.adjust_decorators(ax) for ax in rate_axs]
 
         # Save figure.
         if ftempl is not None:
             uid_str = util.format_uid(uid)
-            title = None  # uid_str.replace('_', ' ')
+            title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
             putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
                                   w_pad=w_pad)
 
 
-def create_montage(UA, ftempl_qm, ftempl_dr, ftempl_sel, ftempl_mont):
-    """Create montage image of figures created during preprocessing."""
+def create_montage(UA, ftempl_dr, ftempl_sel, ftempl_mont):
+    """Create montage image of per unit figures."""
 
     for uid in UA.uids():
         uid_str = util.format_uid(uid)
 
-        # Get file names.
-        fqm = ftempl_qm.format(uid_str)
+        # Set file names.
         fdr = ftempl_dr.format(uid_str)
         fsel = ftempl_sel.format(uid_str)
         fmont = ftempl_mont.format(uid_str)
 
+        # Set figure order (from top to bottom).
+        figs = (fdr, fsel)
+
         # Check if figures exist.
-        flist = [f for f in (fqm, fdr, fsel) if os.path.isfile(f)]
+        flist = [f for f in figs if os.path.isfile(f)]
 
         # Create output folder.
         util.create_dir(fmont)
@@ -279,7 +284,7 @@ def rec_stability_test(UA, fname=None):
         # Calculate and plot firing rate during given period in each trial
         # across session for all units.
         colors = putil.get_colors()
-        task_stats = pd.DataFrame(columns=['t_start', 'label'])
+        task_stats = pd.DataFrame(columns=['t_start', 't_stops', 'label'])
         for task, color in zip(UA.tasks(), colors):
 
             # Get activity of all units in task.
@@ -320,11 +325,15 @@ def rec_stability_test(UA, fname=None):
             task_lbl += '\n$\delta$FR: {:.1f} sp/s/h'.format(slope)
             task_lbl += '\n{}'.format(pval)
 
-            task_stats.loc[task] = (tr_times.min(), task_lbl)
+            task_stats.loc[task] = (tr_times.min(), tr_times.max(), task_lbl)
 
-        # Add task labels after all tasks have been plotted (limits are set).
-        putil.plot_events(task_stats, lbl_height=0.75, lbl_ha='left',
-                          lbl_rotation=0, ax=ax)
+        # Set axes limits.
+        tmin, tmax = task_stats.t_start.min(), task_stats.t_stops.max()
+        putil.set_limits(ax, xlim=(tmin, tmax))
+
+        # Add task labels after all tasks have been plotted.
+        putil.plot_events(task_stats[['t_start', 'label']], lbl_height=0.75,
+                          lbl_ha='left', lbl_rotation=0, ax=ax)
 
         # Format plot.
         xlab = 'Recording time (s)' if prd == periods.index[-1] else None

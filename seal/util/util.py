@@ -579,14 +579,14 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
         x, y = x[idx], y[idx]
 
     # Insufficient sample size.
-    n_not_nan_x, n_not_nan_y = [sum(~np.isnan(v)) for v in (x, y)]
-    if n_not_nan_x < min_sample_size or n_not_nan_y < min_sample_size:
+    xvalid, yvalid = [v(~np.isnan(v)) for v in (x, y)]
+    if sum(xvalid) < min_sample_size or sum(yvalid) < min_sample_size:
         return np.nan, np.nan
 
     if paired:
         stat, pval = sp.stats.ttest_rel(x, y, nan_policy=nan_policy)
     else:
-        stat, pval = sp.stats.ttest_ind(x, y, equal_var=equal_var)
+        stat, pval = sp.stats.ttest_ind(xvalid, yvalid, equal_var=equal_var)
 
     return stat, pval
 
@@ -671,14 +671,14 @@ def periods(t_on_ser, min_len=None):
     return pers
 
 
-def sign_periods(ts1, ts2, p, test, min_len=None, **kwargs):
+def sign_periods(ts1, ts2, pval, test, min_len=None, **kwargs):
     """
     Return list of periods of significantly difference
     between two sets of time series (row: samples, columns: time points).
     """
 
     # Indices of significant difference.
-    tsign = sign_diff(ts1, ts2, p, test, **kwargs)[1]
+    tsign = sign_diff(ts1, ts2, pval, test, **kwargs)[1]
 
     # Periods of significant difference.
     sign_periods = periods(tsign, min_len)

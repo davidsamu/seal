@@ -144,78 +144,41 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
     putil.inline_on()
 
 
-def unit_activity(data_dir, proj_name, plot_DR=True, plot_sel=True,
+def unit_activity(proj_dir, proj_name, plot_DR=True, plot_sel=True,
                   creat_montage=True):
     """Plot basic unit activity figures."""
 
-    # Data directory with all recordings to be processed in subfolders.
-    rec_data_dir = data_dir + '/recordings/'
-
-    # Init data structures.
-    combUA = unitarray.UnitArray(proj_name)
-
-    print('\nStarting quality control...\n')
+    print('\nStarting plotting unit activity...\n')
     putil.inline_off()
 
-    for recording in sorted(os.listdir(rec_data_dir)):
+    # Init folders.
+    data_dir = proj_dir + 'data/'
+    out_dir = proj_dir + 'results/basic_activity/'
 
-        # Report progress.
-        print(recording)
+    ftempl_dr = out_dir + 'direction_response/{}.png'
+    ftempl_sel = out_dir + 'stimulus_selectivity/{}.png'
+    ftempl_mont = out_dir + 'montage/{}.png'
 
-        # Init folders.
-        rec_dir = rec_data_dir + recording + '/'
-        seal_dir = rec_dir + 'SealCells/'
-        qc_dir = rec_dir + '/quality_control/'
+    # Read in Units.
+    print('\nReading in UnitArray...\n')
+    f_data = data_dir + 'all_recordings.data'
+    UA = util.read_objects(f_data, 'UnitArr')
+    UA.clean_array(keep_excl=False)
 
-        ftempl_qm = qc_dir + 'quality_metrics/{}.png'
-        ftempl_dr = qc_dir + 'direction_response/{}.png'
-        ftempl_sel = qc_dir + 'stimulus_selectivity/{}.png'
-        ftempl_mont = qc_dir + 'montage/{}.png'
+    # Test stimulus response to all directions.
+    if plot_DR:
+        print('  Plotting direction response...')
+        test_units.DR_plot(UA, ftempl_dr)
 
-        # Read in Units.
-        f_data = seal_dir + recording + '.data'
-        UA = util.read_objects(f_data, 'UnitArr')
+    # Plot feature selectivity summary plots.
+    if plot_sel:
+        print('  Plotting selectivity summary figures...')
+        test_units.selectivity_summary(UA, ftempl_sel)
 
-        # Test stimulus response to all directions.
-        if plot_DR:
-            print('  Plotting direction response...')
-            test_units.DR_plot(UA, ftempl_dr)
-
-        # Test direction selectivity.
-        print('  Calculating direction selectivity...')
-        for u in UA.iter_thru(excl=True):
-            u.test_DS()
-
-        # Plot feature selectivity summary plots.
-        if plot_sel:
-            print('  Plotting selectivity summary figures...')
-            test_units.selectivity_summary(UA, ftempl_sel)
-
-        # Create montage image of all plots figures above.
-        if creat_montage:
-            print('  Creating montage images...')
-            test_units.create_montage(UA, ftempl_qm, ftempl_dr,
-                                      ftempl_sel, ftempl_mont)
-
-        # Add to combined UA
-        combUA.add_recording(UA)
-
-    # Add index to unit names.
-    combUA.index_units()
-
-    # Save selected Units with quality metrics and direction selectivity.
-    print('\nExporting combined UnitArray...')
-    fname = data_dir + '/all_recordings.data'
-    util.write_objects({'UnitArr': combUA}, fname)
-
-    # Export unit and trial selection results.
-    print('Exporting automatic unit and trial selection results...')
-    fname = data_dir + '/unit_trial_selection.xlsx'
-    export.export_unit_trial_selection(combUA, fname)
-
-    # Export unit list.
-    print('Exporting combined unit list...')
-    export.export_unit_list(combUA, data_dir + '/unit_list.xlsx')
+    # Create montage image of all plots figures above.
+    if creat_montage:
+        print('  Creating montage images...')
+        test_units.create_montage(UA, ftempl_dr, ftempl_sel, ftempl_mont)
 
     # Re-enable inline plotting
     putil.inline_on()

@@ -137,3 +137,6 @@ creat_montage = False  # create montage from all activity figures created
                        # https://www.imagemagick.org/script/binary-releases.php
 
 init.unit_activity(data_dir, proj_name, plot_DR, plot_sel, creat_montage)
+
+# Output:
+

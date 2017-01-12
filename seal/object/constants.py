@@ -126,14 +126,18 @@ for ev, (rel_to, shift) in tr_evts.iterrows():
     ev_stims.loc[ev] = [stim, stim_start, stim_stop]
 
 
-# Constituent time periods to build "full trial" raster and rate plots.
+# Default time periods to build "full trial" raster and rate plots.
 S2_S1_lbl_shift = stim_dur['S1'] + delay_lengths.min()
-rr_prds = [('extended S1', ('S1', 'S1 on', 0*ms)),
-           ('cue to S2', ('S1', 'S2 on', S2_S1_lbl_shift)),
-           ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
+analysis_prds = [('extended S1', ('S1', 'S1 on', 0*ms)),
+                 ('cue to S2', ('S1', 'S2 on', S2_S1_lbl_shift)),
+                 ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
 
-rr_prds = pd.DataFrame.from_items(rr_prds, ['stim', 'ref', 'lbl_shift'],
-                                  'index')
+analysis_prds = pd.DataFrame.from_items(analysis_prds,
+                                        ['stim', 'ref', 'lbl_shift'], 'index')
+# Add cue timing.
+analysis_prds['cue'] = [(tr_evts.loc['cue', 'shift']
+                         if ref == tr_evts.loc['cue', 'rel to'] else None)
+                        for ref in analysis_prds.ref]
 
 
 # %% Analysis constants.

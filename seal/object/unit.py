@@ -436,6 +436,17 @@ class Unit:
 
         return dur
 
+    def init_analysis_prds(self, prds=None):
+        """Get parameters of periods to analyse."""
+
+        if prds is None:
+            prds = constants.analysis_prds.copy()
+
+        # Add period duration (specific to unit).
+        prds['dur'] = [self.pr_dur(prd) for prd in prds.index]
+
+        return prds
+
     # %% Generic methods to get various set of trials.
 
     def inc_trials(self):
@@ -468,6 +479,17 @@ class Unit:
         ctrs = self.filter_trials(ctrs)
 
         return ctrs
+
+    def to_report_trials(self):
+        """Return trials by feature to report."""
+
+        to_report = self.TrialParams['ToReport']
+        kvs = [(grp[0], grp[1].index) for grp in to_report.groupby(to_report)]
+        to_report = util.series_from_tuple_list(kvs)
+
+        to_report = self.filter_trials(to_report)
+
+        return to_report
 
     def trials_by_features(self, stim, feat, vals=None, comb_vals=False):
         """Return trials grouped by (selected) values of stimulus param."""

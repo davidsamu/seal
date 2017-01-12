@@ -28,15 +28,16 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0*ms               # ISI violation threshold
-MAX_DRIFT_RATIO = 3           # maximum tolerable drift ratio
+MAX_DRIFT_RATIO = 2           # maximum tolerable drift ratio
 MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
 MIN_TASK_RELATED_DUR = 50*ms  # minimum window length of task related activity
 
 # Constants related to unit exclusion.
-min_SNR = 1.0          # min. SNR
-min_FR = 1.0           # min. firing rate (sp/s)
-max_ISIvr = 1.0        # max. ISI violation ratio (%)
-min_inc_trs_rat = 50   # min. ratio of included trials out of all recorded (%)
+min_SNR = 1.0           # min. SNR
+min_FR = 1.0            # min. firing rate (sp/s)
+max_ISIvr = 1.0         # max. ISI violation ratio (%)
+min_n_trs = 20          # min. number of trials (in case monkey quit)
+min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
 
 # %% Utility functions.
@@ -376,9 +377,12 @@ def test_rejection(u):
     # Extremely high ISI violation ratio (ISIvr).
     test_passed['ISI'] = qm['ISIvr'] < max_ISIvr
 
-    # Insufficient number of trials (ratio of included trials).
+    # Insufficient total number of trials (monkey quit).
+    test_passed['NTotalTrs'] = qm['NTrialsTotal'] > min_n_trs
+
+    # Insufficient amount of included trials.
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
-    test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_rat
+    test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_ratio
 
     # Not task-related. Criterion to be used later!
     # test_passed['TaskRelated'] = qm['TaskRelated']
