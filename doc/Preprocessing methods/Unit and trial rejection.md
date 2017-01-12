@@ -28,6 +28,7 @@ Any unit that does not pass any of the below criteria is excluded:
 1. Waveform consistency: SNR > 1.
 2. Unit activity: Firing rate > 1 spikes / second.
 3. ISI violation ratio: ISI v.r. < 1%.
-4. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
+4. Total number of trials: total # trials > 20 (in case monkey quit at beginning of recording)
+5. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
 
 The specific threshold values for each criterion can be changed in the "Constants" section on the top of seal/quality/test_sorting.py.
