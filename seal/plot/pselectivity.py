@@ -12,8 +12,8 @@ import pandas as pd
 from quantities import deg
 
 from seal.object import constants
-from seal.analysis import direction
-from seal.plot import putil, ptuning, prate
+from seal.analysis import direction, roc
+from seal.plot import putil, ptuning, prate, pauc
 from seal.util import util
 
 
@@ -44,17 +44,17 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
     axes_raster, axes_rate, axes_roc = [], [], []
     for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
 
-        # Init subplots.
-        if add_roc:
-            rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.3)
-        else:
-            rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)
-
         # Prepare trial set.
-        if feat is not None:
-            trs = u.trials_by_features(stim, feat, vals)
+        trs = (u.trials_by_features(stim, feat, vals) if feat is not None else
+               u.ser_inc_trials())
+        plot_roc = add_roc and len(trs) == 2
+
+        # Init subplots.
+        if plot_roc:
+            rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.3,
+                                              height_ratios=[1, .5])
         else:
-            trs = u.ser_inc_trials()
+            rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
 
         # Init params.
         evnts = [tcue] if tcue is not None else None
@@ -77,26 +77,27 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
             raster_axs[0].set_title(title, ha='right')
 
         # Plot ROC curve.
-        if add_roc and len(trs) == 2:
+        if plot_roc:
+            roc_ax = fig.add_subplot(roc_sps)
             # Init rates.
             plot_params = prate.prep_rr_plot_params(u, prd, ref, nrate, trs)
             _, _, (rates1, rates2), stim_prd, _, _ = plot_params
-
-
-            roc_sps
-
-        else:
-            mock_ax = putil.embed_gsp(roc_sps, 1, 1)
-            putil.add_mock_axes(fig, mock_ax[0, 0])
+            # Calculate ROC results.
+            aroc = roc.run_ROC_over_time(rates1, rates2, n_perm=0)
+            # Set up plot params and plot results.
+            tvec, auc = aroc.index, aroc.auc
+            xlim = rate_ax.get_xlim()
+            pauc.plot_auc_over_time(auc, tvec, [stim_prd], evnts,
+                                    xlim=xlim, ax=roc_ax)
+            axes_roc.append(roc_ax)
 
         axes_raster.extend(raster_axs)
         axes_rate.append(rate_ax)
-        axes_roc.append(roc_ax)
 
-    # Format rate plots.
+    # Format rate and roc plots to make them match across trial periods.
 
     # Remove y-axis label, spine and ticks from second and later periods.
-    for ax in axes_rate[1:]:
+    for ax in axes_rate[1:] + axes_roc[1:]:
         ax.set_ylabel('')
         putil.set_spines(ax, bottom=True, left=False)
         putil.hide_ticks(ax, show_x_ticks=True, show_y_ticks=False)
@@ -107,20 +108,26 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
     # Set common x label.
     if ('no_labels' not in kwargs) or (not kwargs['no_labels']):
-        [ax.set_xlabel('') for ax in axes_rate]
+        [ax.set_xlabel('') for ax in axes_rate + axes_roc]
         xlab = putil.t_lbl.format(prd_pars.stim[0] + ' onset')
-        axes_rate[mid_idx].set_xlabel(xlab, ha='right')
+        mid_ax = axes_rate[mid_idx] if not len(axes_roc) else axes_roc[mid_idx]
+        mid_ax.set_xlabel(xlab, ha='right')
 
-    # Relabel x axis. First period is reference.
-    for ax, lbl_shift in zip(axes_rate, prd_pars.lbl_shift):
-        x1, x2 = ax.get_xlim()
-        shift = float(lbl_shift)
-        tmakrs, tlbls = putil.get_tick_marks_and_labels(x1+shift, x2+shift)
-        putil.set_xtick_labels(ax, tmakrs-shift, tlbls)
+    # Reformat ticks on x axis. First period is reference.
+    for axes in [axes_rate, axes_roc]:
+        for ax, lbl_shift in zip(axes, prd_pars.lbl_shift):
+            x1, x2 = ax.get_xlim()
+            shift = float(lbl_shift)
+            tmakrs, tlbls = putil.get_tick_marks_and_labels(x1+shift, x2+shift)
+            putil.set_xtick_labels(ax, tmakrs-shift, tlbls)
+    # Remove x tick labels from rate axes if roc's are present.
+    if len(axes_roc):
+        [ax.tick_params(labelbottom='off') for ax in axes_rate]
 
-    # Match scale of rate plots' y axes.
-    putil.sync_axes(axes_rate, sync_y=True)
-    [putil.adjust_decorators(ax) for ax in axes_rate]
+    # Match scale of rate and roc plots' y axes.
+    for axes in [axes_rate, axes_roc]:
+        putil.sync_axes(axes, sync_y=True)
+        [putil.adjust_decorators(ax) for ax in axes]
 
     return axes_raster, axes_rate, axes_roc
 
@@ -140,10 +147,23 @@ def plot_DR(u, **kwargs):
     if u.DS.empty:
         u.test_DS()
 
+    # Get DS parameters.
+    stim = 'S1'
+    pref_anti_dirs = [u.pref_dir(stim), u.anti_pref_dir(stim)]
+    t1, t2 = u.DS.TW.loc[stim]
+
     # Raster & rate in trials sorted by stimulus direction.
-    pref_anti_dirs = [u.pref_dir(), u.anti_pref_dir()]
     title = 'Direction selectivity'
     res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, **kwargs)
+
+    # Add event lines to interval used to test DS.
+    # Slight hardcoding action going on below...
+    evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
+                        columns=['time', 'lbl'])
+    s1_rate_ax = res[1][0]
+    putil.plot_events(evts, add_names=False, color='grey', alpha=0.5,
+                      ls='--', lw=1, ax=s1_rate_ax)
+
     return res
 
 

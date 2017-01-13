@@ -121,9 +121,6 @@ def weighted_DS(dirs, resp):
 def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
     """DS based on Gaussian tuning curve fit."""
 
-    # Init.
-    resp = np.array(resp)
-
     # Center stimulus - response.
     dirs_ctrd = center_to_dir(dirs, dir0)
 

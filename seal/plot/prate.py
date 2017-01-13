@@ -218,7 +218,8 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
 
     # Add legend.
     if add_lgn and (lbl is not None):
-        putil.set_legend(ax, loc=1, borderaxespad=0.5, handletextpad=0.1)
+        putil.set_legend(ax, loc=1, borderaxespad=0.0, handletextpad=0.4,
+                         handlelength=0.6)
 
     # Add significance line to top of axes.
     if (pval is not None) and (len(rate_list) == 2):
@@ -227,8 +228,7 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
                                color='m', linewidth=4.0, ax=ax)
 
     # Plot event markers.
-    if evts is not None:
-        putil.plot_event_marker(evts, ax=ax)
+    putil.plot_event_marker(evts, ax=ax)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)

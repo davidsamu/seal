@@ -186,11 +186,18 @@ def format_uid(uid):
 
 # %% System-related functions.
 
+def get_n_cores():
+    """Get number of cores."""
+
+    ncores = mp.cpu_count()
+    return ncores
+
+
 def run_in_pool(f, params, nCPU=None):
     """Run a function in parallel pool."""
 
     if nCPU is None:  # set number of cores
-        nCPU = mp.cpu_count() - 1
+        nCPU = get_n_cores() - 1
 
     with mp.Pool(nCPU) as p:
         res = p.starmap(f, params)
@@ -580,7 +587,7 @@ def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
 
     # Insufficient sample size.
     xvalid, yvalid = [v[~np.isnan(v)] for v in (x, y)]
-    if sum(xvalid) < min_sample_size or sum(yvalid) < min_sample_size:
+    if min(len(xvalid), len(yvalid)) < min_sample_size:
         return np.nan, np.nan
 
     if paired:
@@ -607,8 +614,8 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
     idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
     x, y = x[idx], y[idx]
 
-    # Insufficient sample size (also used by Scipy).
-    if len(x) < min_sample_size or len(y) < min_sample_size:
+    # Insufficient sample size.
+    if min(len(x), len(y)) < min_sample_size:
         return np.nan, np.nan
 
     stat, pval = sp.stats.wilcoxon(x, y, zero_method=zero_method,

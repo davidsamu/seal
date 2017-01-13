@@ -11,42 +11,68 @@ from quantities import ms
 import pandas as pd
 
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import ShuffleSplit
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
 from seal.plot import putil, pplot
 from seal.object import constants
 
 
+# Some analysis constants.
+min_sample_size = 10
+n_folds = 5
+n_jobs = util.get_n_cores() - 1
+
+
 # %% Core ROC analysis functions.
 
 def calc_auc(clf, x, y):
-    """Calculate area under the curve of ROC analysis."""
+    """
+    Calculate area under the curve of ROC analysis.
 
+    y values have to be 0 and 1!
+    """
+
+    # Format x into array of arrays.
     if len(x.shape) < 2:
         x = np.array(x, ndmin=2).T
 
     # Fit model to data.
     clf.fit(x, y)
 
-    # Change y labels based on mean x values to keep < 0.5 AUC values.
-    idx = int(np.mean(x[y == 0]) > np.mean(x[y == 1]))
-
     # Get prediction probability of classes.
-    preds = clf.predict_proba(x)[:, idx]
+    preds = clf.predict_proba(x)
 
-    # Calculate area under the curve (AUC).
-    auc = roc_auc_score(y, preds)
+    # Select class of higher mean to be taken as one to be predicted.
+    # idx = pd.Series(x, index=y).groupby(y).mean().idxmax()  # much slower :(
+    idx = int(np.mean(x[y == 0]) < np.mean(x[y == 1]))
+    y_pred = preds[:, idx]
+
+    # Calculate area under the curve (AUC) using true and predicted y values.
+    auc = roc_auc_score(y, y_pred)
 
     return auc
 
 
 def ROC(x, y, n_perm=None, clf=None):
-    """Perform ROC analysis with optional permutation test."""
+    """
+    Perform ROC analysis with optional permutation test.
 
-    if len(x.shape) < 2:
-        x = np.array(x, ndmin=2).T
+    y values have to be 0 and 1 for calc_auc!
+    """
+
+    # Remove NaN values.
+    idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    x, y = np.array(x[idx]), np.array(y[idx])
+
+    # Insufficient sample size.
+    if min(len(x), len(y)) < min_sample_size:
+        return np.nan, None
+
+    # Format x into array of arrays.
+    x = np.array(x, ndmin=2).T
 
     # Default classifier.
     if clf is None:
@@ -55,38 +81,38 @@ def ROC(x, y, n_perm=None, clf=None):
     # Calculate AUC of true data.
     true_auc = calc_auc(clf, x, y)
 
-    pval = None
-    if n_perm is not None and n_perm is not 0:
-        # Get null-hypothesis distribution by permutation test.
-        rand_splits = ShuffleSplit(len(x), n_perm, len(np.where(y == 1)[0]))
-        perm_auc = np.array([calc_auc(clf, x, y[np.concatenate(s)]) for s
-                             in rand_splits])
-        # p-value estimate of a two-tailed test
-        true_dev = abs(true_auc - 0.5)  # deviation from 0.5 (baseline)
-        perm_dev = np.abs(perm_auc - 0.5)
-        n_extreme = np.sum(true_dev <= perm_dev)
-        pval = n_extreme / n_perm
+    # Permutation test.
+    pvalue = None
+    if n_perm is not None and n_perm > 0:
 
-    return true_auc, pval
+        cv = StratifiedKFold(n_folds)
+
+        # Test significance of classification with cross-validated permutation.
+        res = permutation_test_score(clf, x, y, scoring='accuracy', cv=cv,
+                                     n_permutations=n_perm, n_jobs=n_jobs)
+        score, perm_scores, pvalue = res
+
+    return true_auc, pvalue
 
 
 # %% Wrapper functions.
 
-def run_ROC_over_time(u, rates1, rates2, nperm=None, clf=None):
+def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     """Run ROC analysis between two rate frames (trials by time)."""
 
     # Merge rates and create and target vector.
     rates = pd.concat([rates1, rates2])
-    target_vec = np.hstack([i*np.ones(len(rates.index))
-                            for i, rates in enumerate([rates1, rates2])])
+    target_vec = pd.Series(len(rates.index)*[1], index=rates.index)
+    target_vec[rates2.index] = 0  # y values have to be 0 and 1 for above code!
 
     # Default classifier.
     if clf is None:
         clf = LogisticRegression()
 
     # Run ROC across time.
-    roc_res = pd.Series([ROC(rates[t], target_vec, nperm, clf) for t in rates],
-                        index=rates.columns)
+    roc_res = pd.DataFrame([ROC(rates[t], target_vec, n_perm, clf)
+                            for t in rates],
+                            index=rates.columns, columns=['auc', 'pval'])
 
     return roc_res
 

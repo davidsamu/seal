@@ -529,7 +529,9 @@ class Unit:
         if vals is None:
             vals = sorted(tr_grps.keys())
         else:
-            vals = [float(v) for v in vals]  # remove dimension
+            # Remove any physical quantity.
+            dtype = self.StimParams[(stim, feat)].dtype
+            vals = np.array(vals, dtype=dtype)
 
         # Convert to Series of trial list per feature value.
         v_trs = [(v, np.array(tr_grps[v]) if v in tr_grps else np.empty(0))

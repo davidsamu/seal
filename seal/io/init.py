@@ -20,7 +20,7 @@ from seal.object import constants, unit, unitarray
 def convert_TPL_to_Seal(data_dir):
     """Convert TPLCells to Seal objects in project directory."""
 
-    print('\nStarting unit import...\n')
+    print('\nStarting unit conversion...\n')
 
     # Data directory with all recordings to be processed in subfolders.
     rec_data_dir = data_dir + '/recordings/'

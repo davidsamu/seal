@@ -121,7 +121,7 @@ def highlight_axes(ax=None, color='red', alpha=0.5, **kwargs):
     ax.add_artist(rect)
 
 
-def plot_periods(prds, alpha=0.2, color='grey', ax=None, **kwargs):
+def plot_periods(prds, alpha=0.15, color='grey', ax=None, **kwargs):
     """Highlight segments (periods)."""
 
     if prds is None:
@@ -141,6 +141,9 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
                 ls='--', lw=1, lbl_rotation=90, lbl_height=0.96,
                 lbl_ha='center', ax=None, **kwargs):
     """Plot all events of unit."""
+
+    if events is None:
+        return
 
     ax = axes(ax)
 
@@ -164,6 +167,9 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
 def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1,
                       med='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
+
+    if events is None:
+        return
 
     ax = axes(ax)
 
@@ -527,10 +533,10 @@ def is_polar(ax=None):
     return im_polar
 
 
-def add_mock_axes(fig, mock_gsp, **kwargs):
+def add_mock_axes(fig, sps, **kwargs):
     """Add mock (empty) axes to figure."""
 
-    ax = fig.add_subplot(mock_gsp, **kwargs)
+    ax = fig.add_subplot(sps, **kwargs)
     hide_axes(ax=ax)
     return ax
 

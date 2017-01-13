@@ -117,8 +117,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
                     rate_axs.append(ax_rate)
 
                 else:
-                    mock_ax = putil.embed_gsp(gsp[i], 1, 1)
-                    putil.add_mock_axes(fig, mock_ax[0, 0])
+                    putil.add_mock_axes(fig, gsp[i])
 
         if plot_qm:
 
@@ -181,8 +180,7 @@ def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
                 task_rate_axs.extend(rate_axs)
                 task_polar_axs.append(ax_polar)
             else:
-                mock_ax = putil.embed_gsp(sps, 1, 1)
-                putil.add_mock_axes(fig, mock_ax[0, 0])
+                putil.add_mock_axes(fig, sps)
 
         # Match scale of y axes across tasks.
         if match_scales:
@@ -224,8 +222,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
                 ds_axs.extend(res[1])
 
             else:
-                mock_ax = putil.embed_gsp(sps, 1, 1)
-                putil.add_mock_axes(fig, mock_ax[0, 0])
+                putil.add_mock_axes(fig, sps)
 
         # Match scale of y axes across tasks.
         if match_scales:
