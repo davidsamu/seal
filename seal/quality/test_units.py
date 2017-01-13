@@ -235,7 +235,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92,
+            putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
                                   w_pad=w_pad)
 
 

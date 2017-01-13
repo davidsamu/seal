@@ -144,17 +144,20 @@ analysis_prds['cue'] = [(tr_evts.loc['cue', 'shift']
 
 # Kernel sets for firing rate estimation.
 R100_kernel = kernels.kernel_set(['R100'])
-RG_kernels = kernels.kernel_set(['G20', 'G40', 'R100', 'R200'])
+G20_kernel = kernels.kernel_set(['G20'])
+RG_kernels = kernels.kernel_set(['G20', 'R100'])
+R2G2_kernels = kernels.kernel_set(['G20', 'G40', 'R100', 'R200'])
 shrtR_kernels = kernels.kernel_set(['R50', 'R75', 'R100'])
 lngR_kernels = kernels.kernel_set(['R100', 'R200', 'R500'])
 
-step = 10*ms
-
 # Kernel set to be used for project.
-kset = R100_kernel
+kset = RG_kernels
 
 # Default rate name (to be used when rate type is not specified).
-def_nrate = 'R100'
+def_nrate = 'G20'  # 'R100'
+
+# Time step for rate calculation.
+step = 10*ms
 
 
 # %% Neurophysiological constants.

@@ -51,7 +51,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
         # Init subplots.
         if plot_roc:
-            rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.3,
+            rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.2,
                                               height_ratios=[1, .5])
         else:
             rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
@@ -134,6 +134,11 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
 def plot_LR(u, **kwargs):
     """Plot location response plot."""
+
+#    # If there's only one direction, don't plot anyting.
+#    nlocs = u.StimParams]
+#    if u.StimParams
+#        return [], [], []
 
     # Raster & rate in trials sorted by stimulus location.
     title = 'Location selectivity'
@@ -220,7 +225,8 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    tr_sps, lr_sps, dr_sps = putil.embed_gsp(sps, 3, 1, hspace=0.4)
+    tr_sps, lr_sps, dr_sps = putil.embed_gsp(sps, 3, 1, hspace=0.3,
+                                             height_ratios=[.66, 1, 1])
 
     kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
 
