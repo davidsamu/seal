@@ -20,7 +20,7 @@ from seal.object import constants, unit, unitarray
 def convert_TPL_to_Seal(data_dir):
     """Convert TPLCells to Seal objects in project directory."""
 
-    print('\nStarting unit conversion...\n')
+    print('\nStarting unit conversion...')
 
     # Data directory with all recordings to be processed in subfolders.
     rec_data_dir = data_dir + '/recordings/'
@@ -89,13 +89,13 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
     task_order = constants.task_info.index
     combUA = unitarray.UnitArray(proj_name, task_order)
 
-    print('\nStarting quality control...\n')
+    print('\nStarting quality control...')
     putil.inline_off()
 
     for recording in sorted(os.listdir(rec_data_dir)):
 
         # Report progress.
-        print(recording)
+        print('  ' + recording)
 
         # Init folders.
         rec_dir = rec_data_dir + recording + '/'
@@ -149,7 +149,7 @@ def unit_activity(proj_dir, proj_name, plot_DR=True, plot_sel=True,
                   creat_montage=True):
     """Plot basic unit activity figures."""
 
-    print('\nStarting plotting unit activity...\n')
+    print('\nStarting plotting unit activity...')
     putil.inline_off()
 
     # Init folders.
@@ -161,7 +161,7 @@ def unit_activity(proj_dir, proj_name, plot_DR=True, plot_sel=True,
     ftempl_mont = out_dir + 'montage/{}.png'
 
     # Read in Units.
-    print('\nReading in UnitArray...\n')
+    print('  Reading in UnitArray...')
     f_data = data_dir + 'all_recordings.data'
     UA = util.read_objects(f_data, 'UnitArr')
     UA.clean_array(keep_excl=False)

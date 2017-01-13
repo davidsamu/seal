@@ -160,9 +160,10 @@ def plot_DR(u, **kwargs):
     # Slight hardcoding action going on below...
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
-    s1_rate_ax = res[1][0]
-    putil.plot_events(evts, add_names=False, color='grey', alpha=0.5,
-                      ls='--', lw=1, ax=s1_rate_ax)
+    for i in range(1, len(res)):
+        ax = res[i][0]  # take first of rate and auc plots (showing S1)
+        putil.plot_events(evts, add_names=False, color='grey', alpha=0.5,
+                          ls='--', lw=1, ax=ax)
 
     return res
 

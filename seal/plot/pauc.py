@@ -24,7 +24,7 @@ def plot_auc_over_time(auc, tvec, prds=None, evts=None, xlim=None, ylim=None,
     putil.plot_periods(prds, ax=ax)
 
     # Plot AUC over time.
-    pplot.lines(tvec, auc, ylim, xlim, xlab, ylab, title, ax=ax)
+    pplot.lines(tvec, auc, ylim, xlim, xlab, ylab, title, color='green', ax=ax)
 
     # Add chance level line.
     putil.add_chance_level(ax=ax)

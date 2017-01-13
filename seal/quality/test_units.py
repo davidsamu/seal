@@ -208,7 +208,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
-                                            subw=subw, subh=12)
+                                            subw=subw, subh=16)
         ls_axs, ds_axs = [], []
 
         # Plot stimulus response summary plot of unit in each task.
