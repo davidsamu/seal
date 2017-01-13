@@ -29,6 +29,11 @@ def plot_auc_over_time(auc, tvec, prds=None, evts=None, xlim=None, ylim=None,
     # Add chance level line.
     putil.add_chance_level(ax=ax)
 
+#    # Set minimum y axis scale.
+#    ymin, ymax = ax.get_ylim()
+#    ymin, ymax = min(ymin, 0.3), max(ymax, 0.7)
+#    ax.set_ylim([ymin, ymax])
+
     # Set y tick labels.
     if ylim is not None and ylim[0] == 0 and ylim[1] == 1:
         tck_marks = np.linspace(0, 1, 5)

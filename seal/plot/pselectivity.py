@@ -52,7 +52,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
         # Init subplots.
         if plot_roc:
             rr_sps, roc_sps = putil.embed_gsp(gsp[i], 2, 1, hspace=0.2,
-                                              height_ratios=[1, .5])
+                                              height_ratios=[1, .4])
         else:
             rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
 
