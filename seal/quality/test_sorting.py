@@ -527,7 +527,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     wf_dur_inc = wf_dur_all[spk_inc]
 
     # Set common limits and labels.
-    dur_lim = [0, wavetime[-1]-wavetime[WF_T_START]]  # same across units
+    dur_lim = [0, wavetime[-2]-wavetime[WF_T_START]]  # same across units
     glim = max(wf_amp_all.max(), gmax-gmin)
     amp_lim = [0, glim]
 
