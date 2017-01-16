@@ -10,6 +10,7 @@ Functions to calculate and plot quality metrics of units  after spike sorting
 import warnings
 
 import numpy as np
+import scipy as sp
 import pandas as pd
 from quantities import s, ms, us
 
@@ -22,7 +23,8 @@ from seal.plot import putil, pplot, pwaveform
 # %% Constants.
 
 # Recording constants.
-REC_GAIN = 4100                # gain of recording
+VMIN = -2048                   # minimum voltage gain of recording
+VMAX =  2047                   # maximum voltage gain of recording
 CENSORED_PRD_LEN = 0.675*ms    # length of censored period
 WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
@@ -41,19 +43,6 @@ min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
 
 # %% Utility functions.
-
-def get_qm_data(u):
-    """Return base data of unit for quality metrics calculation."""
-
-    # Init values.
-    waveforms = np.array(u.Waveforms)
-    wavetime = np.array(u.Waveforms.columns) * us
-    spk_dur = u.SpikeParams['dur']
-    spk_times = u.SpikeParams['time']
-    sampl_per = u.SessParams['sampl_prd']
-
-    return waveforms, wavetime, spk_dur, spk_times, sampl_per
-
 
 def get_start_stop_times(spk_times, tr_starts, tr_stops):
     """Return start and stop times of recording."""
@@ -85,36 +74,45 @@ def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
 
 # %% Core methods.
 
-def waveform_stats(wfs, wtime):
-    """Calculates SNR, amplitude and durations of spike waveforms."""
+def calc_waveform_stats(waveforms):
+    """Calculate waveform duration and amplitude."""
 
-    # No waveforms: waveform stats are uninterpretable.
-    if not wfs.size:
-        return np.nan, pd.Series(), pd.Series()
+    # Init.
+    wfs = np.array(waveforms)
+    minV, maxV = wfs.min(), wfs.max()
+    step = 1
 
-    # SNR: std of mean waveform divided by std of residual waveform (noise).
-    wf_mean = np.mean(wfs, 0)
-    wf_std = wfs - wf_mean
-    # Handling extreme case of only a single spike in Unit.
-    snr = np.std(wf_mean) / np.std(wf_std) if wfs.shape[0] > 1 else np.nan
+    # Is waveform set truncated?
+    is_truncated = np.sum(wfs == minV) > 1 or np.sum(wfs == maxV) > 1
 
-    # Indices of minimum and maximum times.
-    # imin = np.argmin(wfs, 1)  # actual minimum of waveform
-    imin = wfs.shape[0] * [WF_T_START]  # crossing of threshold (Plexon value)
-    imax = [np.argmax(w[imin[i]:]) + imin[i] for i, w in enumerate(wfs)]
+    # Init waveform data and time vector.
+    x = np.array(waveforms.columns)
+    xfit = np.arange(x[WF_T_START-1], x[-1]+1, step)
 
-    # Amplitude and duration calculation below should be improved!
+    def calc_wf_stats(x, y):
 
-    # Duration: time difference between times of minimum and maximum values.
-    wf_tmin, wf_tmax = wtime[imin], wtime[imax]
-    wf_dur = pd.Series(wf_tmax - wf_tmin)
+        # Remove truncated data points.
+        if is_truncated:
+            ivalid = (y != minV) & (y != maxV)
+            x, y = x[ivalid], y[ivalid]
 
-    # Amplitude: value difference between mininum and maximum values.
-    wmin = wfs[np.arange(len(imin)), imin]
-    wmax = wfs[np.arange(len(imax)), imax]
-    wf_amp = pd.Series(wmax - wmin)
+        # Fit cubic spline and get fitted y values.
+        tck = sp.interpolate.splrep(x, y, s=0)
+        yfit = sp.interpolate.splev(xfit, tck)
 
-    return snr, wf_amp, wf_dur
+        # Calculate waveform duration, amplitude and # of valid samples.
+        imin, imax = np.argmin(yfit), np.argmax(yfit)
+        dur = xfit[imax] - xfit[imin]
+        amp = yfit[imax] - yfit[imin]
+        nvalid = len(x)
+
+        return dur, amp, nvalid
+
+    # Calculate duration, amplitude and number of valid samples."""
+    res = [calc_wf_stats(x, wfs[i, :]) for i in range(wfs.shape[0])]
+    wfstats = pd.DataFrame(res, columns=['duration', 'amplitude', 'nvalid'])
+
+    return wfstats, is_truncated, minV, maxV
 
 
 def isi_stats(spk_times):
@@ -149,6 +147,25 @@ def isi_stats(spk_times):
     true_spikes = 100*(1/2 + np.sqrt(det)) if det >= 0 else np.nan
 
     return true_spikes, percent_ISI_vr
+
+
+def calc_snr(waveforms):
+    """
+    Calculate signal to noise ratio (SNR) of waveforms.
+
+    SNR: std of mean waveform divided by std of residual waveform (noise).
+    """
+
+    # Handling extreme case of only a single spike in Unit.
+    if waveforms.shape[0] < 2:
+        return np.nan
+
+    # Mean, residual and the ratio of their std.
+    wf_mean = waveforms.mean()
+    wf_res = waveforms - wf_mean
+    snr = wf_mean.std() / np.array(wf_res).std()
+
+    return snr
 
 
 def classify_unit(snr, true_spikes):
@@ -212,7 +229,7 @@ def test_drift(t, v, tbins, tr_starts, spk_times):
     # Return included trials and spikes.
     prd_inc = util.indices_in_window(np.arange(len(tbins)), prd1, prd2)
     tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
-    spk_inc = util.indices_in_window(spk_times, t1_inc, t2_inc)
+    spk_inc = util.indices_in_window(spk_times, float(t1_inc), float(t2_inc))
 
     return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
 
@@ -304,7 +321,18 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
         return
 
     # Init values.
-    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_qm_data(u)
+    waveforms = u.Waveforms
+    spk_times = u.SpikeParams['time']
+
+    # Calculate waveform statistics of each spike.
+    wf_stats, is_truncated, minV, maxV = calc_waveform_stats(waveforms)
+    u.SpikeParams['duration'] = wf_stats['duration']
+    u.SpikeParams['amplitude'] = wf_stats['amplitude']
+    u.SpikeParams['nvalid'] = wf_stats['nvalid']
+    u.UnitParams['truncated'] = is_truncated
+    u.UnitParams['minV'] = min(minV, VMIN)
+    u.UnitParams['maxV'] = max(maxV, VMAX)
+
     tr_starts, tr_stops = u.TrialParams.TrialStart, u.TrialParams.TrialStop
 
     # Time binned statistics.
@@ -326,8 +354,8 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
 
     u.update_included_trials(tr_inc)
 
-    # Waveform statistics of included spikes only.
-    snr, wf_amp, wf_dur = waveform_stats(waveforms[spk_inc], wavetime)
+    # SNR.
+    snr = calc_snr(waveforms[spk_inc])
 
     # Firing rate.
     mean_rate = np.sum(spk_inc) / float(t2_inc-t1_inc)
@@ -338,8 +366,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
-    u.QualityMetrics['mWfAmpl'] = wf_amp.mean()
-    u.QualityMetrics['mWfDur'] = spk_dur[spk_inc].mean()
+    u.QualityMetrics['mWfDur'] = u.SpikeParams.duration[spk_inc].mean()
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISIvr
     u.QualityMetrics['TrueSpikes'] = true_spikes
@@ -400,17 +427,14 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     """Plot quality metrics related figures."""
 
     # Init values.
+    waveforms = np.array(u.Waveforms)
+    wavetime = u.Waveforms.columns * us
+    spk_times = np.array(u.SpikeParams['time'], dtype=float)
     mean_rate = u.QualityMetrics['mFR']
-    waveforms, wavetime, spk_dur, spk_times, sampl_per = get_qm_data(u)
-
-    # Get waveform stats of included and excluded spikes.
-    wf_inc = waveforms[spk_inc]
-    snr_all, wf_amp_all, wf_dur_all = waveform_stats(waveforms, wavetime)
-    snr_inc, wf_amp_inc, wf_dur_inc = waveform_stats(wf_inc, wavetime)
 
     # Minimum and maximum gain.
-    gmin = min(-REC_GAIN/2, np.min(waveforms))
-    gmax = max(REC_GAIN/2, np.max(waveforms))
+    gmin = u.UnitParams['minV']
+    gmax = u.UnitParams['maxV']
 
     # %% Init plots.
 
@@ -430,29 +454,23 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     info_ax = fig.add_subplot(gsp_info[0, 0])
     putil.unit_info(u, ax=info_ax)
 
-    # Core axes.
+    # Create axes.
     gsp = putil.embed_gsp(qm_sps, 3, 2, wspace=0.3, hspace=0.4)
     ax_wf_inc, ax_wf_exc = [fig.add_subplot(gsp[0, i]) for i in (0, 1)]
     ax_wf_amp, ax_wf_dur = [fig.add_subplot(gsp[1, i]) for i in (0, 1)]
     ax_amp_dur, ax_rate = [fig.add_subplot(gsp[2, i]) for i in (0, 1)]
 
     # Trial markers.
-    trial_starts = u.TrialParams.TrialStart
+    trial_starts = u.TrialParams['TrialStart']
+    trial_stops = u.TrialParams['TrialStop']
     tr_markers = pd.DataFrame({'time': trial_starts[9::10]})
     tr_markers['label'] = [str(itr+1) if i % 2 else ''
                            for i, itr in enumerate(tr_markers.index)]
 
     # Common variables, limits and labels.
-    spk_i = range(-WF_T_START, waveforms.shape[1]-WF_T_START)
-    spk_t = spk_i * sampl_per
-    ses_t_lim = [min(spk_times.min() * s, trial_starts.iloc[0]),
-                 max(spk_times.max() * s, trial_starts.iloc[-1])]
-    ss = 1.0  # marker size on scatter plot
-    sa = .80  # marker alpha on scatter plot
-    g_lim = [gmin, gmax]  # gain axes limit
-    wf_t_lim = [min(spk_t), max(spk_t)]
-    dur_lim = [0*us, wavetime[-1]-wavetime[WF_T_START]]  # same across units
-    amp_lim = [0, gmax-gmin]  # [np.min(wf_ampl), np.max(wf_ampl)]
+    spk_t = u.SessParams.sampl_prd * (np.arange(waveforms.shape[1])-WF_T_START)
+    ses_t_lim = get_start_stop_times(spk_times, trial_starts, trial_stops)
+    ss, sa = 1.0, 0.8  # marker size and alpha on scatter plot
 
     # Color spikes by their occurance over session time.
     my_cmap = putil.get_cmap('jet')
@@ -467,17 +485,15 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                            np.random.permutation(np.where(spk_inc)[0])))
 
     # Common labels for plots
-    wf_t_lab = 'WF time ($\mu$s)'
     ses_t_lab = 'Recording time (s)'
-    volt_lab = 'Voltage'
-    amp_lab = 'Amplitude'
-    dur_lab = 'Duration ($\mu$s)'
 
     # %% Waveform shape analysis.
 
     # Plot included and excluded waveforms on different axes.
     # Color included by occurance in session time to help detect drifts.
     s_waveforms, s_spk_cols = waveforms[spk_order, :], spk_cols[spk_order]
+    wf_t_lim, glim = [min(spk_t), max(spk_t)], [gmin, gmax]
+    wf_t_lab, volt_lab = 'WF time ($\mu$s)', 'Voltage'
     for st in ('Included', 'Excluded'):
         ax = ax_wf_inc if st == 'Included' else ax_wf_exc
         spk_idx = spk_inc if st == 'Included' else np.invert(spk_inc)
@@ -494,10 +510,24 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
         # Plot waveforms.
         xlab, ylab = (wf_t_lab, volt_lab) if add_lbls else (None, None)
         pwaveform.wfs(wfs, spk_t, cols=cols, lw=0.1, alpha=0.05,
-                      xlim=wf_t_lim, ylim=g_lim, title=title,
+                      xlim=wf_t_lim, ylim=glim, title=title,
                       xlab=xlab, ylab=ylab, ax=ax)
 
     # %% Waveform summary metrics.
+
+    # Init data.
+    wf_amp_all = u.SpikeParams['amplitude']
+    wf_amp_inc = wf_amp_all[spk_inc]
+    wf_dur_all = u.SpikeParams['duration']
+    wf_dur_inc = wf_dur_all[spk_inc]
+
+    # Set common limits and labels.
+    dur_lim = [0, wavetime[-1]-wavetime[WF_T_START]]  # same across units
+    glim = max(wf_amp_all.max(), gmax-gmin)
+    amp_lim = [0, glim]
+
+    amp_lab = 'Amplitude'
+    dur_lab = 'Duration ($\mu$s)'
 
     # Waveform amplitude across session time.
     m_amp, sd_amp = wf_amp_inc.mean(), wf_amp_inc.std()
@@ -508,8 +538,6 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                   edgecolors='', alpha=sa, title=title, ax=ax_wf_amp)
 
     # Waveform duration across session time.
-    wf_dur_all = spk_dur  # to use TPLCell's waveform duration
-    wf_dur_inc = wf_dur_all[spk_inc]
     mdur, sdur = wf_dur_inc.mean(), wf_dur_inc.std()
     title = 'WF duration: {:.1f} $\pm$ {:.1f} $\mu$s'.format(mdur, sdur)
     xlab, ylab = (ses_t_lab, dur_lab) if add_lbls else (None, None)

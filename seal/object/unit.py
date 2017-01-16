@@ -95,7 +95,6 @@ class Unit:
         # %% Spike params.
 
         spk_pars = [('time', util.fill_dim(TPLCell.Spikes)),
-                    ('dur', util.fill_dim(TPLCell.Spikes_dur * s.rescale(us))),
                     ('included', True)]
         self.SpikeParams = pd.DataFrame.from_items(spk_pars)
 

@@ -31,7 +31,7 @@ def get_selection_params(u, UnTrSel=None):
     """Return unit and trial selection parameters of unit provided by user."""
 
     if UnTrSel is None or u.is_empty():
-        return {}
+        return None, None, None
 
     # Init.
     rec, ch, idx, task = u.get_utid()
@@ -45,7 +45,7 @@ def get_selection_params(u, UnTrSel=None):
     # Unit not in table.
     if not len(row.index):
         warnings.warn(uname + ': not found in selection table.')
-        return {}
+        return None, None, None
 
     # If there's more than one match.
     if len(row.index) > 1:
@@ -70,9 +70,7 @@ def get_selection_params(u, UnTrSel=None):
                       ' equal to last in selection table! Excluding unit.')
         include = False
 
-    sel_pars = {'include': include, 'first_tr': first_tr, 'last_tr': last_tr}
-
-    return sel_pars
+    return include, first_tr, last_tr
 
 
 def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
@@ -98,8 +96,8 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
 
             # Do quality test.
             u = UA.get_unit(uid, task)
-            sel_pars = get_selection_params(u, UnTrSel)
-            res = test_sorting.test_qm(u, **sel_pars)
+            include, first_tr, last_tr = get_selection_params(u, UnTrSel)
+            res = test_sorting.test_qm(u, include, first_tr, last_tr)
 
             # Plot QC results.
             if plot_qm:

@@ -44,11 +44,6 @@ spikes and rates
   - returning excluded trials should be made impossible in some way!
 
 
-waveform duration and amplitude calculation
--------------------------------------------
-- calculate waveform duration in a way that deals with truncated WFs
-
-
 export
 ------
   - add export decoding data (from Anna's script) into pickle and mat
@@ -58,6 +53,7 @@ unit
 ----
   - add RF coverage information
   - add type information: suppressive?, broad spiking? motor? etc
+
 
 pselectivity
 ------------
