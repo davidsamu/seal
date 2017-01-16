@@ -87,23 +87,28 @@ def calc_waveform_stats(waveforms):
 
     # Init waveform data and time vector.
     x = np.array(waveforms.columns)
-    xfit = np.arange(x[WF_T_START-1], x[-1]+1, step)
 
     def calc_wf_stats(x, y):
 
         # Remove truncated data points.
-        if is_truncated:
-            ivalid = (y != minV) & (y != maxV)
-            x, y = x[ivalid], y[ivalid]
+        ivalid = (y != minV) & (y != maxV)
+        xv, yv = x[ivalid], y[ivalid]
 
         # Fit cubic spline and get fitted y values.
-        tck = sp.interpolate.splrep(x, y, s=0)
+        tck = sp.interpolate.splrep(xv, yv, s=0)
+        xfit = np.arange(x[WF_T_START-2], xv[-1], step)
         yfit = sp.interpolate.splev(xfit, tck)
 
+        # Index of first local minimum and the first following local maximum.
+        # If no local min/max is found, then get global min/max.
+        imins = sp.signal.argrelextrema(yfit, np.less)[0]
+        imin = imins[0] if len(imins) else np.argmin(yfit)
+        imaxs = sp.signal.argrelextrema(yfit[imin:], np.greater)[0]
+        imax = (imaxs[0] if len(imaxs) else np.argmax(yfit[imin:])) + imin
+
         # Calculate waveform duration, amplitude and # of valid samples.
-        imin, imax = np.argmin(yfit), np.argmax(yfit)
-        dur = xfit[imax] - xfit[imin]
-        amp = yfit[imax] - yfit[imin]
+        dur = xfit[imax] - xfit[imin] if imin < imax else np.nan
+        amp = yfit[imax] - yfit[imin] if imin < imax else np.nan
         nvalid = len(x)
 
         return dur, amp, nvalid
