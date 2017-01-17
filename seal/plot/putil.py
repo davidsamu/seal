@@ -36,8 +36,9 @@ t_tick_lbls_prd = 1000  # this has to be multiple of marks period!
 
 my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
-# Stimulus colors.
+# Stimulus and cue colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
+cue_colors = pd.Series(['darkorange', 'palegreen'], index=['dir', 'loc'])
 
 # Default Matplotlib RC params.
 tick_pad = 3
@@ -51,6 +52,61 @@ seal_rc_params = {'xtick.major.pad': tick_pad,
                   'xtick.minor.size': tick_minor_fac*tick_size,
                   'ytick.major.size': tick_size,
                   'ytick.minor.size': tick_minor_fac*tick_size}
+
+
+# %% Info plots.
+
+def add_unit_info_title(u, fullname=False, fs='large', x=0.5, y=1.0, ax=None):
+    """Plot unit info as text labels."""
+
+    # Init axes.
+    ax = axes(ax)
+
+    # Init dict of info labels to plot.
+    upars = u.get_unit_params()
+
+    # Init formatted parameter values.
+    fpars = [('isolation', '{}'),
+             ('SNR', 'SNR: {:.2f}'),
+             ('ISIvr', 'ISIvr: {:.2f}%'),
+             ('TrueSpikes', 'TrSpRt: {:.0f}%'),
+             ('BS/NS', '{}'),
+             ('mWfDur', 'Wf dur: {:.0f} $\mu$s'),
+             ('Fac/Sup', '{}'),
+             ('mFR', 'mean rate: {:.1f} sp/s'),
+             ('baseline', 'baseline: {:.1f} sp/s'),
+             ('TaskRelated', 'task-related? {}')]
+    fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
+             for meas, f in fpars]
+    fvals = util.series_from_tuple_list(fvals)
+
+    # Create info lines.
+    # Header: Unit name.
+    header = upars.Name if fullname else upars.task
+    info_lines = '\n\n{}\n\n\n\n'.format(header)
+    # Unit type.
+    info_lines += '{} ({}, {}, {})\n\n'.format(fvals['isolation'],
+                                               fvals['SNR'], fvals['ISIvr'],
+                                               fvals['TrueSpikes'])
+    # Waveform duration.
+    info_lines += '{} ({})\n\n'.format(fvals['BS/NS'], fvals['mWfDur'])
+
+    # Firing rate.
+    info_lines += '{}, {}, {},\n{}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
+                                               fvals['baseline'],
+                                               fvals['TaskRelated'])
+
+    # Facilitatory or suppressive?
+    info_lines += '\n'.format()
+
+    # Plot info as axes title.
+    ax.set_title(info_lines, x=x, y=y, fontsize=fs)
+
+    # Highlight excluded unit.
+    if u.is_excluded():
+        highlight_axes(ax)
+
+    return ax
 
 
 # %% Generic plot decorator functions.
@@ -128,7 +184,7 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
 
 
 def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1,
-                      med='orange', mfc='None', ax=None, **kwargs):
+                      mec='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 
     if events is None:
@@ -140,8 +196,10 @@ def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1,
     ylim = ax.get_ylim()
     y = ylim[0] + ypos * (ylim[1] - ylim[0])
 
-    for time in events:
-        marker = ax.plot(time, y, marker, ms=ms, mew=mew, mec=med, mfc=mfc,
+    for event_data in events:
+        time = event_data  # event_data['time']
+        color = mec  # event_data['color'] if 'color' in event_data else mec
+        marker = ax.plot(time, y, marker, ms=ms, mew=mew, mec=color, mfc=mfc,
                          **kwargs)[0]
         marker.set_clip_on(False)   # disable clipping
         marker.event_marker = True  # add label to find these artists later

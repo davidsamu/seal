@@ -474,6 +474,18 @@ class Unit:
         if prds is None:
             prds = constants.analysis_prds.copy()
 
+        # Update cue plotting.
+        to_report = constants.task_info.loc[self.get_task(), 'toreport']
+        if to_report is not None:   # feature to be reported is constant
+
+            # Set cue to beginning of trial (plus a bit to avoid axis).
+            S1_prds = prds.ref == 'S1 on'
+            cue_to_S1_on = constants.tr_evts.loc['fixate', 'shift'] + 100*ms
+            prds.loc[S1_prds, 'cue'] = cue_to_S1_on
+
+            # Remove cue from rest of the periods.
+            prds.loc[~S1_prds, 'cue'] = None
+
         # Add period duration (specific to unit).
         prds['dur'] = [self.pr_dur(prd) for prd in prds.index]
 
@@ -551,7 +563,7 @@ class Unit:
 
         # Default: all values of stimulus feature.
         if vals is None:
-            vals = self.sort_feature_values(feat, tr_grps.keys())
+            vals = self.sort_feature_values(feat, tr_grps.keys().to_series())
         else:
             # Remove any physical quantity.
             dtype = self.StimParams[(stim, feat)].dtype

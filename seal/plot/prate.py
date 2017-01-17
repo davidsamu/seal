@@ -10,6 +10,7 @@ import numpy as np
 
 from quantities import ms
 
+from seal.util import util
 from seal.object import constants
 from seal.plot import putil
 
@@ -175,16 +176,20 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
         names = len(rate_list) * ['']
 
     # Iterate through list of rate arrays
-    lbl = None
     xmin, xmax, ymax = None, None, None
-    for name, rts, col in zip(names, rate_list, cols):
+    for i, rts in enumerate(rate_list):
+
+        # Init.
+        name = names[i]
+        col = cols[i]
 
         # Skip empty array (no trials).
         if not rts.shape[0]:
             continue
 
-        # Set line label.
-        lbl = str(name)
+        # Set line label. Convert to Numpy array to format floats nicely.
+        lbl = str(np.array(name)) if util.is_iterable(name) else str(name)
+
         if lgn_lbl is not None:
             lbl += ' ({} {})'.format(rts.shape[0], lgn_lbl)
 
@@ -217,7 +222,7 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
     putil.set_max_n_ticks(ax, 7, 'y')
 
     # Add legend.
-    if add_lgn and (lbl is not None):
+    if add_lgn and len(rate_list):
         putil.set_legend(ax, loc=1, borderaxespad=0.0, handletextpad=0.4,
                          handlelength=0.6)
 

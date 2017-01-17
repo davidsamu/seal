@@ -13,8 +13,11 @@ from quantities import deg
 
 from seal.object import constants
 from seal.analysis import direction, roc
-from seal.plot import putil, ptuning, prate, pauc, puinfo
+from seal.plot import putil, ptuning, prate, pauc
 from seal.util import util
+
+
+x_lbl_shift = 0.05
 
 
 # %% Functions to plot stimlus feature selectivity.
@@ -74,7 +77,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
 
         # Add title to raster of middle period.
         if i == mid_idx and title is not None:
-            raster_axs[0].set_title(title, ha='right')
+            raster_axs[0].set_title(title, x=x_lbl_shift)
 
         # Plot ROC curve.
         if plot_roc:
@@ -111,7 +114,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
         [ax.set_xlabel('') for ax in axes_rate + axes_roc]
         xlab = putil.t_lbl.format(prd_pars.stim[0] + ' onset')
         mid_ax = axes_rate[mid_idx] if not len(axes_roc) else axes_roc[mid_idx]
-        mid_ax.set_xlabel(xlab, ha='right')
+        mid_ax.set_xlabel(xlab, x=x_lbl_shift)
 
     # Reformat ticks on x axis. First period is reference.
     for axes in [axes_rate, axes_roc]:
@@ -141,7 +144,7 @@ def plot_LR(u, **kwargs):
 #        return [], [], []
 
     # Raster & rate in trials sorted by stimulus location.
-    title = 'Location selectivity'
+    title = 'Location selectivity\n'
     res = plot_SR(u, 'Loc', title=title, **kwargs)
     return res
 
@@ -158,7 +161,7 @@ def plot_DR(u, **kwargs):
     t1, t2 = u.DS.TW.loc[stim]
 
     # Raster & rate in trials sorted by stimulus direction.
-    title = 'Direction selectivity'
+    title = 'Direction selectivity\n'
     res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, **kwargs)
 
     # Add event lines to interval used to test DS.
@@ -207,6 +210,11 @@ def plot_all_trials(u, **kwargs):
     """Plot task-relatedness plot."""
 
     res = plot_SR(u, **kwargs)
+
+    # Add info header.
+    ax = res[0][1]  # middle of top plots
+    putil.add_unit_info_title(u, x=x_lbl_shift, ax=ax)
+
     return res
 
 
@@ -220,14 +228,10 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    gsp = putil.embed_gsp(sps, 4, 1, hspace=0.5, height_ratios=[.01, 1, 1, 1])
-    info_sps, tr_sps, lr_sps, dr_sps = gsp
+    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.5, height_ratios=[1, 1, 1])
+    tr_sps, lr_sps, dr_sps = gsp
 
     kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
-
-    # Info header.
-    info_ax = fig.add_subplot(info_sps)
-    puinfo.plot_unit_info(u, ax=info_ax)
 
     # Plot task-relatedness.
     plot_all_trials(u, sps=tr_sps, **kwargs)
