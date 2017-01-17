@@ -24,9 +24,9 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell=None, region=None, task=None, kernels=None,
-                 step=None, stim_params=None, answ_params=None, stim_dur=None,
-                 tr_evts=None):
+    def __init__(self, TPLCell=None, hemisphere=None, region=None, task=None,
+                 kernels=None, step=None, stim_params=None, answ_params=None,
+                 stim_dur=None, tr_evts=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
@@ -45,6 +45,7 @@ class Unit:
         self.DS = pd.Series()
 
         # Default unit params.
+        self.UnitParams['hemisphere'] = hemisphere
         self.UnitParams['region'] = region
         self.UnitParams['empty'] = True
         self.UnitParams['excluded'] = True
@@ -120,9 +121,8 @@ class Unit:
         for stim in stim_pars.columns.levels[0]:
             pstim = stim_pars[stim]
             if ('LocX' in pstim.columns) and ('LocY' in pstim.columns):
-                lx, ly = pstim.LocX.astype(str), pstim.LocY.astype(str)
-                stim_pars[stim, 'Loc'] = ['({}, {})'.format(x, y)
-                                          for x, y in zip(lx, ly)]
+                lx, ly = pstim.LocX, pstim.LocY
+                stim_pars[stim, 'Loc'] = [(x, y) for x, y in zip(lx, ly)]
         self.StimParams = stim_pars.sort_index(axis=1)
 
         # %% Subject answer parameters.
@@ -270,6 +270,12 @@ class Unit:
         my_region = self.UnitParams['region']
         return my_region
 
+    def get_hemisphere(self):
+        """Return unit's hemisphere of origin."""
+
+        my_hemisphere = self.UnitParams['hemisphere']
+        return my_hemisphere
+
     def get_task(self):
         """Return task."""
 
@@ -413,6 +419,25 @@ class Unit:
 
         return nrate
 
+    def sort_feature_values(self, feat, vals):
+        """Sort feature values."""
+
+        if feat == 'Dir':
+            # Direction: from lower to higher.
+            sorted_vals = np.sorted(vals)
+        elif feat == 'Loc':
+            # Location: first up - down (y descending),
+            # then left - right (x ascending).
+            reord_vs = [[-v[1], v[0]] for v in vals]
+            idx = sorted(range(len(reord_vs)), key=reord_vs.__getitem__)
+            sorted_vals = vals[idx]
+        else:
+            # Unknown feature.
+            warnings.warn('Sorting values of unknown feature...')
+            sorted_vals = np.sort(vals)
+
+        return sorted_vals
+
     # %% Methods to get times of trial events and periods.
 
     def ev_times(self, evname, add_latency=False):
@@ -526,7 +551,7 @@ class Unit:
 
         # Default: all values of stimulus feature.
         if vals is None:
-            vals = sorted(tr_grps.keys())
+            vals = self.sort_feature_values(tr_grps.keys())
         else:
             # Remove any physical quantity.
             dtype = self.StimParams[(stim, feat)].dtype

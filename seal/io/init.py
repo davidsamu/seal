@@ -61,13 +61,15 @@ def convert_TPL_to_Seal(data_dir):
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
+            hemisphere = constants.task_info.loc[task, 'hemisphere']
             region = constants.task_info.loc[task, 'region']
             kernels = constants.kset
             step, stim_params = constants.step, constants.stim_params,
             answ_params, stim_dur = constants.answ_params, constants.stim_dur
             tr_evts = constants.tr_evts
-            params = [(TPLCell, region, task, kernels, step, stim_params,
-                       answ_params, stim_dur, tr_evts) for TPLCell in TPLCells]
+            params = [(TPLCell, hemisphere, region, task, kernels, step,
+                       stim_params, answ_params, stim_dur, tr_evts)
+                      for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.
