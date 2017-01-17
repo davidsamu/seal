@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Functions to plot combined (composite) plots..
+Functions to plot combined (composite) plots.
 
 @author: David Samu
 """
@@ -13,14 +13,14 @@ from quantities import deg
 
 from seal.object import constants
 from seal.analysis import direction, roc
-from seal.plot import putil, ptuning, prate, pauc
+from seal.plot import putil, ptuning, prate, pauc, puinfo
 from seal.util import util
 
 
 # %% Functions to plot stimlus feature selectivity.
 
 def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
-            add_roc=True, add_prd_name=False, fig=None, sps=None, title=None,
+            add_roc=False, add_prd_name=False, fig=None, sps=None, title=None,
             **kwargs):
     """Plot stimulus response (raster, rate and ROC) for mutliple stimuli."""
 
@@ -47,7 +47,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
         # Prepare trial set.
         trs = (u.trials_by_features(stim, feat, vals) if feat is not None else
                u.ser_inc_trials())
-        plot_roc = add_roc and len(trs) == 2
+        plot_roc = add_roc and (len(trs) == 2)
 
         # Init subplots.
         if plot_roc:
@@ -165,8 +165,8 @@ def plot_DR(u, **kwargs):
     # Slight hardcoding action going on below...
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
-    for i in range(1, len(res)):
-        ax = res[i][0]  # take first of rate and auc plots (showing S1)
+    # On first of rate and auc period plots (showing S1)
+    for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
         putil.plot_events(evts, add_names=False, color='grey', alpha=0.5,
                           ls='--', lw=1, ax=ax)
 
@@ -203,15 +203,10 @@ def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
     return ax_mDSI, ax_wDSI
 
 
-def plot_task_relatedness(u, **kwargs):
+def plot_all_trials(u, **kwargs):
     """Plot task-relatedness plot."""
 
-    tr_str = '? '
-    if 'TaskRelated' in u.QualityMetrics:
-        tr_str = '' if u.QualityMetrics['TaskRelated'] else 'NOT '
-    title = '{}: unit is {}task-related'.format(u.SessParams.task, tr_str)
-
-    res = plot_SR(u, title=title, **kwargs)
+    res = plot_SR(u, **kwargs)
     return res
 
 
@@ -225,13 +220,17 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    tr_sps, lr_sps, dr_sps = putil.embed_gsp(sps, 3, 1, hspace=0.3,
-                                             height_ratios=[.66, 1, 1])
+    gsp = putil.embed_gsp(sps, 4, 1, hspace=0.5, height_ratios=[.01, 1, 1, 1])
+    info_sps, tr_sps, lr_sps, dr_sps = gsp
 
     kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
 
+    # Info header.
+    info_ax = fig.add_subplot(info_sps)
+    puinfo.plot_unit_info(u, ax=info_ax)
+
     # Plot task-relatedness.
-    plot_task_relatedness(u, sps=tr_sps, **kwargs)
+    plot_all_trials(u, sps=tr_sps, **kwargs)
 
     # Plot location-specific activity.
     _, lr_rate_axs, _ = plot_LR(u, sps=lr_sps, **kwargs)

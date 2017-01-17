@@ -53,43 +53,6 @@ seal_rc_params = {'xtick.major.pad': tick_pad,
                   'ytick.minor.size': tick_minor_fac*tick_size}
 
 
-# %% Functions to plot group and unit level properties.
-
-def unit_info(u, fs='large', ax=None):
-    """Plot unit info as text labels."""
-
-    # Init axes.
-    ax = axes(ax)
-    hide_axes(ax=ax)
-
-    # Init dict of info labels to plot.
-    upars = u.get_unit_params()
-    fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
-             for meas, f in [('SNR', '{:.2f}'), ('ISIvr', '{:.2f}%'),
-                             ('TrueSpikes', '{:.0f}%')]]
-    fvals = util.series_from_tuple_list(fvals)
-    fvals = pd.DataFrame(fvals, index=fvals.index)
-    nvals = len(fvals.index)
-    fvals['x'] = np.linspace(.10, .80, nvals)
-    fvals['y'] = nvals * [0.05]
-
-    # Plot each label.
-    for lbl, (val, x, y) in fvals.iterrows():
-        lbl_str = '{}: {}'.format(lbl, val)
-        ax.text(x, y, lbl_str, fontsize=fs, va='bottom', ha='center')
-
-    # Set title.
-    title = upars['task'] + ', ' + upars['UnitType']
-    title += ' (excluded)' if u.is_excluded() else ''
-    set_labels(ax, title=title, ytitle=.6, title_kws={'fontsize': 'x-large'})
-
-    # Highlight excluded unit.
-    if u.is_excluded():
-        highlight_axes(ax)
-
-    return ax
-
-
 # %% Generic plot decorator functions.
 
 def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
@@ -121,7 +84,7 @@ def highlight_axes(ax=None, color='red', alpha=0.5, **kwargs):
     ax.add_artist(rect)
 
 
-def plot_periods(prds, alpha=0.15, color='grey', ax=None, **kwargs):
+def plot_periods(prds, alpha=0.10, color='grey', ax=None, **kwargs):
     """Highlight segments (periods)."""
 
     if prds is None:

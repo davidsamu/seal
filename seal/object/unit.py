@@ -424,7 +424,7 @@ class Unit:
 
         if feat == 'Dir':
             # Direction: from lower to higher.
-            sorted_vals = np.sorted(vals)
+            sorted_vals = np.sort(vals)
         elif feat == 'Loc':
             # Location: first up - down (y descending),
             # then left - right (x ascending).
@@ -551,7 +551,7 @@ class Unit:
 
         # Default: all values of stimulus feature.
         if vals is None:
-            vals = self.sort_feature_values(tr_grps.keys())
+            vals = self.sort_feature_values(feat, tr_grps.keys())
         else:
             # Remove any physical quantity.
             dtype = self.StimParams[(stim, feat)].dtype

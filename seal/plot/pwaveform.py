@@ -13,8 +13,9 @@ from matplotlib.collections import LineCollection
 from seal.plot import putil
 
 
-def wfs(waveforms, tvec, cols=None, lw=0.1, alpha=0.05, xlim=None, ylim=None,
-        title=None, xlab=None, ylab=None, ffig=None, ax=None, **kwargs):
+def plot_wfs(waveforms, tvec, cols=None, lw=0.1, alpha=0.05, xlim=None,
+             ylim=None, title=None, xlab=None, ylab=None, ffig=None, ax=None,
+             **kwargs):
     """
     Plot large set of waveforms efficiently as LineCollections.
 

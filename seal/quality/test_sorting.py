@@ -17,7 +17,7 @@ from quantities import s, ms, us
 import elephant
 
 from seal.util import util
-from seal.plot import putil, pplot, pwaveform
+from seal.plot import putil, pplot, pwaveform, puinfo
 
 
 # %% Constants.
@@ -109,13 +109,15 @@ def calc_waveform_stats(waveforms):
         # Calculate waveform duration, amplitude and # of valid samples.
         dur = xfit[imax] - xfit[imin] if imin < imax else np.nan
         amp = yfit[imax] - yfit[imin] if imin < imax else np.nan
-        nvalid = len(x)
+        truncated = len(x) == len(xv)
+        nvalid = len(xv)
 
-        return dur, amp, nvalid
+        return dur, amp, truncated, nvalid
 
     # Calculate duration, amplitude and number of valid samples."""
     res = [calc_wf_stats(x, wfs[i, :]) for i in range(wfs.shape[0])]
-    wfstats = pd.DataFrame(res, columns=['duration', 'amplitude', 'nvalid'])
+    wfstats = pd.DataFrame(res, columns=['duration', 'amplitude',
+                                         'truncated', 'nvalid'])
 
     return wfstats, is_truncated, minV, maxV
 
@@ -171,17 +173,6 @@ def calc_snr(waveforms):
     snr = wf_mean.std() / np.array(wf_res).std()
 
     return snr
-
-
-def classify_unit(snr, true_spikes):
-    """Classify unit as single or multi-unit."""
-
-    if true_spikes >= 90 and snr >= 2.0:
-        unit_type = 'single unit'
-    else:
-        unit_type = 'multi unit'
-
-    return unit_type
 
 
 def test_drift(t, v, tbins, tr_starts, spk_times):
@@ -260,6 +251,17 @@ def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times,
     return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
 
 
+def is_isolated(snr, true_spikes):
+    """Classify unit as single or multi-unit."""
+
+    if true_spikes >= 90 and snr >= 2.0:
+        isolation = 'single unit'
+    else:
+        isolation = 'multi unit'
+
+    return isolation
+
+
 def calc_baseline_rate(u):
     """Calculate baseline firing rate of unit."""
 
@@ -333,10 +335,11 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     wf_stats, is_truncated, minV, maxV = calc_waveform_stats(waveforms)
     u.SpikeParams['duration'] = wf_stats['duration']
     u.SpikeParams['amplitude'] = wf_stats['amplitude']
+    u.SpikeParams['truncated'] = wf_stats['truncated']
     u.SpikeParams['nvalid'] = wf_stats['nvalid']
     u.UnitParams['truncated'] = is_truncated
-    u.UnitParams['minV'] = min(minV, VMIN)
-    u.UnitParams['maxV'] = max(maxV, VMAX)
+    u.SessParams['minV'] = min(minV, VMIN)
+    u.SessParams['maxV'] = max(maxV, VMAX)
 
     tr_starts, tr_stops = u.TrialParams.TrialStart, u.TrialParams.TrialStop
 
@@ -367,7 +370,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
 
     # ISI statistics.
     true_spikes, ISIvr = isi_stats(np.array(spk_times[spk_inc])*s)
-    unit_type = classify_unit(snr, true_spikes)
+    isolation = is_isolated(snr, true_spikes)
 
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
@@ -375,7 +378,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISIvr
     u.QualityMetrics['TrueSpikes'] = true_spikes
-    u.QualityMetrics['UnitType'] = unit_type
+    u.QualityMetrics['isolation'] = isolation
     u.QualityMetrics['baseline'] = calc_baseline_rate(u)
     u.QualityMetrics['TaskRelated'] = test_task_relatedness(u)
 
@@ -455,9 +458,8 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     info_sps, qm_sps = ogsp[0], ogsp[1]
 
     # Info header.
-    gsp_info = putil.embed_gsp(info_sps, 1, 1)
-    info_ax = fig.add_subplot(gsp_info[0, 0])
-    putil.unit_info(u, ax=info_ax)
+    info_ax = fig.add_subplot(info_sps)
+    puinfo.plot_unit_info(u, ax=info_ax)
 
     # Create axes.
     gsp = putil.embed_gsp(qm_sps, 3, 2, wspace=0.3, hspace=0.4)
@@ -514,9 +516,9 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
 
         # Plot waveforms.
         xlab, ylab = (wf_t_lab, volt_lab) if add_lbls else (None, None)
-        pwaveform.wfs(wfs, spk_t, cols=cols, lw=0.1, alpha=0.05,
-                      xlim=wf_t_lim, ylim=glim, title=title,
-                      xlab=xlab, ylab=ylab, ax=ax)
+        pwaveform.plot_wfs(wfs, spk_t, cols=cols, lw=0.1, alpha=0.05,
+                           xlim=wf_t_lim, ylim=glim, title=title,
+                           xlab=xlab, ylab=ylab, ax=ax)
 
     # %% Waveform summary metrics.
 
