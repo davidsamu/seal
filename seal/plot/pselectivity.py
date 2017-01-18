@@ -48,7 +48,7 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
     for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
 
         # Prepare trial set.
-        trs = (u.trials_by_features(stim, feat, vals) if feat is not None else
+        trs = (u.trials_by_feature(stim, feat, vals) if feat is not None else
                u.ser_inc_trials())
         plot_roc = add_roc and (len(trs) == 2)
 

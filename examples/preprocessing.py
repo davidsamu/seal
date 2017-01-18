@@ -136,7 +136,12 @@ creat_montage = False  # create montage from all activity figures created
                        # need to have ImageMagick install for this option.
                        # https://www.imagemagick.org/script/binary-releases.php
 
-init.unit_activity(data_dir, proj_name, plot_DR, plot_sel, creat_montage)
+init.unit_activity(proj_dir, plot_DR, plot_sel, creat_montage)
 
 # Output:
+# - direction response plots in
+#    result/direction_response/
+# - stimulus response plots in
+#    results/stimulus_selectivity/
+
 

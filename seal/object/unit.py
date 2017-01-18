@@ -35,10 +35,8 @@ class Unit:
         self.SessParams = pd.Series()
         self.Waveforms = pd.DataFrame()
         self.SpikeParams = pd.DataFrame()
-        self.StimParams = pd.DataFrame()
-        self.Answer = pd.DataFrame()
         self.Events = pd.DataFrame()
-        self.TrialParams = pd.DataFrame()
+        self.TrData = pd.DataFrame()
         self._Spikes = Spikes([])
         self._Rates = pd.Series()
         self.QualityMetrics = pd.Series()
@@ -105,41 +103,42 @@ class Unit:
         trpars = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
 
         # Extract stimulus parameters.
-        self.StimParams = trpars[stim_params.name]
-        self.StimParams.columns = stim_params.index
+        StimParams = trpars[stim_params.name]
+        StimParams.columns = stim_params.index
 
         # Change type if required.
-        stim_pars = self.StimParams.copy()
+        stim_pars = StimParams.copy()
         for stim_par in stim_pars:
             stim_type = stim_params.loc[stim_par, 'type']
             if stim_type is not None:
                 stim_pars[stim_par] = stim_pars[stim_par].astype(stim_type)
-        self.StimParams = stim_pars
+        StimParams = stim_pars
 
         # Combine x and y stimulus coordinates into a single location variable.
-        stim_pars = self.StimParams.copy()
+        stim_pars = StimParams.copy()
         for stim in stim_pars.columns.levels[0]:
             pstim = stim_pars[stim]
             if ('LocX' in pstim.columns) and ('LocY' in pstim.columns):
                 lx, ly = pstim.LocX, pstim.LocY
                 stim_pars[stim, 'Loc'] = [(x, y) for x, y in zip(lx, ly)]
-        self.StimParams = stim_pars.sort_index(axis=1)
+        StimParams = stim_pars.sort_index(axis=1)
 
         # %% Subject answer parameters.
 
+        Answer = pd.DataFrame()
+
         # Recode correct/incorrect answer column.
-        corr_ans = trpars[answ_params['AnswCorr']]
+        corr_ans = trpars[answ_params['correct']]
         if len(corr_ans.unique()) > 2:
-            warnings.warn(('More than 2 unique values in AnswCorr: ' +
+            warnings.warn(('More than 2 unique values for correct answer: ' +
                            corr_ans.unique()))
         corr_ans = corr_ans == corr_ans.max()  # higher value is correct!
-        self.Answer['AnswCorr'] = corr_ans
+        Answer['correct'] = corr_ans
 
         # Add column for subject response (saccade direction).
-        same_dir = self.StimParams['S1', 'Dir'] == self.StimParams['S2', 'Dir']
+        same_dir = StimParams['S1', 'Dir'] == StimParams['S2', 'Dir']
         # This is not actually correct for passive task!
-        self.Answer['SaccadeDir'] = ((same_dir & corr_ans) |
-                                     (~same_dir & ~corr_ans))
+        Answer['saccade'] = ((same_dir & corr_ans) | (~same_dir & ~corr_ans))
 
         # %% Trial events.
 
@@ -174,7 +173,9 @@ class Unit:
             evts[evt] = util.add_dim_to_series(1000*evts[evt], ms)  # s --> ms
         self.Events = evts
 
-        # %% Trial parameters.
+        # %% Trial parameters
+
+        TrialParams = pd.DataFrame()
 
         # Add start time, end time and length of each trials.
         tstamps = TPLCell.Timestamps
@@ -183,19 +184,19 @@ class Unit:
         for colname, col in [('TrialStart', tr_times[:, 0]),
                              ('TrialStop', tr_times[:, 1]),
                              ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
-            util.add_quant_col(self.TrialParams, col, colname)
+            util.add_quant_col(TrialParams, col, colname)
 
         # Add trial period lengths to trial params.
-        self.TrialParams['S1Len'] = evts['S1 off'] - evts['S1 on']
-        self.TrialParams['S2Len'] = evts['S2 off'] - evts['S2 on']
-        self.TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
+        TrialParams['S1Len'] = evts['S1 off'] - evts['S1 on']
+        TrialParams['S2Len'] = evts['S2 off'] - evts['S2 on']
+        TrialParams['DelayLenPrec'] = evts['S2 on'] - evts['S1 off']
 
         # "Categorical" (rounded) delay length variable.
-        delay_lens = util.dim_series_to_array(self.TrialParams['DelayLenPrec'])
+        delay_lens = util.dim_series_to_array(TrialParams['DelayLenPrec'])
         len_diff = [(i, np.abs(delay_lens - dl))
                     for i, dl in enumerate(constants.delay_lengths)]
         min_diff = pd.DataFrame.from_items(len_diff).idxmin(1)
-        self.TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
+        TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
 
         # Add target feature to be reported.
         if constants.task_info.loc[task, 'toreport'] is not None:
@@ -207,10 +208,15 @@ class Unit:
                           self.Name + '. Forgot define target for task ' +
                           'in constants.task_info?')
             to_report = None
-        self.TrialParams['ToReport'] = to_report
+        TrialParams['ToReport'] = to_report
 
         # Init included trials (all trials included initially).
-        self.TrialParams['included'] = np.array(True, dtype=bool)
+        TrialParams['included'] = np.array(True, dtype=bool)
+
+        # %% Assamble full trial data frame.
+
+        StimParams.columns = StimParams.columns.tolist()
+        self.TrData = pd.concat([TrialParams, StimParams, Answer], axis=1)
 
         # %% Spikes.
 
@@ -254,7 +260,7 @@ class Unit:
         if 'NTrialsInc' in self.QualityMetrics:
             n_inc_trs = self.QualityMetrics['NTrialsInc']
         else:
-            n_inc_trs = len(self.TrialParams.index)
+            n_inc_trs = len(self.TrData.index)
 
         return n_inc_trs
 
@@ -373,10 +379,10 @@ class Unit:
         tr_exc = np.invert(tr_inc)
 
         # Update included trials.
-        self.TrialParams['included'] = tr_inc
+        self.TrData['included'] = tr_inc
 
         # Statistics on trial inclusion.
-        self.QualityMetrics['NTrialsTotal'] = len(self.TrialParams.index)
+        self.QualityMetrics['NTrialsTotal'] = len(self.TrData.index)
         self.QualityMetrics['NTrialsInc'] = np.sum(tr_inc)
         self.QualityMetrics['NTrialsExc'] = np.sum(tr_exc)
 
@@ -386,8 +392,8 @@ class Unit:
             t2 = self.SpikeParams['time'].max()
         else:
             # Include spikes occurring between first and last included trials.
-            t1 = self.TrialParams.loc[tr_inc, 'TrialStart'].min()
-            t2 = self.TrialParams.loc[tr_inc, 'TrialStop'].max()
+            t1 = self.TrData.loc[tr_inc, ('TrialStart')].min()
+            t2 = self.TrData.loc[tr_inc, ('TrialStop')].max()
 
         spk_inc = util.indices_in_window(self.SpikeParams['time'], t1, t2)
         self.SpikeParams['included'] = spk_inc
@@ -509,7 +515,7 @@ class Unit:
     def inc_trials(self):
         """Return included trials (i.e. not rejected after quality test)."""
 
-        inc_trs = self.TrialParams.index[self.TrialParams['included']]
+        inc_trs = self.TrData.index[self.TrData[('included')]]
         return inc_trs
 
     def ser_inc_trials(self):
@@ -526,50 +532,27 @@ class Unit:
 
         return ftrs_ser
 
-    def correct_incorrect_trials(self):
-        """Return indices of correct and incorrect trials."""
-
-        corr = self.Answer['AnswCorr']
-        ctrs = pd.Series([corr.index[idxs] for idxs in (corr, ~corr)])
-        ctrs.index = ['correct', 'error']
-
-        ctrs = self.filter_trials(ctrs)
-
-        return ctrs
-
-    def to_report_trials(self):
-        """Return trials by feature to report."""
-
-        to_report = self.TrialParams['ToReport']
-        kvs = [(grp[0], grp[1].index) for grp in to_report.groupby(to_report)]
-        to_report = util.series_from_tuple_list(kvs)
-
-        to_report = self.filter_trials(to_report)
-
-        return to_report
-
-    def trials_by_features(self, stim, feat, vals=None, comb_vals=False):
-        """Return trials grouped by (selected) values of stimulus param."""
+    def trials_by_param(self, param, vals=None, comb_vals=False):
+        """Return trials grouped by (selected) values of trial parameter."""
 
         # Error check.
-        if feat not in self.StimParams.columns.levels[1]:
-            warnings.warn('Requested feature "{}" '.format(feat) +
-                          'not found in StimParams table.')
+        if param not in self.TrData.columns:
+            warnings.warn('Unknown trial parameter {}'.format(param))
             return pd.Series()
 
-        # Group indices by stimulus feature value.
-        tr_grps = pd.Series(self.StimParams.groupby([(stim, feat)]).groups)
+        # Group indices by values of parameter.
+        tr_grps = pd.Series(self.TrData.groupby([param]).groups)
         tr_grps = self.filter_trials(tr_grps)
 
-        # Default: all values of stimulus feature.
+        # Default: all values of parameter.
         if vals is None:
-            vals = self.sort_feature_values(feat, tr_grps.keys().to_series())
+            vals = self.sort_feature_values(param, tr_grps.keys().to_series())
         else:
             # Remove any physical quantity.
-            dtype = self.StimParams[(stim, feat)].dtype
+            dtype = self.TrData[param].dtype
             vals = np.array(vals, dtype=dtype)
 
-        # Convert to Series of trial list per feature value.
+        # Convert to Series of trial list per parameter value.
         v_trs = [(v, np.array(tr_grps[v]) if v in tr_grps else np.empty(0))
                  for v in vals]
         tr_grps = util.series_from_tuple_list(v_trs)
@@ -577,6 +560,28 @@ class Unit:
         # Optionally, combine trials across feature values.
         if comb_vals:
             tr_grps = util.union_lists(tr_grps)
+
+        return tr_grps
+
+    def trials_by_params(self, params):
+        """Return trials grouped by value combinations of trial parameters."""
+
+        # Error check.
+        for param in params:
+            if param not in self.TrData.columns:
+                warnings.warn('Unknown trial parameter {}'.format(param))
+                return pd.Series()
+
+        # Group indices by values of parameter.
+        tr_grps = pd.Series(self.TrData.groupby(params).groups)
+        tr_grps = self.filter_trials(tr_grps)
+
+        val_combs = tr_grps.keys().to_series()
+
+        # Convert to Series of trial list per parameter value.
+        v_trs = [(vc, np.array(tr_grps[vc]) if vc in tr_grps else np.empty(0))
+                 for vc in val_combs]
+        tr_grps = util.series_from_tuple_list(v_trs)
 
         return tr_grps
 

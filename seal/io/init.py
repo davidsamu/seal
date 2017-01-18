@@ -147,8 +147,7 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
     putil.inline_on()
 
 
-def unit_activity(proj_dir, proj_name, plot_DR=True, plot_sel=True,
-                  creat_montage=True):
+def unit_activity(proj_dir, plot_DR=True, plot_sel=True, creat_montage=True):
     """Plot basic unit activity figures."""
 
     print('\nStarting plotting unit activity...')

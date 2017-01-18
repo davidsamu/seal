@@ -367,6 +367,8 @@ def get_scalar_vals(series, remove_dimensions=False):
     return sub_series
 
 
+# %% Functions to create different types of combinations of lists (trials).
+
 def union_lists(val_lists, name='or'):
     """Union (OR) of list of lists of values into single list."""
 

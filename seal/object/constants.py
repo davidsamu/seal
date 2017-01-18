@@ -26,7 +26,7 @@ stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
                            index=('name', 'dim', 'type')).T
 
 # Subject answer reports.
-answ_params = pd.Series({'AnswCorr': 'subjectAnswer'})
+answ_params = pd.Series({'correct': 'subjectAnswer'})
 
 # Stimulus durations. These are fixed, fundamental constants for now.
 stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
