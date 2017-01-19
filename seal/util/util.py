@@ -184,6 +184,16 @@ def format_uid(uid):
     return uid_str
 
 
+def is_number(s):
+    """Test if string can be converted into numeric value."""
+
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 # %% System-related functions.
 
 def get_n_cores():

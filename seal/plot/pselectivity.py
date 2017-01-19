@@ -119,7 +119,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
     # Add title.
     if title is not None:
-        axes_raster[0].set_title(title, x=xmid)
+        axes_raster[0].set_title(title, x=xmid, y=1.1)
 
     # Set common x label.
     if ('no_labels' not in kwargs) or (not kwargs['no_labels']):
@@ -147,49 +147,78 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
     return axes_raster, axes_rate, axes_roc
 
 
-def plot_LR(u, sps, fig):
-    """Plot location response plot."""
+def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
+    """Plot stimulus response in matrix layout by target and delay length."""
 
     # Init params.
-    prd_pars = constants.tr_half_prds.copy()
+    dsplit_prd_pars = constants.tr_half_prds.copy()
+    dcomb_prd_pars = constants.tr_third_prds.copy()
     targets = u.TrData['ToReport'].unique()
     dlens = np.sort(u.TrData['DelayLen'].unique())
 
-    # Init axes
+    # Init axes.
+    nrow = len(targets) + (len(targets) > 1)
+    ncol = len(dlens) + (len(dlens) > 1)
+    # Width ratio, depending in delay lengths.
     wratio = None
     if len(dlens) > 1:
-        len_wo_delay = float(prd_pars.max_len.sum()) - dlens[-1]
-        wratio = [len_wo_delay + dlen for dlen in dlens]
-    gsp = putil.embed_gsp(sps, len(targets), len(dlens), width_ratios=wratio,
-                          wspace=0.1, hspace=0.2)
+        len_wo_delay = float(dsplit_prd_pars.max_len.sum()) - dlens[-1]
+        wratio = [len_wo_delay+dlens[0]]  # combined (unsplit) column
+        wratio.extend([len_wo_delay + dlen for dlen in dlens])
+    gsp = putil.embed_gsp(sps, nrow, ncol, width_ratios=wratio,
+                          wspace=0.2, hspace=0.4)
     raster_axs, rate_axs, roc_axs = [], [], []
 
-    # Split trials by target (rows) and delay lengths (columns).
-    target_dlen_trs = u.trials_by_params(['ToReport', 'DelayLen'])
-    for i, target in enumerate(targets):
-        for j, dlen in enumerate(dlens):
+    # Set up trial splits to plot by.
+    mtargets = ['all'] + list(targets if len(targets) > 1 else [])
+    mdlens = ['all'] + list(dlens if len(dlens) > 1 else [])
+    # No split (all included trials).
+    trs_splits = pd.Series([u.inc_trials()], index=[('all', 'all')])
+    # Split by report only.
+    if len(targets) > 1:
+        by_report = u.trials_by_params(['ToReport'])
+        by_report.index = [(r, 'all') for r in by_report.index]
+        trs_splits = trs_splits.append(by_report)
+    # Split by delay length only.
+    if len(dlens) > 1:
+        by_dlen = u.trials_by_params(['DelayLen'])
+        by_dlen.index = [('all', dl) for dl in by_dlen.index]
+        trs_splits = trs_splits.append(by_dlen)
+    # Split by both report and delay length.
+    if len(targets) > 1 and len(dlens) > 1:
+        target_dlen_trs = u.trials_by_params(['ToReport', 'DelayLen'])
+        trs_splits = trs_splits.append(target_dlen_trs)
+
+    # Plot each split on matrix layout.
+    for i, target in enumerate(mtargets):
+        for j, dlen in enumerate(mdlens):
 
             # Init plotting params.
-            title = 'LS / report: {} / delay: {} ms'.format(target, dlen)
-            from_trs = target_dlen_trs[(target, dlen)]
+            dlen_str = str(int(dlen)) + ' ms' if util.is_number else dlen
+            title = 'report: {}  |  delay: {}'.format(target, dlen_str)
+            from_trs = trs_splits[(target, dlen)]
 
             # Periods to plot.
-            dlen_prd_pars = prd_pars.copy()
-            dlen_prd_pars = u.get_analysis_prds(dlen_prd_pars, from_trs)
-            S2_shift = constants.stim_dur['S1'] + dlen*ms
-            dlen_prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
-            if len(dlens) > 1:
-                tdiff = (dlen - dlens[-1]) * ms
-                S1_max_len = dlen_prd_pars.loc['S1 half', 'max_len'] + tdiff
-                dlen_prd_pars.loc['S1 half', 'max_len'] = S1_max_len
+            if dlen == 'all':
+                prd_pars = dcomb_prd_pars.copy()
+                prd_pars = u.get_analysis_prds(prd_pars, from_trs)
+            else:
+                prd_pars = dsplit_prd_pars.copy()
+                prd_pars = u.get_analysis_prds(prd_pars, from_trs)
+                S2_shift = constants.stim_dur['S1'] + dlen*ms
+                prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
+                if len(dlens) > 1:
+                    tdiff = (dlen - dlens[-1]) * ms
+                    S1_max_len = prd_pars.loc['S1 half', 'max_len'] + tdiff
+                    prd_pars.loc['S1 half', 'max_len'] = S1_max_len
 
             # Plot response.
-            res = plot_SR(u, 'Loc', from_trs=from_trs, prd_pars=dlen_prd_pars,
+            res = plot_SR(u, param, vals, from_trs, prd_pars,
                           title=title, sps=gsp[i, j], fig=fig)
             axes_raster, axes_rate, axes_roc = res
 
             # Remove superfluous labels.
-            if i < len(targets)-1:
+            if i < len(mtargets)-1:
                 [ax.set_xlabel('') for ax in axes_rate]
             if j > 0:
                 [ax.set_ylabel('') for ax in axes_rate]
@@ -202,13 +231,16 @@ def plot_LR(u, sps, fig):
     return raster_axs, rate_axs, roc_axs
 
 
+def plot_LR(u, sps, fig):
+    """Plot location response plot."""
+
+    res = plot_SR_matrix(u, 'Loc', None, sps, fig)
+
+    return res
+
+
 def plot_DR(u, sps, fig):
     """Plot direction response plot."""
-
-    # Init params.
-    prd_pars = constants.tr_half_prds.copy()
-    targets = u.TrData['ToReport'].unique()
-    dlens = np.sort(u.TrData['DelayLen'].unique())
 
     # Get DS parameters.
     if u.DS.empty:
@@ -219,59 +251,16 @@ def plot_DR(u, sps, fig):
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
 
-    # Init axes
-    wratio = None
-    if len(dlens) > 1:
-        len_wo_delay = float(prd_pars.max_len.sum()) - dlens[-1]
-        wratio = [len_wo_delay + dlen for dlen in dlens]
-    gsp = putil.embed_gsp(sps, len(targets), len(dlens), width_ratios=wratio,
-                          wspace=0.1, hspace=0.2)
-    raster_axs, rate_axs, roc_axs = [], [], []
+    res = plot_SR_matrix(u, 'Dir', pref_anti_dirs, sps, fig)
 
-    # Split trials by target (rows) and delay lengths (columns).
-    target_dlen_trs = u.trials_by_params(['ToReport', 'DelayLen'])
-    for i, target in enumerate(targets):
-        for j, dlen in enumerate(dlens):
+    # Add event lines to interval used to test DS.
+    # Slight hardcoding action going on below...
+    # On first period plots of rate and auc axes (showing S1).
+    for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
+        putil.plot_events(evts, add_names=False, color='grey',
+                          alpha=0.5, ls='--', lw=1, ax=ax)
 
-            # Init plotting params.
-            title = 'DS / report: {} / delay: {} ms'.format(target, dlen)
-            from_trs = target_dlen_trs[(target, dlen)]
-
-            # Periods to plot.
-            dlen_prd_pars = prd_pars.copy()
-            dlen_prd_pars = u.get_analysis_prds(dlen_prd_pars, from_trs)
-            S2_shift = constants.stim_dur['S1'] + dlen*ms
-            dlen_prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
-            if len(dlens) > 1:
-                tdiff = (dlen - dlens[-1]) * ms
-                S1_max_len = dlen_prd_pars.loc['S1 half', 'max_len'] + tdiff
-                dlen_prd_pars.loc['S1 half', 'max_len'] = S1_max_len
-
-            # Plot response.
-            res = plot_SR(u, 'Dir', pref_anti_dirs, from_trs=from_trs,
-                          prd_pars=dlen_prd_pars, title=title,
-                          sps=gsp[i, j], fig=fig)
-            axes_raster, axes_rate, axes_roc = res
-
-            # Remove superfluous labels.
-            if i < len(targets)-1:
-                [ax.set_xlabel('') for ax in axes_rate]
-            if j > 0:
-                [ax.set_ylabel('') for ax in axes_rate]
-
-            # Add event lines to interval used to test DS.
-            # Slight hardcoding action going on below...
-            # On first period plots of rate and auc axes (showing S1).
-            for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
-                putil.plot_events(evts, add_names=False, color='grey',
-                                  alpha=0.5, ls='--', lw=1, ax=ax)
-
-            # Collect axes.
-            raster_axs.extend(axes_raster)
-            rate_axs.extend(axes_rate)
-            roc_axs.extend(axes_roc)
-
-    return raster_axs, rate_axs, roc_axs
+    return res
 
 
 def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,

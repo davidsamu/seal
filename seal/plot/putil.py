@@ -71,8 +71,7 @@ def get_unit_info_title(u, fullname=False):
              ('mWfDur', 'Wf dur: {:.0f} $\mu$s'),
              ('Fac/Sup', '{}'),
              ('mFR', 'mean rate: {:.1f} sp/s'),
-             ('baseline', 'baseline: {:.1f} sp/s'),
-             ('TaskRelated', 'task-related? {}')]
+             ('baseline', 'baseline: {:.1f} sp/s')]
     fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
              for meas, f in fpars]
     fvals = util.series_from_tuple_list(fvals)
@@ -86,12 +85,12 @@ def get_unit_info_title(u, fullname=False):
                                                fvals['SNR'], fvals['ISIvr'],
                                                fvals['TrueSpikes'])
     # Waveform duration.
-    info_lines += '{} ({})\n\n'.format(fvals['BS/NS'], fvals['mWfDur'])
+    info_lines += '{}\n\n'.format(fvals['mWfDur'])
+    #info_lines += '{} ({})\n\n'.format(fvals['BS/NS'], fvals['mWfDur'])
 
     # Firing rate.
-    info_lines += '{}, {}, {},\n{}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
-                                               fvals['baseline'],
-                                               fvals['TaskRelated'])
+    info_lines += '{}, {}, {}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
+                                          fvals['baseline'])
 
     # Facilitatory or suppressive?
     #info_lines += '\n'.format()
@@ -657,8 +656,8 @@ def save_fig(fig=None, ffig=None, dpi=150, bbox_extra_artists=None,
 
 
 def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
-                    fs_title='xx-large', rect_height=None, pad=1.08,
-                    h_pad=None, w_pad=None, **kwargs):
+                    fs_title='xx-large', rect_height=None, border=0.03,
+                    pad=1.08, h_pad=None, w_pad=None, **kwargs):
     """Save composite (GridSpec) figure to file."""
 
     # Add super title to figure.
@@ -668,8 +667,8 @@ def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
     # Adjust gsp's plotting area and set tight layout.
     if gsp is not None:
         if rect_height is None:  # relative height of plotted area
-            rect_height = ytitle - 0.03
-        rect = [0, 0.0, 1, rect_height]
+            rect_height = ytitle - border
+        rect = [border, border, 1.0-border, rect_height]
         gsp.tight_layout(fig, rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
 
     # Save figure.
