@@ -38,7 +38,8 @@ my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus and cue colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
-cue_colors = pd.Series(['darkorange', 'palegreen'], index=['dir', 'loc'])
+cue_colors = pd.Series(['darkorange', 'palegreen', 'cyan'],
+                       index=['all', 'loc', 'dir'])
 
 # Default Matplotlib RC params.
 tick_pad = 3
@@ -186,8 +187,8 @@ def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1,
     y = ylim[0] + ypos * (ylim[1] - ylim[0])
 
     for event_data in events:
-        time = event_data  # event_data['time']
-        color = mec  # event_data['color'] if 'color' in event_data else mec
+        time = event_data['time']
+        color = event_data['color'] if 'color' in event_data else mec
         marker = ax.plot(time, y, marker, ms=ms, mew=mew, mec=color, mfc=mfc,
                          **kwargs)[0]
         marker.set_clip_on(False)   # disable clipping

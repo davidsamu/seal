@@ -126,7 +126,7 @@ for ev, (rel_to, shift) in tr_evts.iterrows():
     ev_stims.loc[ev] = [stim, stim_start, stim_stop]
 
 
-# %% Time periods to build "full trial" raster and rate plots.
+# %% Time periods to build across-trial raster and rate plots.
 
 S2_S1_lbl_shift = stim_dur['S1'] + delay_lengths.min()
 prd_lbls = ['stim', 'ref', 'lbl_shift', 'max_len']

@@ -44,7 +44,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
     axes_raster, axes_rate, axes_roc = [], [], []
     for i, ppars in enumerate(prd_pars.itertuples()):
 
-        prd, stim, ref, _, max_len, tcue, _ = ppars
+        prd, ref = ppars.Index, ppars.ref
 
         # Prepare trial set.
         if param is None:
@@ -52,7 +52,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         elif param in u.TrData.columns:
             trs = u.trials_by_param(param, vals)
         else:
-            trs = u.trials_by_param((stim, param), vals)
+            trs = u.trials_by_param((ppars.stim, param), vals)
 
         if from_trs is not None:
             trs = util.filter_lists(trs, from_trs)
@@ -67,15 +67,20 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
 
         # Init params.
-        evnts = [tcue] if tcue is not None else None
+        evnts = None
+        if ppars.cue is not None:
+            evnts = [{'time': ppars.cue}]
+            evnts[0]['color'] = (ppars.cue_color if 'cue_color' in ppars else
+                                 putil.cue_colors['all'])
+
         if colors is None:
             colcyc = putil.get_colors()
             cols = [next(colcyc) for itrs in range(len(trs))]
 
         # Plot response on raster and rate plots.
         _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, evnts, nrate, trs,
-                                               max_len, cols=cols, fig=fig,
-                                               sps=rr_sps, **kwargs)
+                                               ppars.max_len, cols=cols,
+                                               fig=fig, sps=rr_sps, **kwargs)
 
         # Add period name to rate plot.
         if add_prd_name:
@@ -194,7 +199,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
         for j, dlen in enumerate(mdlens):
 
             # Init plotting params.
-            dlen_str = str(int(dlen)) + ' ms' if util.is_number else dlen
+            dlen_str = str(int(dlen)) + ' ms' if util.is_number(dlen) else dlen
             title = 'report: {}  |  delay: {}'.format(target, dlen_str)
             from_trs = trs_splits[(target, dlen)]
 
@@ -211,6 +216,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
                     tdiff = (dlen - dlens[-1]) * ms
                     S1_max_len = prd_pars.loc['S1 half', 'max_len'] + tdiff
                     prd_pars.loc['S1 half', 'max_len'] = S1_max_len
+            prd_pars['cue_color'] = putil.cue_colors[target]
 
             # Plot response.
             res = plot_SR(u, param, vals, from_trs, prd_pars,
