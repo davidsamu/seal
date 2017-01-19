@@ -341,7 +341,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     u.SessParams['minV'] = min(minV, VMIN)
     u.SessParams['maxV'] = max(maxV, VMAX)
 
-    tr_starts, tr_stops = u.TrialParams.TrialStart, u.TrialParams.TrialStop
+    tr_starts, tr_stops = u.TrData.TrialStart, u.TrData.TrialStop
 
     # Time binned statistics.
     tbinned_stats = time_bin_data(spk_times, waveforms, tr_starts, tr_stops)
@@ -469,8 +469,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     ax_amp_dur, ax_rate = [fig.add_subplot(gsp[2, i]) for i in (0, 1)]
 
     # Trial markers.
-    trial_starts = u.TrialParams['TrialStart']
-    trial_stops = u.TrialParams['TrialStop']
+    trial_starts, trial_stops = u.TrData.TrialStart, u.TrData.TrialStop
     tr_markers = pd.DataFrame({'time': trial_starts[9::10]})
     tr_markers['label'] = [str(itr+1) if i % 2 else ''
                            for i, itr in enumerate(tr_markers.index)]

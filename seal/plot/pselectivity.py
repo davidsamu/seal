@@ -20,11 +20,11 @@ from seal.util import util
 x_lbl_shift = 0.05
 
 
-# %% Functions to plot stimlus feature selectivity.
+# %% Functions to plot stimulus feature selectivity.
 
-def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
-            add_roc=False, add_prd_name=False, fig=None, sps=None, title=None,
-            **kwargs):
+def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
+            colors=None, add_roc=False, add_prd_name=False, fig=None, sps=None,
+            title=None, **kwargs):
     """Plot stimulus response (raster, rate and ROC) for mutliple stimuli."""
 
     if not u.to_plot():
@@ -48,8 +48,16 @@ def plot_SR(u, feat=None, vals=None, prd_pars=None, nrate=None, colors=None,
     for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
 
         # Prepare trial set.
-        trs = (u.trials_by_feature(stim, feat, vals) if feat is not None else
-               u.ser_inc_trials())
+        if param is None:
+            trs = u.ser_inc_trials()
+        elif param in u.TrData.columns:
+            trs = u.trials_by_param(param, vals)
+        else:
+            trs = u.trials_by_param((stim, param), vals)
+
+        if from_trs is not None:
+            trs = util.filter_lists(trs, from_trs)
+
         plot_roc = add_roc and (len(trs) == 2)
 
         # Init subplots.

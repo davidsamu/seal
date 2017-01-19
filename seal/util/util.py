@@ -410,6 +410,15 @@ def combine_lists(val_lists, comb_type, **kwargs):
     return comb_ser
 
 
+def filter_lists(val_list_ser, filter_list):
+    """Filter Series of lists by an other list."""
+
+    ftrd_ser = val_list_ser.apply(np.intersect1d, args=(filter_list,))
+    ftrd_ser = ftrd_ser[[len(ftrs) > 0 for ftrs in ftrd_ser]]
+
+    return ftrd_ser
+
+
 # %% Functions to handle Numpy and Pandas objects with Quantities as elements.
 
 def quantity_linspace(q1, q2, n, dim=None, endpoint=True, retstep=False):

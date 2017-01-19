@@ -196,7 +196,8 @@ class Unit:
         len_diff = [(i, np.abs(delay_lens - dl))
                     for i, dl in enumerate(constants.delay_lengths)]
         min_diff = pd.DataFrame.from_items(len_diff).idxmin(1)
-        TrialParams['DelayLen'] = list(constants.delay_lengths[min_diff])
+        dlens = constants.delay_lengths[min_diff]
+        TrialParams['DelayLen'] = list(util.remove_dim_from_series(dlens))
 
         # Add target feature to be reported.
         if constants.task_info.loc[task, 'toreport'] is not None:
@@ -428,15 +429,21 @@ class Unit:
     def sort_feature_values(self, feat, vals):
         """Sort feature values."""
 
-        if feat == 'Dir':
+        if not util.is_iterable(feat) or len(feat) != 2:
+            # Non-stimulus prefixed feature.
+            sorted_vals = np.sort(vals)
+
+        elif feat[1] == 'Dir':
             # Direction: from lower to higher.
             sorted_vals = np.sort(vals)
-        elif feat == 'Loc':
+
+        elif feat[1] == 'Loc':
             # Location: first up - down (y descending),
             # then left - right (x ascending).
             reord_vs = [[-v[1], v[0]] for v in vals]
             idx = sorted(range(len(reord_vs)), key=reord_vs.__getitem__)
             sorted_vals = vals[idx]
+
         else:
             # Unknown feature.
             warnings.warn('Sorting values of unknown feature...')
@@ -527,9 +534,7 @@ class Unit:
     def filter_trials(self, trs_ser):
         """Filter out excluded trials."""
 
-        ftrs_ser = trs_ser.apply(np.intersect1d, args=(self.inc_trials(),))
-        ftrs_ser = ftrs_ser[[len(ftrs) > 0 for ftrs in ftrs_ser]]
-
+        ftrs_ser = util.filter_lists(trs_ser, self.inc_trials())
         return ftrs_ser
 
     def trials_by_param(self, param, vals=None, comb_vals=False):
@@ -625,7 +630,7 @@ class Unit:
                   for offset in offsets]
 
         # Get trials for direction + each offset value.
-        sd_trs = [((stim, d), self.trials_by_features(stim, 'Dir', [d]).loc[d])
+        sd_trs = [((stim, d), self.trials_by_param((stim, 'Dir'), [d]).loc[d])
                   for d in direcs for stim in stims]
         sd_trs = util.series_from_tuple_list(sd_trs)
 
@@ -698,7 +703,7 @@ class Unit:
             t1s, t2s = self.pr_times(stim, add_latency, concat=False)
 
         # Get response (firing rates) in each trial.
-        trs = self.trials_by_features(stim, feat)
+        trs = self.trials_by_param((stim, feat))
         if not len(trs):
             return pd.DataFrame(columns=['vals', 'resp'])
         vals = pd.concat([pd.Series(v, index=tr)
