@@ -128,14 +128,14 @@ for ev, (rel_to, shift) in tr_evts.iterrows():
 
 # %% Time periods to build "full trial" raster and rate plots.
 
-# Three periods consistent across different delay lengths.
 S2_S1_lbl_shift = stim_dur['S1'] + delay_lengths.min()
-tr_third_prds = [('extended S1', ('S1', 'S1 on', 0*ms)),
-                 ('cue to S2', ('S1', 'S2 on', S2_S1_lbl_shift)),
-                 ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
+prd_lbls = ['stim', 'ref', 'lbl_shift', 'max_len']
 
-tr_third_prds = pd.DataFrame.from_items(tr_third_prds,
-                                        ['stim', 'ref', 'lbl_shift'], 'index')
+# Three periods consistent across different delay lengths.
+tr_third_prds = [('extended S1', ('S1', 'S1 on', 0*ms, 2750*ms)),
+                 ('cue to S2', ('S1', 'S2 on', S2_S1_lbl_shift, 750*ms)),
+                 ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift, 1500*ms))]
+tr_third_prds = pd.DataFrame.from_items(tr_third_prds, prd_lbls, 'index')
 # Add cue timing.
 tr_third_prds['cue'] = [(tr_evts.loc['cue', 'shift']
                          if ref == tr_evts.loc['cue', 'rel to'] else None)
@@ -143,11 +143,9 @@ tr_third_prds['cue'] = [(tr_evts.loc['cue', 'shift']
 
 
 # Classic two periods for delay length split plotting.
-tr_half_prds = [('S1 half', ('S1', 'S1 on', 0*ms)),
-                ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
-
-tr_half_prds = pd.DataFrame.from_items(tr_half_prds,
-                                       ['stim', 'ref', 'lbl_shift'], 'index')
+tr_half_prds = [('S1 half', ('S1', 'S1 on', 0*ms, 3500*ms)),
+                ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift, 1500*ms))]
+tr_half_prds = pd.DataFrame.from_items(tr_half_prds, prd_lbls, 'index')
 # Add cue timing.
 tr_half_prds['cue'] = [(tr_evts.loc['cue', 'shift']
                         if ref == tr_evts.loc['cue', 'rel to'] else None)

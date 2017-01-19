@@ -28,19 +28,23 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         return
 
     # Set up stimulus parameters.
-    prd_pars = u.get_analysis_prds(prd_pars)
+    if prd_pars is None:
+        prd_pars = u.get_analysis_prds()
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
 
     # Create a gridspec for each period.
-    wratio = [float(dur) for dur in prd_pars.dur]
+    wratio = [float(min(dur, lmax)) for dur, lmax in zip(prd_pars.dur,
+                                                         prd_pars.max_len)]
     wspace = 0.0  # 0.05 to separate periods
     gsp = putil.embed_gsp(sps, 1, len(prd_pars.index),
                           width_ratios=wratio, wspace=wspace)
 
     axes_raster, axes_rate, axes_roc = [], [], []
-    for i, (prd, stim, ref, _, tcue, dur) in enumerate(prd_pars.itertuples()):
+    for i, ppars in enumerate(prd_pars.itertuples()):
+
+        prd, stim, ref, _, max_len, tcue, _ = ppars
 
         # Prepare trial set.
         if param is None:
@@ -70,7 +74,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
         # Plot response on raster and rate plots.
         _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, evnts, nrate, trs,
-                                               cols=cols, fig=fig,
+                                               max_len, cols=cols, fig=fig,
                                                sps=rr_sps, **kwargs)
 
         # Add period name to rate plot.
@@ -147,13 +151,17 @@ def plot_LR(u, sps, fig):
     """Plot location response plot."""
 
     # Init params.
-    prd_pars = constants.tr_half_prds
+    prd_pars = constants.tr_half_prds.copy()
     targets = u.TrData['ToReport'].unique()
     dlens = np.sort(u.TrData['DelayLen'].unique())
 
-    # Init axes.
-    gsp = putil.embed_gsp(sps, len(targets), len(dlens),
-                          wspace=0.2, hspace=0.4)
+    # Init axes
+    wratio = None
+    if len(dlens) > 1:
+        len_wo_delay = float(prd_pars.max_len.sum()) - dlens[-1]
+        wratio = [len_wo_delay + dlen for dlen in dlens]
+    gsp = putil.embed_gsp(sps, len(targets), len(dlens), width_ratios=wratio,
+                          wspace=0.1, hspace=0.2)
     raster_axs, rate_axs, roc_axs = [], [], []
 
     # Split trials by target (rows) and delay lengths (columns).
@@ -162,19 +170,25 @@ def plot_LR(u, sps, fig):
         for j, dlen in enumerate(dlens):
 
             # Init plotting params.
-            title = '{} / {} ms delay'.format(target, dlen)
+            title = 'LS / report: {} / delay: {} ms'.format(target, dlen)
             from_trs = target_dlen_trs[(target, dlen)]
 
+            # Periods to plot.
             dlen_prd_pars = prd_pars.copy()
+            dlen_prd_pars = u.get_analysis_prds(dlen_prd_pars, from_trs)
             S2_shift = constants.stim_dur['S1'] + dlen*ms
             dlen_prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
+            if len(dlens) > 1:
+                tdiff = (dlen - dlens[-1]) * ms
+                S1_max_len = dlen_prd_pars.loc['S1 half', 'max_len'] + tdiff
+                dlen_prd_pars.loc['S1 half', 'max_len'] = S1_max_len
 
             # Plot response.
             res = plot_SR(u, 'Loc', from_trs=from_trs, prd_pars=dlen_prd_pars,
                           title=title, sps=gsp[i, j], fig=fig)
             axes_raster, axes_rate, axes_roc = res
 
-            # Remove superfluos labels.
+            # Remove superfluous labels.
             if i < len(targets)-1:
                 [ax.set_xlabel('') for ax in axes_rate]
             if j > 0:
@@ -191,28 +205,73 @@ def plot_LR(u, sps, fig):
 def plot_DR(u, sps, fig):
     """Plot direction response plot."""
 
-    if u.DS.empty:
-        u.test_DS()
+    # Init params.
+    prd_pars = constants.tr_half_prds.copy()
+    targets = u.TrData['ToReport'].unique()
+    dlens = np.sort(u.TrData['DelayLen'].unique())
 
     # Get DS parameters.
+    if u.DS.empty:
+        u.test_DS()
     stim = 'S1'
     pref_anti_dirs = [u.pref_dir(stim), u.anti_pref_dir(stim)]
     t1, t2 = u.DS.TW.loc[stim]
-
-    # Raster & rate in trials sorted by stimulus direction.
-    title = 'Direction selectivity\n'
-    res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, sps=sps, fig=fig)
-
-    # Add event lines to interval used to test DS.
-    # Slight hardcoding action going on below...
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
-    # On first of rate and auc period plots (showing S1)
-    for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
-        putil.plot_events(evts, add_names=False, color='grey', alpha=0.5,
-                          ls='--', lw=1, ax=ax)
 
-    return res
+    # Init axes
+    wratio = None
+    if len(dlens) > 1:
+        len_wo_delay = float(prd_pars.max_len.sum()) - dlens[-1]
+        wratio = [len_wo_delay + dlen for dlen in dlens]
+    gsp = putil.embed_gsp(sps, len(targets), len(dlens), width_ratios=wratio,
+                          wspace=0.1, hspace=0.2)
+    raster_axs, rate_axs, roc_axs = [], [], []
+
+    # Split trials by target (rows) and delay lengths (columns).
+    target_dlen_trs = u.trials_by_params(['ToReport', 'DelayLen'])
+    for i, target in enumerate(targets):
+        for j, dlen in enumerate(dlens):
+
+            # Init plotting params.
+            title = 'DS / report: {} / delay: {} ms'.format(target, dlen)
+            from_trs = target_dlen_trs[(target, dlen)]
+
+            # Periods to plot.
+            dlen_prd_pars = prd_pars.copy()
+            dlen_prd_pars = u.get_analysis_prds(dlen_prd_pars, from_trs)
+            S2_shift = constants.stim_dur['S1'] + dlen*ms
+            dlen_prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
+            if len(dlens) > 1:
+                tdiff = (dlen - dlens[-1]) * ms
+                S1_max_len = dlen_prd_pars.loc['S1 half', 'max_len'] + tdiff
+                dlen_prd_pars.loc['S1 half', 'max_len'] = S1_max_len
+
+            # Plot response.
+            res = plot_SR(u, 'Dir', pref_anti_dirs, from_trs=from_trs,
+                          prd_pars=dlen_prd_pars, title=title,
+                          sps=gsp[i, j], fig=fig)
+            axes_raster, axes_rate, axes_roc = res
+
+            # Remove superfluous labels.
+            if i < len(targets)-1:
+                [ax.set_xlabel('') for ax in axes_rate]
+            if j > 0:
+                [ax.set_ylabel('') for ax in axes_rate]
+
+            # Add event lines to interval used to test DS.
+            # Slight hardcoding action going on below...
+            # On first period plots of rate and auc axes (showing S1).
+            for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
+                putil.plot_events(evts, add_names=False, color='grey',
+                                  alpha=0.5, ls='--', lw=1, ax=ax)
+
+            # Collect axes.
+            raster_axs.extend(axes_raster)
+            rate_axs.extend(axes_rate)
+            roc_axs.extend(axes_roc)
+
+    return raster_axs, rate_axs, roc_axs
 
 
 def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
@@ -264,7 +323,7 @@ def plot_selectivity(u, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.5, height_ratios=[1, 1, 1])
+    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.2, height_ratios=[1, 1, 1])
     tr_sps, lr_sps, dr_sps = gsp
 
     # Plot task-relatedness.
@@ -279,7 +338,7 @@ def plot_selectivity(u, fig=None, sps=None):
     return lr_rate_axs, dr_rate_axs
 
 
-def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
+def plot_DR_3x3(u, fig=None, sps=None):
     """Plot 3x3 direction response plot, with polar plot in center."""
 
     if not u.to_plot():
@@ -313,7 +372,7 @@ def plot_DR_3x3(u, nrate=None, fig=None, sps=None):
         first_dir = (isp == 0)
 
         # Plot direction response across trial periods.
-        res = plot_SR(u, feat='Dir', vals=[d], nrate=nrate, fig=fig,
+        res = plot_SR(u, feat='Dir', vals=[d], fig=fig,
                       sps=gsp[isp], no_labels=True)
         draster_axs, drate_axs, _ = res
 

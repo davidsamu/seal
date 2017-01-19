@@ -642,7 +642,13 @@ def mann_whithney_u_test(x, y, use_continuity=True, alternative='two-sided'):
     if min(len(xvalid), len(yvalid)) < min_sample_size:
         return np.nan, np.nan
 
-    stat, pval = sp.stats.mannwhitneyu(x, y, use_continuity, alternative)
+    # At least one item should differ from rest
+    xv_un, yv_un = np.unique(xvalid), np.unique(yvalid)
+    if len(xv_un) == 1 and len(yv_un) == 1 and np.array_equal(xv_un, yv_un):
+        return np.nan, np.nan
+
+    stat, pval = sp.stats.mannwhitneyu(xvalid, yvalid,
+                                       use_continuity, alternative)
 
     return stat, pval
 

@@ -453,35 +453,38 @@ class Unit:
 
     # %% Methods to get times of trial events and periods.
 
-    def ev_times(self, evname, add_latency=False):
+    def ev_times(self, evname, trs=None, add_latency=False):
         """Return timing of events across trials."""
 
-        evt = self.Events[evname].copy()
+        if trs is None:
+            trs = self.inc_trials()
+
+        evt = self.Events.loc[trs, evname].copy()
         if add_latency:
             evt += constants.nphy_cons.latency[self.get_region()]
 
         return evt
 
-    def pr_times(self, prname, add_latency=False, concat=True):
+    def pr_times(self, prname, trs=None, add_latency=False, concat=True):
         """Return timing of period (start event, stop event) across trials."""
 
         ev1, ev2 = constants.tr_prds.loc[prname]
-        evt1 = self.ev_times(ev1, add_latency)
-        evt2 = self.ev_times(ev2, add_latency)
+        evt1 = self.ev_times(ev1, trs, add_latency)
+        evt2 = self.ev_times(ev2, trs, add_latency)
 
         prt = pd.concat([evt1, evt2], axis=1) if concat else [evt1, evt2]
 
         return prt
 
-    def pr_dur(self, prname, add_latency=False):
+    def pr_dur(self, prname, trs=None, add_latency=False):
         """Return duration of period (maximum duration across trials)."""
 
-        evt1, evt2 = self.pr_times(prname, add_latency, False)
+        evt1, evt2 = self.pr_times(prname, trs, add_latency, False)
         dur = (evt2 - evt1).max()
 
         return dur
 
-    def get_analysis_prds(self, prds=None):
+    def get_analysis_prds(self, prds=None, trs=None):
         """Get parameters of periods to analyse."""
 
         if prds is None:
@@ -500,7 +503,7 @@ class Unit:
             prds.loc[~S1_prds, 'cue'] = None
 
         # Add period duration (specific to unit).
-        prds['dur'] = [self.pr_dur(prd) for prd in prds.index]
+        prds['dur'] = [self.pr_dur(prd, trs) for prd in prds.index]
 
         return prds
 

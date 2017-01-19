@@ -53,11 +53,7 @@ unit
 ----
   - add RF coverage information
   - add type information: suppressive?, broad spiking? motor? etc
-
-
-pselectivity
-------------
-  - add task-related period to all trials plot
+  - test task-relatedness by stimulus type
 
 
 plot

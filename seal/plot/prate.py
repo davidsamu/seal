@@ -15,11 +15,17 @@ from seal.object import constants
 from seal.plot import putil
 
 
-def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
+def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None, max_len=None):
     """Prepare plotting parameters."""
 
     # Get trial params.
     t1s, t2s = u.pr_times(prd, concat=False)
+
+    # Truncate to maximum duration.
+    if max_len is not None:
+        ilong = t2s - t1s > float(max_len.rescale(ms))
+        t2s[ilong] = t1s + max_len
+
     ref_ts = u.ev_times(ref)
     if trs is None:
         trs = u.ser_inc_trials()
@@ -43,8 +49,8 @@ def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None):
     return trs, spikes, rates, stim_prd, names, baseline
 
 
-def plot_rr(u, prd, ref, evts=None, nrate=None, trs=None, no_labels=False,
-            rate_kws=None, title=None, **kwargs):
+def plot_rr(u, prd, ref, evts=None, nrate=None, trs=None, max_len=None,
+            no_labels=False, rate_kws=None, title=None, **kwargs):
     """Plot raster and rate plot of unit for selected sets of trials."""
 
     if not u.to_plot():
@@ -54,7 +60,7 @@ def plot_rr(u, prd, ref, evts=None, nrate=None, trs=None, no_labels=False,
         rate_kws = dict()
 
     # Set up params.
-    plot_params = prep_rr_plot_params(u, prd, ref, nrate, trs)
+    plot_params = prep_rr_plot_params(u, prd, ref, nrate, trs, max_len)
     trs, spikes, rates, stim_prd, names, baseline = plot_params
     prds = [stim_prd]
 
