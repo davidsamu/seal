@@ -9,15 +9,12 @@ Functions to plot combined (composite) plots.
 import numpy as np
 import pandas as pd
 
-from quantities import deg
+from quantities import deg, ms
 
 from seal.object import constants
 from seal.analysis import direction, roc
 from seal.plot import putil, ptuning, prate, pauc
 from seal.util import util
-
-
-x_lbl_shift = 0.05
 
 
 # %% Functions to plot stimulus feature selectivity.
@@ -31,9 +28,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         return
 
     # Set up stimulus parameters.
-    if prd_pars is None:
-        prd_pars = u.get_analysis_prds()
-    mid_idx = int((len(prd_pars.index)/2.0))
+    prd_pars = u.get_analysis_prds(prd_pars)
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
@@ -83,10 +78,6 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             rate_ax.text(0.02, 0.95, prd, fontsize=10, color='k',
                          va='top', ha='left', transform=rate_ax.transAxes)
 
-        # Add title to raster of middle period.
-        if i == mid_idx and title is not None:
-            raster_axs[0].set_title(title, x=x_lbl_shift)
-
         # Plot ROC curve.
         if plot_roc:
             roc_ax = fig.add_subplot(roc_sps)
@@ -117,12 +108,21 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
     [ax.legend().set_visible(False) for ax in axes_rate[:-1]
      if ax.legend_ is not None]
 
+    # Get middle x point in relative coordinates of first rate axes.
+    xranges = np.array([ax.get_xlim() for ax in axes_rate])
+    xlens = xranges[:, 1] - xranges[:, 0]
+    xmid = xlens.sum() / xlens[0] / 2
+
+    # Add title.
+    if title is not None:
+        axes_raster[0].set_title(title, x=xmid)
+
     # Set common x label.
     if ('no_labels' not in kwargs) or (not kwargs['no_labels']):
         [ax.set_xlabel('') for ax in axes_rate + axes_roc]
         xlab = putil.t_lbl.format(prd_pars.stim[0] + ' onset')
-        mid_ax = axes_rate[mid_idx] if not len(axes_roc) else axes_roc[mid_idx]
-        mid_ax.set_xlabel(xlab, x=x_lbl_shift)
+        ax = axes_roc[0] if len(axes_roc) else axes_rate[0]
+        ax.set_xlabel(xlab, x=xmid)
 
     # Reformat ticks on x axis. First period is reference.
     for axes in [axes_rate, axes_roc]:
@@ -143,21 +143,52 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
     return axes_raster, axes_rate, axes_roc
 
 
-def plot_LR(u, **kwargs):
+def plot_LR(u, sps, fig):
     """Plot location response plot."""
 
-#    # If there's only one direction, don't plot anyting.
-#    nlocs = u.StimParams]
-#    if u.StimParams
-#        return [], [], []
+    # Init params.
+    prd_pars = constants.tr_half_prds
+    targets = u.TrData['ToReport'].unique()
+    dlens = np.sort(u.TrData['DelayLen'].unique())
 
-    # Raster & rate in trials sorted by stimulus location.
-    title = 'Location selectivity\n'
-    res = plot_SR(u, 'Loc', title=title, **kwargs)
-    return res
+    # Init axes.
+    gsp = putil.embed_gsp(sps, len(targets), len(dlens),
+                          wspace=0.2, hspace=0.4)
+    raster_axs, rate_axs, roc_axs = [], [], []
+
+    # Split trials by target (rows) and delay lengths (columns).
+    target_dlen_trs = u.trials_by_params(['ToReport', 'DelayLen'])
+    for i, target in enumerate(targets):
+        for j, dlen in enumerate(dlens):
+
+            # Init plotting params.
+            title = '{} / {} ms delay'.format(target, dlen)
+            from_trs = target_dlen_trs[(target, dlen)]
+
+            dlen_prd_pars = prd_pars.copy()
+            S2_shift = constants.stim_dur['S1'] + dlen*ms
+            dlen_prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
+
+            # Plot response.
+            res = plot_SR(u, 'Loc', from_trs=from_trs, prd_pars=dlen_prd_pars,
+                          title=title, sps=gsp[i, j], fig=fig)
+            axes_raster, axes_rate, axes_roc = res
+
+            # Remove superfluos labels.
+            if i < len(targets)-1:
+                [ax.set_xlabel('') for ax in axes_rate]
+            if j > 0:
+                [ax.set_ylabel('') for ax in axes_rate]
+
+            # Collect axes.
+            raster_axs.extend(axes_raster)
+            rate_axs.extend(axes_rate)
+            roc_axs.extend(axes_roc)
+
+    return raster_axs, rate_axs, roc_axs
 
 
-def plot_DR(u, **kwargs):
+def plot_DR(u, sps, fig):
     """Plot direction response plot."""
 
     if u.DS.empty:
@@ -170,7 +201,7 @@ def plot_DR(u, **kwargs):
 
     # Raster & rate in trials sorted by stimulus direction.
     title = 'Direction selectivity\n'
-    res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, **kwargs)
+    res = plot_SR(u, 'Dir', pref_anti_dirs, title=title, sps=sps, fig=fig)
 
     # Add event lines to interval used to test DS.
     # Slight hardcoding action going on below...
@@ -214,21 +245,18 @@ def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
     return ax_mDSI, ax_wDSI
 
 
-def plot_all_trials(u, **kwargs):
+def plot_all_trials(u, sps, fig):
     """Plot task-relatedness plot."""
 
-    res = plot_SR(u, **kwargs)
-
-    # Add info header.
-    ax = res[0][1]  # middle of top plots
-    putil.add_unit_info_title(u, x=x_lbl_shift, ax=ax)
+    title = putil.get_unit_info_title(u)
+    res = plot_SR(u, sps=sps, fig=fig, title=title)
 
     return res
 
 
 # %% Functions to plot stimulus selectivity.
 
-def plot_selectivity(u, nrate=None, fig=None, sps=None):
+def plot_selectivity(u, fig=None, sps=None):
     """Plot selectivity summary plot."""
 
     if not u.to_plot():
@@ -239,16 +267,14 @@ def plot_selectivity(u, nrate=None, fig=None, sps=None):
     gsp = putil.embed_gsp(sps, 3, 1, hspace=0.5, height_ratios=[1, 1, 1])
     tr_sps, lr_sps, dr_sps = gsp
 
-    kwargs = {'nrate': nrate, 'fig': fig, 'no_labels': False}
-
     # Plot task-relatedness.
-    plot_all_trials(u, sps=tr_sps, **kwargs)
+    plot_all_trials(u, tr_sps, fig)
 
     # Plot location-specific activity.
-    _, lr_rate_axs, _ = plot_LR(u, sps=lr_sps, **kwargs)
+    _, lr_rate_axs, _ = plot_LR(u, lr_sps, fig)
 
     # Plot direction-specific activity.
-    _, dr_rate_axs, _ = plot_DR(u, sps=dr_sps, **kwargs)
+    _, dr_rate_axs, _ = plot_DR(u, dr_sps, fig)
 
     return lr_rate_axs, dr_rate_axs
 

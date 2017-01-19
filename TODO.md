@@ -71,11 +71,6 @@ plot.scatter
   - report and test significant values separately
 
 
-util
-----
-  - add non-parametric AND non-paired test!
-
-
 decoding
 --------
   - extend with error trial analysis

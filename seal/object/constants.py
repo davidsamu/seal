@@ -100,7 +100,7 @@ tr_prds = [('whole trial', ('fixate', 'saccade')),
            ('extended S2', ('cue', 'saccade')),
 
            # Trial halves.
-           ('S1 half', ('fixate', 'S2 on ')),  # ***
+           ('S1 half', ('fixate', 'S2 on')),  # ***
            ('S2 half', ('S2 on', 'saccade')),
 
            # Delay sub-periods.
@@ -126,18 +126,32 @@ for ev, (rel_to, shift) in tr_evts.iterrows():
     ev_stims.loc[ev] = [stim, stim_start, stim_stop]
 
 
-# Default time periods to build "full trial" raster and rate plots.
+# %% Time periods to build "full trial" raster and rate plots.
+
+# Three periods consistent across different delay lengths.
 S2_S1_lbl_shift = stim_dur['S1'] + delay_lengths.min()
-analysis_prds = [('extended S1', ('S1', 'S1 on', 0*ms)),
+tr_third_prds = [('extended S1', ('S1', 'S1 on', 0*ms)),
                  ('cue to S2', ('S1', 'S2 on', S2_S1_lbl_shift)),
                  ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
 
-analysis_prds = pd.DataFrame.from_items(analysis_prds,
+tr_third_prds = pd.DataFrame.from_items(tr_third_prds,
                                         ['stim', 'ref', 'lbl_shift'], 'index')
 # Add cue timing.
-analysis_prds['cue'] = [(tr_evts.loc['cue', 'shift']
+tr_third_prds['cue'] = [(tr_evts.loc['cue', 'shift']
                          if ref == tr_evts.loc['cue', 'rel to'] else None)
-                        for ref in analysis_prds.ref]
+                        for ref in tr_third_prds.ref]
+
+
+# Classic two periods for delay length split plotting.
+tr_half_prds = [('S1 half', ('S1', 'S1 on', 0*ms)),
+                ('S2 half', ('S2', 'S2 on', S2_S1_lbl_shift))]
+
+tr_half_prds = pd.DataFrame.from_items(tr_half_prds,
+                                       ['stim', 'ref', 'lbl_shift'], 'index')
+# Add cue timing.
+tr_half_prds['cue'] = [(tr_evts.loc['cue', 'shift']
+                        if ref == tr_evts.loc['cue', 'rel to'] else None)
+                       for ref in tr_half_prds.ref]
 
 
 # %% Analysis constants.

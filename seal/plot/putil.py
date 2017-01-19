@@ -56,11 +56,8 @@ seal_rc_params = {'xtick.major.pad': tick_pad,
 
 # %% Info plots.
 
-def add_unit_info_title(u, fullname=False, fs='large', x=0.5, y=1.0, ax=None):
+def get_unit_info_title(u, fullname=False):
     """Plot unit info as text labels."""
-
-    # Init axes.
-    ax = axes(ax)
 
     # Init dict of info labels to plot.
     upars = u.get_unit_params()
@@ -97,16 +94,9 @@ def add_unit_info_title(u, fullname=False, fs='large', x=0.5, y=1.0, ax=None):
                                                fvals['TaskRelated'])
 
     # Facilitatory or suppressive?
-    info_lines += '\n'.format()
+    #info_lines += '\n'.format()
 
-    # Plot info as axes title.
-    ax.set_title(info_lines, x=x, y=y, fontsize=fs)
-
-    # Highlight excluded unit.
-    if u.is_excluded():
-        highlight_axes(ax)
-
-    return ax
+    return info_lines
 
 
 # %% Generic plot decorator functions.

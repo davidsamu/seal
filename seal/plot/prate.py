@@ -151,7 +151,7 @@ def raster(spk_trains, t_unit=ms, prds=None, size=1.8, c='b', xlim=None,
 
 
 def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
-         pval=0.05, test='t-test', test_kws=None, xlim=None, ylim=None,
+         pval=0.05, test='mann_whitney_u', test_kws=None, xlim=None, ylim=None,
          title=None, xlab=None, ylab=putil.FR_lbl, add_lgn=True, lgn_lbl='trs',
          ffig=None, ax=None):
     """Plot firing rate."""

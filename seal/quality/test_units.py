@@ -152,7 +152,7 @@ def report_unit_exclusion_stats(UA):
     print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
 
 
-def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
+def DR_plot(UA, ftempl=None, match_scales=False):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
@@ -171,7 +171,7 @@ def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
             u = UA.get_unit(uid, task)
 
             # Plot DR of unit.
-            res = (pselectivity.plot_DR_3x3(u, nrate, fig, sps)
+            res = (pselectivity.plot_DR_3x3(u, fig, sps)
                    if not u.is_excluded() and u.to_plot() else None)
             if res is not None:
                 ax_polar, rate_axs = res
@@ -195,7 +195,7 @@ def DR_plot(UA, ftempl=None, match_scales=False, nrate=None):
                                   rect_height=0.92, w_pad=w_pad)
 
 
-def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
+def selectivity_summary(UA, ftempl=None, match_scales=False):
     """Test unit responses within trails."""
 
     # Init plotting theme.
@@ -206,14 +206,14 @@ def selectivity_summary(UA, ftempl=None, match_scales=False, nrate=None):
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
-                                            subw=subw, subh=16)
+                                            subw=16, subh=32)
         ls_axs, ds_axs = [], []
 
         # Plot stimulus response summary plot of unit in each task.
         for task, sps in zip(UA.tasks(), gsp):
             u = UA.get_unit(uid, task)
 
-            res = (pselectivity.plot_selectivity(u, nrate, fig, sps)
+            res = (pselectivity.plot_selectivity(u, fig, sps)
                    if not u.is_excluded() and u.to_plot() else None)
             if res is not None:
                 ls_axs.extend(res[0])

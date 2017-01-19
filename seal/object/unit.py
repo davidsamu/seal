@@ -485,14 +485,14 @@ class Unit:
         """Get parameters of periods to analyse."""
 
         if prds is None:
-            prds = constants.analysis_prds.copy()
+            prds = constants.tr_third_prds.copy()
 
         # Update cue plotting.
-        to_report = constants.task_info.loc[self.get_task(), 'toreport']
-        if to_report is not None:   # feature to be reported is constant
+        to_report = self.TrData.ToReport.unique()
+        if len(to_report) == 1:   # feature to be reported is constant
 
             # Set cue to beginning of trial (plus a bit to avoid axis).
-            S1_prds = prds.ref == 'S1 on'
+            S1_prds = (prds.ref == 'S1 on')
             cue_to_S1_on = constants.tr_evts.loc['fixate', 'shift'] + 100*ms
             prds.loc[S1_prds, 'cue'] = cue_to_S1_on
 

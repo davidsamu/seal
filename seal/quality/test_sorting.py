@@ -460,7 +460,8 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     # Info header.
     info_ax = fig.add_subplot(info_sps)
     putil.hide_axes(info_ax)
-    putil.add_unit_info_title(u, ax=info_ax)
+    title = putil.get_unit_info_title(u)
+    putil.set_labels(ax=info_ax, title=title)
 
     # Create axes.
     gsp = putil.embed_gsp(qm_sps, 3, 2, wspace=0.3, hspace=0.4)

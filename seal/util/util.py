@@ -634,6 +634,19 @@ def wilcoxon_test(x, y, zero_method='wilcox', correction=False):
     return stat, pval
 
 
+def mann_whithney_u_test(x, y, use_continuity=True, alternative='two-sided'):
+    """Run Mann-Whitney (aka unpaired Wilcoxon) rank test on samples."""
+
+    # Insufficient sample size.
+    xvalid, yvalid = [v[~np.isnan(v)] for v in (x, y)]
+    if min(len(xvalid), len(yvalid)) < min_sample_size:
+        return np.nan, np.nan
+
+    stat, pval = sp.stats.mannwhitneyu(x, y, use_continuity, alternative)
+
+    return stat, pval
+
+
 def sign_diff(ts1, ts2, p, test, **kwargs):
     """
     Return times of significant difference between two sets of time series.
@@ -649,6 +662,8 @@ def sign_diff(ts1, ts2, p, test, **kwargs):
         test_func = t_test
     elif test == 'wilcoxon':
         test_func = wilcoxon_test
+    elif test == 'mann_whitney_u':
+        test_func = mann_whithney_u_test
     else:
         print('Unrecognised test name: ' + str(test) + ', running t-test.')
         test_func = t_test
