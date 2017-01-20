@@ -38,7 +38,7 @@ my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus and cue colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
-cue_colors = pd.Series(['grey', 'palegreen', 'darkorange'],
+cue_colors = pd.Series(['grey', 'darkorange', 'palegreen'],
                        index=['all', 'loc', 'dir'])
 
 # Default Matplotlib RC params.
