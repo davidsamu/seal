@@ -38,7 +38,7 @@ my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus and cue colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
-cue_colors = pd.Series(['darkorange', 'palegreen', 'cyan'],
+cue_colors = pd.Series(['grey', 'palegreen', 'darkorange'],
                        index=['all', 'loc', 'dir'])
 
 # Default Matplotlib RC params.
@@ -173,7 +173,7 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
             txt.event_lbl = True  # add label to find these artists later
 
 
-def plot_event_marker(events, ypos=0.96, marker='o', ms=8, mew=1,
+def plot_event_marker(events, ypos=0.92, marker='o', ms=8, mew=1,
                       mec='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 

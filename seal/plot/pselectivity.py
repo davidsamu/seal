@@ -42,9 +42,11 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
                           width_ratios=wratio, wspace=wspace)
 
     axes_raster, axes_rate, axes_roc = [], [], []
-    for i, ppars in enumerate(prd_pars.itertuples()):
 
-        prd, ref = ppars.Index, ppars.ref
+    for i, prd in enumerate(prd_pars.index):
+
+        ppars = prd_pars.loc[prd]
+        ref = ppars.ref
 
         # Prepare trial set.
         if param is None:
@@ -70,8 +72,8 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         evnts = None
         if ppars.cue is not None:
             evnts = [{'time': ppars.cue}]
-            evnts[0]['color'] = (ppars.cue_color if 'cue_color' in ppars else
-                                 putil.cue_colors['all'])
+            evnts[0]['color'] = (ppars.cue_color if 'cue_color' in ppars.index
+                                 else putil.cue_colors['all'])
 
         if colors is None:
             colcyc = putil.get_colors()
