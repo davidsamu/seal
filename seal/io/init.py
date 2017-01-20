@@ -147,7 +147,7 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
     putil.inline_on()
 
 
-def unit_activity(proj_dir, plot_DR=True, plot_sel=True, creat_montage=True):
+def unit_activity(proj_dir, plot_DR=True, plot_sel=True):
     """Plot basic unit activity figures."""
 
     print('\nStarting plotting unit activity...')
@@ -159,7 +159,6 @@ def unit_activity(proj_dir, plot_DR=True, plot_sel=True, creat_montage=True):
 
     ftempl_dr = out_dir + 'direction_response/{}.png'
     ftempl_sel = out_dir + 'stimulus_selectivity/{}.png'
-    ftempl_mont = out_dir + 'montage/{}.png'
 
     # Read in Units.
     print('  Reading in UnitArray...')
@@ -176,11 +175,6 @@ def unit_activity(proj_dir, plot_DR=True, plot_sel=True, creat_montage=True):
     if plot_sel:
         print('  Plotting selectivity summary figures...')
         test_units.selectivity_summary(UA, ftempl_sel)
-
-    # Create montage image of all plots figures above.
-    if creat_montage:
-        print('  Creating montage images...')
-        test_units.create_montage(UA, ftempl_dr, ftempl_sel, ftempl_mont)
 
     # Re-enable inline plotting
     putil.inline_on()

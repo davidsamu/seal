@@ -52,9 +52,9 @@ def run_logreg_across_time(FRdf, target_vec, corr_trs=None, Cs=10, ncv=5):
     # Check that we have enough trials to split into folds during CV.
     ntrg1, ntrg2 = corrTrg.value_counts()[::-1]
     if ntrg1 < ncv or ntrg2 < ncv:
-        warnings.warn('Not enough trials to decode' +
-                      ', ntrg1: {}, ntrg2: {}, ncv: {}'.format(ntrg1, ntrg2, ncv))
-        return None, None
+        warnings.warn('Not enough trials to decode, ' +
+                      'ntrg1: {}, ntrg2: {}, ncv: {}'.format(ntrg1, ntrg2, ncv))
+        return None, None, None, None, None
 
     # Run logistic regression for each time point.
     LRparams = []

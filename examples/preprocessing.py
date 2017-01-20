@@ -132,16 +132,10 @@ init.run_quality_control(data_dir, proj_name, plot_QM, fselection)
 plot_DR = True        # plot direction response of each unit? (3x3 figure)
 plot_sel = True       # plot feature selectivity plot of each unit?
 
-creat_montage = False  # create montage from all activity figures created
-                       # need to have ImageMagick install for this option.
-                       # https://www.imagemagick.org/script/binary-releases.php
-
-init.unit_activity(proj_dir, plot_DR, plot_sel, creat_montage)
+init.unit_activity(proj_dir, plot_DR, plot_sel)
 
 # Output:
 # - direction response plots in
 #    result/direction_response/
 # - stimulus response plots in
 #    results/stimulus_selectivity/
-
-

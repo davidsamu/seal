@@ -200,7 +200,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
 
             # Init plotting params.
             dlen_str = str(int(dlen)) + ' ms' if util.is_number(dlen) else dlen
-            title = 'report: {}  |  delay: {}'.format(target, dlen_str)
+            title = 'report: {}    |    delay: {}'.format(target, dlen_str)
             from_trs = trs_splits[(target, dlen)]
 
             # Periods to plot.

@@ -7,7 +7,6 @@ for different sets of trials or trial periods.
 @author: David Samu
 """
 
-import os
 import warnings
 
 import numpy as np
@@ -235,32 +234,6 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
             fname = ftempl.format(uid_str)
             putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.96,
                                   w_pad=w_pad)
-
-
-def create_montage(UA, ftempl_dr, ftempl_sel, ftempl_mont):
-    """Create montage image of per unit figures."""
-
-    for uid in UA.uids():
-        uid_str = util.format_uid(uid)
-
-        # Set file names.
-        fdr = ftempl_dr.format(uid_str)
-        fsel = ftempl_sel.format(uid_str)
-        fmont = ftempl_mont.format(uid_str)
-
-        # Set figure order (from top to bottom).
-        figs = (fdr, fsel)
-
-        # Check if figures exist.
-        flist = [f for f in figs if os.path.isfile(f)]
-
-        # Create output folder.
-        util.create_dir(fmont)
-
-        # Create montage image.
-        cmd = ('montage {}'.format(' '.join(flist)) +
-               ' -tile x3 -geometry +50+100 {}'.format(fmont))
-        os.system(cmd)
 
 
 def rec_stability_test(UA, fname=None):

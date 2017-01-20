@@ -9,15 +9,12 @@ preprocessing pipeline
 
 analyses to add from DD scripts
 -------------------------------
-  - anticipatory delay activity
-  - Fano factor
-  - average tuning curve
-  - tuning during task periods(?), or better way to measure encoding during delay?
   - decoding
     - preprocessing
     - run
     - analysis
   - comparison effect
+
 
 constants
 ---------
@@ -32,11 +29,6 @@ unitarray / unit
 permutation tests
 -----------------
   - consider using Numba
-
-
-init
-----
-  - add meta function to create collage figure, in order to drop requirement of ImageMagick
 
 
 spikes and rates
