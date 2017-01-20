@@ -54,6 +54,10 @@ seal_rc_params = {'xtick.major.pad': tick_pad,
                   'ytick.major.size': tick_size,
                   'ytick.minor.size': tick_minor_fac*tick_size}
 
+# Default decorator height levels.
+ypos_marker = 0.92
+ypos_lbl = 0.96
+
 
 # %% Info plots.
 
@@ -147,7 +151,7 @@ def plot_periods(prds, alpha=0.10, color='grey', ax=None, **kwargs):
 
 
 def plot_events(events, add_names=True, color='black', alpha=1.0,
-                ls='--', lw=1, lbl_rotation=90, lbl_height=0.96,
+                ls='--', lw=1, lbl_rotation=90, y_lbl=ypos_lbl,
                 lbl_ha='center', ax=None, **kwargs):
     """Plot all events of unit."""
 
@@ -158,8 +162,8 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
 
     # Init y extents of lines and positions of labels.
     ylim = ax.get_ylim()
-    yloc = ylim[0] + lbl_height * (ylim[1] - ylim[0])
-    ymax = lbl_height-0.02 if add_names else 1
+    yloc = ylim[0] + y_lbl * (ylim[1] - ylim[0])
+    ymax = y_lbl-0.02 if add_names else 1
 
     # Add each event to plot as a vertical line.
     for ev_name, (time, label) in events.iterrows():
@@ -173,7 +177,7 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
             txt.event_lbl = True  # add label to find these artists later
 
 
-def plot_event_marker(events, ypos=0.92, marker='o', ms=8, mew=1,
+def plot_event_marker(events, ypos=ypos_marker, marker='o', ms=8, mew=1,
                       mec='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 
@@ -246,15 +250,15 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
 # %% Functions to adjust position of plot decorators
 # (significance lines, event labels and markers, etc.).
 
-def adjust_decorators(ax=None, ypos=None, yfac=0.96):
+def adjust_decorators(ax=None, ypos=None, y_lbl=ypos_lbl, y_mkr=ypos_marker):
     """
     Meta function to adjust position of all plot decorators,
     typically after resetting y-limit, e.g. to match across set of axes.
     """
 
     move_signif_lines(ax, ypos)
-    move_event_lbls(ax, ypos, yfac)
-    move_event_markers(ax, ypos, yfac)
+    move_event_lbls(ax, y_lbl)
+    move_event_markers(ax, y_mkr)
 
 
 def move_signif_lines(ax=None, ypos=None):
@@ -273,32 +277,34 @@ def move_signif_lines(ax=None, ypos=None):
             c.set_segments(segments)
 
 
-def move_event_lbls(ax=None, ypos=None, yfac=0.96):
+def move_event_lbls(ax=None, y_lbl=ypos_lbl):
     """Move event labels to top of plot."""
 
     # Init.
     ax = axes(ax)
-    if ypos is None:
-        ypos = yfac * ax.get_ylim()[1]  # move them to current top
+
+    ylim = ax.get_ylim()
+    y = ylim[0] + y_lbl * (ylim[1] - ylim[0])
 
     # Find line segments in axes representing significant periods.
     for txt in ax.texts:
         if hasattr(txt, 'event_lbl'):
-            txt.set_y(ypos)
+            txt.set_y(y)
 
 
-def move_event_markers(ax=None, ypos=None, yfac=0.96):
+def move_event_markers(ax=None, y_mkr=ypos_marker):
     """Move event markers to top of plot."""
 
     # Init.
     ax = axes(ax)
-    if ypos is None:
-        ypos = yfac * ax.get_ylim()[1]  # move them to current top
+
+    ylim = ax.get_ylim()
+    y = ylim[0] + y_mkr * (ylim[1] - ylim[0])
 
     # Find line segments in axes representing significant periods.
     for line in ax.lines:
         if hasattr(line, 'event_marker'):
-            line.set_ydata(ypos)
+            line.set_ydata(y)
 
 
 # %% Functions to adjust plot limits and aspect.
