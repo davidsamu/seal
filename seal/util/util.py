@@ -28,10 +28,10 @@ min_sample_size = 10
 
 # %% Input / output and object manipulation functions.
 
-def read_matlab_object(f, obj_names=None):
+def read_matlab_object(fname, obj_names=None):
     """Return Matlab structure or object from it."""
 
-    mat_struct = sp.io.loadmat(f, struct_as_record=False, squeeze_me=True)
+    mat_struct = sp.io.loadmat(fname, struct_as_record=False, squeeze_me=True)
 
     # If not specified, return all objects.
     if obj_names is None:
@@ -48,10 +48,17 @@ def read_matlab_object(f, obj_names=None):
     return mat_struct
 
 
-def read_objects(f, obj_names):
+def write_matlab_object(fname, obj_dict):
+    """Write out dictionary as Matlab object."""
+
+    create_dir(fname)
+    sp.io.savemat(fname, obj_dict)
+
+
+def read_objects(fname, obj_names):
     """Read in objects from pickled data file."""
 
-    data = pickle.load(open(f, 'rb'))
+    data = pickle.load(open(fname, 'rb'))
 
     # Unload objects from dictionary.
     if isinstance(obj_names, str):
@@ -62,12 +69,11 @@ def read_objects(f, obj_names):
     return objects
 
 
-def write_objects(obj_dict, f):
+def write_objects(obj_dict, fname):
     """Write out dictionary object into pickled data file."""
 
-    create_dir(f)
-    pickle.dump(obj_dict, open(f, 'wb'))
-    return
+    create_dir(fname)
+    pickle.dump(obj_dict, open(fname, 'wb'))
 
 
 def write_table(dataframe, excel_writer, **kwargs):
@@ -77,7 +83,6 @@ def write_table(dataframe, excel_writer, **kwargs):
         create_dir(excel_writer.path)
         dataframe.to_excel(excel_writer, **kwargs)
         excel_writer.save()
-    return
 
 
 def get_latest_file(dir_name, ext='.data'):
@@ -482,6 +487,11 @@ def rescale_series(ser, dim):
 
 def remove_dim_from_array(qvec, dtype=float):
     """Remove dimension from Quantity array and return Numpy array."""
+
+    if not len(qvec):
+        return qvec
+    if not isinstance(qvec[0], Quantity):
+        return qvec
 
     np_vec = np.array([float(qv) for qv in qvec], dtype=dtype)
 

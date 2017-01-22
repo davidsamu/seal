@@ -703,7 +703,7 @@ class Unit:
 
         # Init time period (stimulus on).
         if t1s is None and t2s is None:
-            t1s, t2s = self.pr_times(stim, add_latency, concat=False)
+            t1s, t2s = self.pr_times(stim, None, add_latency, concat=False)
 
         # Get response (firing rates) in each trial.
         trs = self.trials_by_param((stim, feat))

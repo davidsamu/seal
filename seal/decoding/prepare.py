@@ -42,7 +42,7 @@ UnitInfoDF = UnitInfoDF.loc[utidx_paired]
 IncTrsDF = IncTrsDF.loc[utidx_paired]
 
 
-# %%
+# %% Unit and trial selection.
 
 def select_units_trials():
     """Select optimal set of units and trials for population decoding."""

@@ -7,7 +7,6 @@ Functions related to exporting data.
 
 
 import numpy as np
-import scipy as sp
 import pandas as pd
 
 from seal.util import util
@@ -56,16 +55,16 @@ def export_decoding_data(UA, fname, rec, task, trs, prd, nrate=None):
 
     # Below inits rely on these params being the same across units, which is
     # only appropriate when exporting a single task of a single recording!
-    u = UA.get_unit(task, uids[0])
-    t1s, t2s = u.pr_times(prd, add_latency=False, concat=False)
+    u = UA.get_unit(uids[0], task)
+    t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
     if nrate is None:
         nrate = u.init_nrate()
 
     # Trial params.
-    trparams = u.TrialParams
-    trpars = np.array([util.remove_dim_from_series(trparams[par])
-                       for par in trparams]).T
-    trpar_names = trparams.columns.tolist()
+    trpars = np.array([util.remove_dim_from_series(u.TrData[par])
+                       for par in u.TrData]).T
+    trpar_names = ['_'.join(col) if util.is_iterable(col) else col
+                   for col in u.TrData.columns]
 
     # Trial events.
     trevents = u.Events
@@ -74,20 +73,20 @@ def export_decoding_data(UA, fname, rec, task, trs, prd, nrate=None):
     trevn_names = trevents.columns.tolist()
 
     # Rates.
-    rates = np.array([u._Rates[nrate].get_rates(trs, t1s, t2s)
+    rates = np.array([np.array(u._Rates[nrate].get_rates(trs, t1s, t2s))
                       for u in UA.iter_thru([task], uids)])
 
     # Sampling times.
     times = np.array(u._Rates[nrate].get_rates(trs, t1s, t2s).columns)
 
     # Create dictionary to export.
-    export_dict = dict(recording=rec, task=task,
-                       period=prd, nrate=nrate,
-                       trial_parameter_names=trpar_names,
-                       trial_parameters=trpars,
-                       trial_event_names=trevn_names,
-                       trial_events=trevns,
-                       times=times, rates=rates)
+    export_dict = {'recording': rec, 'task': task,
+                   'period': prd, 'nrate': nrate,
+                   'trial_parameter_names': trpar_names,
+                   'trial_parameters': trpars,
+                   'trial_event_names': trevn_names,
+                   'trial_events': trevns,
+                   'times': times, 'rates': rates}
 
     # Export data.
-    sp.io.savemat(fname, export_dict)
+    util.write_matlab_object(fname, export_dict)

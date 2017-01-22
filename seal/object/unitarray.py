@@ -13,6 +13,9 @@ from collections import OrderedDict as OrdDict
 from seal.object import unit
 
 
+idx_names = ['rec', 'ch', 'unit']
+
+
 class UnitArray:
     """
     Generic class to store a 2D array of units (neurons or groups of neurons),
@@ -41,6 +44,9 @@ class UnitArray:
             tasks = self.tasks()
         if uids is None:
             uids = self.uids()
+
+        if isinstance(uids, pd.Series):
+            uids = uids.tolist()
 
         return tasks, uids
 
@@ -171,7 +177,7 @@ class UnitArray:
         uids = self.uids(req_tasks)
         utids = [u.get_utid() for uid in uids
                  for u in list(self.iter_thru(req_tasks, [uid]))]
-        names = ['rec', 'ch', 'unit', 'task']
+        names = idx_names + ['task']
         utids = pd.MultiIndex.from_tuples(utids, names=names).to_series()
 
         return utids
@@ -212,7 +218,7 @@ class UnitArray:
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
         uids = [u.get_uid() for u in task_units]
-        midx = pd.MultiIndex.from_tuples(uids, names=['rec', 'ch', 'unit'])
+        midx = pd.MultiIndex.from_tuples(uids, names=idx_names)
         task_df = pd.DataFrame(task_units, columns=[task_name], index=midx)
         self.Units = pd.concat([self.Units, task_df], axis=1, join='outer')
 
@@ -226,8 +232,15 @@ class UnitArray:
         new_tasks = UA.tasks().difference(self.tasks())
         task_order = self.tasks().append(new_tasks)
 
-        self.Units = pd.concat([self.Units, UA.Units], axis=0, join='outer')
+        # Do concatenation.
+        self.Units = pd.concat([self.Units, UA.Units], join='outer')
+
+        # Reorder columns.
         self.Units = self.Units[task_order]
+
+        # Reformat index.
+        self.Units.index = pd.MultiIndex.from_tuples(self.Units.index,
+                                                     names=idx_names)
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
