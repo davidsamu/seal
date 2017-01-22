@@ -38,7 +38,7 @@ my_color_list = ['b', 'r', 'm', 'g', 'c', 'y']
 
 # Stimulus and cue colors.
 stim_colors = pd.Series(['m', 'g'], index=['S1', 'S2'])
-cue_colors = pd.Series(['grey', 'darkorange', 'palegreen'],
+cue_colors = pd.Series(['grey', 'red', 'blue'],
                        index=['all', 'loc', 'dir'])
 
 # Default Matplotlib RC params.
@@ -177,7 +177,7 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
             txt.event_lbl = True  # add label to find these artists later
 
 
-def plot_event_marker(events, ypos=ypos_marker, marker='o', ms=8, mew=1,
+def plot_event_marker(events, ypos=ypos_marker, marker='o', ms=6, mew=1,
                       mec='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 
@@ -191,10 +191,11 @@ def plot_event_marker(events, ypos=ypos_marker, marker='o', ms=8, mew=1,
     y = ylim[0] + ypos * (ylim[1] - ylim[0])
 
     for event_data in events:
-        time = event_data['time']
-        color = event_data['color'] if 'color' in event_data else mec
-        marker = ax.plot(time, y, marker, ms=ms, mew=mew, mec=color, mfc=mfc,
-                         **kwargs)[0]
+        ev_time = event_data['time']
+        ev_mec = event_data['color'] if 'color' in event_data else mec
+        ev_mfc = event_data['color'] if 'color' in event_data else mfc
+        marker = ax.plot(ev_time, y, marker, ms=ms, mew=mew, mec=ev_mec,
+                         mfc=ev_mfc, **kwargs)[0]
         marker.set_clip_on(False)   # disable clipping
         marker.event_marker = True  # add label to find these artists later
 

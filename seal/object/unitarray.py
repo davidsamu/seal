@@ -135,6 +135,26 @@ class UnitArray:
         nsess = len(self.tasks())
         return nsess
 
+    def n_units_per_rec_task(self, recs=None, tasks=None):
+        """
+        Return all pairs of recording-task combinations (excluding tasks not
+        performed on a given recording day or with all units excluded).
+        """
+
+        if recs is None:
+            recs = self.recordings()
+        if tasks is None:
+            tasks = self.tasks()
+
+        MI_rec_tasks = pd.MultiIndex.from_product([recs, tasks])
+        nunits = pd.Series(0, index=MI_rec_tasks, dtype=int)
+        for rec in recs:
+            uids = list(self.get_uids_of_rec(rec))
+            for task in tasks:
+                nunits[rec, task] = len(list(self.iter_thru([task], uids)))
+
+        return nunits
+
     def rec_task_order(self):
         """Return original recording task order."""
 

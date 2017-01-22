@@ -239,7 +239,7 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
                                color='m', linewidth=4.0, ax=ax)
 
     # Plot event markers.
-    putil.plot_event_marker(evts, ax=ax)
+    putil.plot_event_markers(evts, ax=ax)
 
     # Save and return plot.
     putil.save_fig(ffig=ffig)
