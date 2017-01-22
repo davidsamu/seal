@@ -21,7 +21,7 @@ min_n_trs_per_unit = 10   # minimum number of trials per unit to keep
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, fname=None):
+def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
     """Select optimal set of units and trials for population decoding."""
 
     print('Selecting optimal set of units and trials for decoding...')
@@ -63,10 +63,11 @@ def select_units_trials(UA, utids=None, fname=None):
         putil.rot_ytick_labels(ax, 0, va='center')
         putil.set_labels(ax, xlab, ylab, title, ytitle)
 
-    # Init analysis.
-    ytitle = 1.40
-    fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
-                                          subw=6, subh=4, create_axes=True)
+    # Init plotting.
+    if do_plotting:
+        ytitle = 1.40
+        fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
+                                              subw=6, subh=4, create_axes=True)
 
     for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
         print(rec, task)
@@ -80,11 +81,12 @@ def select_units_trials(UA, utids=None, fname=None):
             IncTrsMat.loc[ch_idx].iloc[IncTrs[utid]] = 1
 
         # Plot included/excluded trials after preprocessing.
-        ax = axs[i_rt, 0]
-        ylab = '{} {}'.format(rec, task)
-        title = ('Included (green) and excluded (red) trials'
-                 if i_rt == 0 else None)
-        plot_inc_exc_trials(IncTrsMat, ax, title, ytitle, ylab=ylab)
+        if do_plotting:
+            ax = axs[i_rt, 0]
+            ylab = '{} {}'.format(rec, task)
+            title = ('Included (green) and excluded (red) trials'
+                     if i_rt == 0 else None)
+            plot_inc_exc_trials(IncTrsMat, ax, title, ytitle, ylab=ylab)
 
         # Calculate and plot overlap of trials across units.
         # How many trials will remain if we iteratively excluding units
@@ -131,34 +133,36 @@ def select_units_trials(UA, utids=None, fname=None):
         tr_covs.iloc[-1] = (uinc[0], 0, 0, 0)
 
         # Plot covered trials against each units removed.
-        ax_trc = axs[i_rt, 1]
-        sns.tsplot(tr_covs['ntrs_cov'], marker='o', ms=4, color='b', ax=ax_trc)
-        title = ('Trials coverage during iterative unit removal'
-                 if i_rt == 0 else None)
-        xlab, ylab = 'current unit removed', '# trials covered'
-        putil.set_labels(ax_trc, xlab, ylab, title, ytitle)
-        ax_trc.xaxis.set_ticks(tr_covs.index)
-        x_ticklabs = ['none'] + ['{} - {}'.format(ch, ui)
-                                 for ch, ui in tr_covs.uid.loc[1:]]
-        ax_trc.set_xticklabels(x_ticklabs)
-        putil.rot_xtick_labels(ax_trc, 45)
-        ax_trc.grid(True)
+        if do_plotting:
+            ax_trc = axs[i_rt, 1]
+            sns.tsplot(tr_covs['ntrs_cov'], marker='o', ms=4, color='b',
+                       ax=ax_trc)
+            title = ('Trials coverage during iterative unit removal'
+                     if i_rt == 0 else None)
+            xlab, ylab = 'current unit removed', '# trials covered'
+            putil.set_labels(ax_trc, xlab, ylab, title, ytitle)
+            ax_trc.xaxis.set_ticks(tr_covs.index)
+            x_ticklabs = ['none'] + ['{} - {}'.format(ch, ui)
+                                     for ch, ui in tr_covs.uid.loc[1:]]
+            ax_trc.set_xticklabels(x_ticklabs)
+            putil.rot_xtick_labels(ax_trc, 45)
+            ax_trc.grid(True)
 
-        # Add # of remaining units to top.
-        ax_remu = ax_trc.twiny()
-        ax_remu.xaxis.set_ticks(tr_covs.index)
-        ax_remu.set_xticklabels(list(range(len(x_ticklabs)))[::-1])
-        ax_remu.set_xlabel('# units remaining')
-        ax_remu.grid(None)
+            # Add # of remaining units to top.
+            ax_remu = ax_trc.twiny()
+            ax_remu.xaxis.set_ticks(tr_covs.index)
+            ax_remu.set_xticklabels(list(range(len(x_ticklabs)))[::-1])
+            ax_remu.set_xlabel('# units remaining')
+            ax_remu.grid(None)
 
-        # Add heuristic index.
-        ax_heur = ax_trc.twinx()
-        sns.tsplot(tr_covs['trial x units'], linestyle='--', marker='o', ms=4,
-                   color='m',  ax=ax_heur)
-        putil.set_labels(ax_heur, ylab='remaining units x covered trials')
-        [tl.set_color('m') for tl in ax_heur.get_yticklabels()]
-        [tl.set_color('b') for tl in ax_trc.get_yticklabels()]
-        ax_heur.grid(None)
+            # Add heuristic index.
+            ax_heur = ax_trc.twinx()
+            sns.tsplot(tr_covs['trial x units'], linestyle='--', marker='o',
+                       ms=4, color='m',  ax=ax_heur)
+            putil.set_labels(ax_heur, ylab='remaining units x covered trials')
+            [tl.set_color('m') for tl in ax_heur.get_yticklabels()]
+            [tl.set_color('b') for tl in ax_trc.get_yticklabels()]
+            ax_heur.grid(None)
 
         # Decide on which units to exclude.
         min_n_trials = min_n_trs_per_unit * tr_covs['n_rem_u']
@@ -180,9 +184,11 @@ def select_units_trials(UA, utids=None, fname=None):
             UInfo.loc[utids, 'keep unit'] = True
 
         # Highlight selected point in middle plot.
-        sel_seg = [('selection', exc_uids.shape[0]-0.4, exc_uids.shape[0]+0.4)]
-        putil.plot_periods(sel_seg, ax=ax_trc)
-        [ax.set_xlim([-0.5, n_units+0.5]) for ax in (ax_trc, ax_remu)]
+        if do_plotting:
+            sel_seg = [('selection', exc_uids.shape[0]-0.4,
+                        exc_uids.shape[0]+0.4)]
+            putil.plot_periods(sel_seg, ax=ax_trc)
+            [ax.set_xlim([-0.5, n_units+0.5]) for ax in (ax_trc, ax_remu)]
 
         # Generate remaining trials dataframe.
         RemTrsMat = IncTrsMat.copy().astype(float)
@@ -196,13 +202,14 @@ def select_units_trials(UA, utids=None, fname=None):
         RemTrsMat[IncTrsMat == False] = 0.0
 
         # Plot remaining trials.
-        ax = axs[i_rt, 2]
-        n_u_rem, n_u_exc = len(rem_uids), len(exc_uids)
-        title = ('# units remaining: {}, excluded: {}'.format(n_u_rem,
-                                                              n_u_exc) +
-                 '\n# trials remaining: {}, excluded: {}'.format(n_tr_rem,
-                                                                 n_tr_exc))
-        plot_inc_exc_trials(RemTrsMat, ax, title=title, ylab='')
+        if do_plotting:
+            ax = axs[i_rt, 2]
+            n_u_rem, n_u_exc = len(rem_uids), len(exc_uids)
+            title = ('# units remaining: {}, excluded: {}'.format(n_u_rem,
+                                                                  n_u_exc) +
+                     '\n# trials remaining: {}, excluded: {}'.format(n_tr_rem,
+                                                                     n_tr_exc))
+            plot_inc_exc_trials(RemTrsMat, ax, title=title, ylab='')
 
         # Add remaining units and trials to RecInfo.
         rt = (rec, task)
@@ -211,10 +218,12 @@ def select_units_trials(UA, utids=None, fname=None):
         RecInfo.loc[rt, ('trials', 'ntrials')] = list(cov_trs), sum(cov_trs)
 
     # Save plot.
-    if fname is not None:
+    if do_plotting and (fname is not None):
         title = 'Trial & unit selection prior decoding'
         putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
                               w_pad=3, h_pad=3)
+
+    return RecInfo, UInfo
 
 
 ## %% Direction selectivity analysis.
