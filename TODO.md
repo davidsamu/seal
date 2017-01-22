@@ -36,11 +36,6 @@ spikes and rates
   - returning excluded trials should be made impossible in some way!
 
 
-export
-------
-  - add export decoding data (from Anna's script) into pickle and mat
-
-
 unit
 ----
   - add RF coverage information

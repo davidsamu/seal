@@ -618,7 +618,7 @@ class Unit:
                       tr_time_idx=False):
         """Return rates within named period in given trials."""
 
-        t1s, t2s = self.pr_times(prd, add_latency, concat=False)
+        t1s, t2s = self.pr_times(prd, trs, add_latency, concat=False)
         rates = self.get_time_rates(trs, t1s, t2s, tr_time_idx)
         return rates
 
