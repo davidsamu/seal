@@ -40,7 +40,8 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
                         for utid in utids], index=utids.index)
 
     # Result DF.
-    rec_task = [rt for rt, _ in u_rt_grpby]
+    rec_task = pd.MultiIndex.from_tuples([rt for rt, _ in u_rt_grpby],
+                                         names=['rec', 'task'])
     cols = ['units', 'nunits', 'nallunits', 'trials', 'ntrials', 'nalltrials']
     RecInfo = pd.DataFrame(index=rec_task, columns=cols)
     rt_utids = [utids.xs((r, t), level=('rec', 'task')) for r, t in rec_task]
@@ -66,6 +67,7 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
     # Init plotting.
     if do_plotting:
         ytitle = 1.40
+        putil.set_style('notebook', 'whitegrid')
         fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
                                               subw=6, subh=4, create_axes=True)
 
@@ -180,8 +182,8 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
             n_tr_exc = IncTrsMat.shape[1] - n_tr_rem
 
             # Add to UnitInfo dataframe
-            utids = [(rec, ch, ui, task) for ch, ui in rem_uids]
-            UInfo.loc[utids, 'keep unit'] = True
+            rt_utids = [(rec, ch, ui, task) for ch, ui in rem_uids]
+            UInfo.loc[rt_utids, 'keep unit'] = True
 
         # Highlight selected point in middle plot.
         if do_plotting:
@@ -218,7 +220,9 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
         RecInfo.loc[rt, ('trials', 'ntrials')] = list(cov_trs), sum(cov_trs)
 
     # Save plot.
-    if do_plotting and (fname is not None):
+    if do_plotting:
+        if fname is None:
+            fname = 'results/decoding/prepare/unit_trial_selection.png'
         title = 'Trial & unit selection prior decoding'
         putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
                               w_pad=3, h_pad=3)
@@ -333,112 +337,76 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
 #plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.90,
 #                     w_pad=0, h_pad=4)
 #
-#
-## %% Trial type distribution analysis.
-#
-## TODO: Add trial numbers to RecInfo?
-#
-#cols = ['rec', 'task', 'task_name', 'rec_task']
-#RecTrParams = OrdDict()
-#for u in UnitArr.unit_list():
-#
-#    rec, task = u.get_recording_name(), up['task']
-#    if (rec, task) not in RecTrParams:
-#        RecTrParams[(rec, task)] = u.TrialParams
-#
-## Total number of trials, correct trials, correct trials per direction, error trials.
-#incl_units = UnitInfoDF[UnitInfoDF['keep unit']].index
-#IncTrs_GrBy_Rec = IncTrsDF.loc[incl_units].groupby(level='rec')
-#
-#plot.set_seaborn_style_context('darkgrid', seaborn_context, rc_args)
-#
-#fig, gsp, axs = plot.get_gs_subplots(nrow=len(IncTrs_GrBy_Rec),
-#                                     ncol=len(tasks), subw=8, subh=6)
-#
-#for i_rc, (rec, ITrRec) in enumerate(IncTrs_GrBy_Rec):
-#    for i_tk, (task, ITrRecTask) in enumerate(ITrRec.groupby(level='task')):
-#
-#        # Get trials covered by select subset of units.
-#        IncTrs = pd.DataFrame([iT for idx, iT in ITrRecTask['iT'].iteritems()])
-#        cT = IncTrs.all()
-#        # Get corresponding trial parameters.
-#        cTrParams = RecTrParams[(rec, task)][cT].copy()
-#
-#        # Add formatted trials params.
-#        cTrParams['AnswerCorr'] = 'Error'
-#        cTrParams.loc[cTrParams.AnswCorr, 'AnswerCorr'] = 'Correct'
-#        cTrParams['S1Direction'] = util.remove_dimension(cTrParams['S1Dir'])
-#        cTrParams['S1Direction'] = np.array(cTrParams['S1Direction'],
-#                                            dtype=int)
-#
-#        # Plot as countplot.
-#        ax = axs[i_rc, i_tk]
-#
-#        if not cTrParams.size:
-#            ax.axis('off')
-#            continue
-#
-#        sns.countplot(x='S1Direction', hue='AnswerCorr', data=cTrParams,
-#                      hue_order=['Correct', 'Error'], ax=ax)
-#        sns.despine(ax=ax)
-#
-#        # Change alpha value of bars depending on DPD - DAD.
-#        recinfo = RecInfo.loc[(rec, task)]
-#        pa_df = pd.DataFrame({'name': ('pref', 'anti'),
-#                              'dir': (recinfo.DPD, recinfo.DAD),
-#                              'ls': ('-', '--')},
-#                             index=('DPD', 'DAD'))
-#        dirs = sorted(cTrParams.S1Direction.unique())
-#        alpha = {0: 1, 45: 1, 90: 0.25}
-#        for patch in ax.patches:
-#
-#            # Get orientation of current bar to dominant pref/anti directions.
-#            d = dirs[round(patch.get_x())]   # TODO: this is a bit hacky!
-#            deg_diff = [int(util.deg_diff(d*deg, PD)) for PD in pa_df.dir]
-#
-#            # Set alpha of bar.
-#            fcol = list(patch.get_facecolor())
-#            fcol[3] = alpha[min(deg_diff)]
-#            patch.set_facecolor(fcol)
-#
-#            # Set edge color and width bar.
-#            if min(deg_diff) != 90:
-#                ls = pa_df.ls[np.argmin(deg_diff)]
-#                patch.set_linestyle(ls)
-#                patch.set_linewidth(1)
-#
-#        # Add title.
-#        title = '{} {}'.format(rec, task_names[task])
-#        nce = cTrParams.AnswerCorr.value_counts()
-#        nc, ne = nce.loc['Correct'], nce.loc['Error']
-#        pnc, pne = 100*nc/nce.sum(), 100*ne/nce.sum()
-#        title += '\n\n# correct: {} ({:.0f}%)'.format(nc, pnc)
-#        title += '      # error: {} ({:.0f}%)'.format(ne, pne)
-#        plot.set_labels(title=title, xlab='S1 direction', ax=ax)
-#
-#        # Format legend.
-#        if i_rc == 0 and i_tk == 0:
-#            # Add pref/anti to legend.
-#            extra_artist = [plot.get_proxy_artist(pa_df.name[lbl], color='k',
-#                                                  artist_type='line', ls=ls)
-#                            for lbl, ls in pa_df.ls.items()]
-#            handles = ax.legend().get_patches()
-#            handles[0].set_label('Correct')
-#            handles[1].set_label('Error')
-#            handles = extra_artist + handles
-#            ax.legend(title=None, handles=handles, bbox_to_anchor=(0.6, 1),
-#                      loc=2, ncol=2, borderaxespad=0., columnspacing=1.5)
-#        else:
-#            ax.legend_.remove()
-#
-#
-## Save plot.
-#title = 'Trial type distribution'
-#fname = 'results/decoding/preprocessing/trial_type_distribution.png'
-#plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
-#                     w_pad=3, h_pad=3)
-#
-#
+# %% Trial type distribution analysis.
+
+def plot_trial_type_distribution(UA, RecInfo, utids=None, fname=None):
+    """Plot distribution of trial types."""
+
+    # Init.
+    if utids is None:
+        utids = UA.utids()
+    recs, tasks = [RecInfo.index.get_level_values(v).unique()
+                   for v in ('rec', 'task')]
+    # Reorder recordings and tasks.
+    recs = [rec for rec in UA.recordings() if rec in recs]
+    tasks = [task for task in UA.tasks() if task in tasks]
+
+    # Init plotting.
+    putil.set_style('notebook', 'darkgrid')
+    fig, gsp, axs = putil.get_gs_subplots(nrow=len(recs), ncol=len(tasks),
+                                          subw=4, subh=3, create_axes=True)
+
+    for ir, rec in enumerate(recs):
+        for it, task in enumerate(tasks):
+
+            ax = axs[ir, it]
+
+            if (rec, task) not in RecInfo.index:
+                ax.set_axis_off()
+                continue
+
+            # Get includecd trials and their parameters.
+            inc_trs = RecInfo.loc[(rec, task), 'trials']
+            utid = utids.xs([rec, task], level=('rec', 'task'))[0]
+            TrData = UA.get_unit(utid[:3], utid[3]).TrData.loc[inc_trs].copy()
+
+            # Format some trials params.
+            TrData['answer'] = 'error'
+            TrData.loc[TrData.correct, 'answer'] = 'correct'
+
+            if not TrData.size:
+                ax.set_axis_off()
+                continue
+
+            # Plot as countplot.
+            sns.countplot(x=('S1', 'Dir'), hue='answer', data=TrData,
+                          hue_order=['correct', 'error'], ax=ax)
+            sns.despine(ax=ax)
+            putil.hide_tick_marks(ax)
+            putil.set_max_n_ticks(ax, 6, 'y')
+            ax.legend(loc=[0.95, 0.7])
+
+            # Add title.
+            title = '{} {}'.format(rec, task)
+            nce = TrData.answer.value_counts()
+            nc, ne = [nce[c] if c in nce else 0 for c in ('correct', 'error')]
+            pnc, pne = 100*nc/nce.sum(), 100*ne/nce.sum()
+            title += '\n\n# correct: {} ({:.0f}%)'.format(nc, pnc)
+            title += '      # error: {} ({:.0f}%)'.format(ne, pne)
+            putil.set_labels(ax, title=title, xlab='S1 direction')
+
+            # Format legend.
+            if (ir != 0) or (it != 0):
+                ax.legend_.remove()
+
+    # Save plot.
+    title = 'Trial type distribution'
+    if fname is None:
+        fname = 'results/decoding/prepare/trial_type_distribution.png'
+    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
+                          w_pad=3, h_pad=3)
+
+
 ## %% Do decoding.
 #
 ## %autoreload 2
