@@ -11,8 +11,6 @@ import pandas as pd
 import seaborn as sns
 
 from seal.plot import putil
-from seal.util import util
-
 
 # Constants.
 min_n_units = 5           # minimum number of units to keep
@@ -21,7 +19,7 @@ min_n_trs_per_unit = 10   # minimum number of trials per unit to keep
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
+def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
     """Select optimal set of units and trials for population decoding."""
 
     print('Selecting optimal set of units and trials for decoding...')
@@ -189,7 +187,7 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
         if do_plotting:
             sel_seg = [('selection', exc_uids.shape[0]-0.4,
                         exc_uids.shape[0]+0.4)]
-            putil.plot_periods(sel_seg, ax=ax_trc)
+            putil.plot_periods(sel_seg, ax=ax_trc, alpha=0.3)
             [ax.set_xlim([-0.5, n_units+0.5]) for ax in (ax_trc, ax_remu)]
 
         # Generate remaining trials dataframe.
@@ -217,7 +215,8 @@ def select_units_trials(UA, utids=None, fname=None, do_plotting=True):
         rt = (rec, task)
         RecInfo.loc[rt, ('units', 'nunits')] = list(rem_uids), len(rem_uids)
         cov_trs = RemTrsMat.loc[list(rem_uids)].all()
-        RecInfo.loc[rt, ('trials', 'ntrials')] = list(cov_trs), sum(cov_trs)
+        inc_trs = pd.Int64Index(np.where(cov_trs)[0])
+        RecInfo.loc[rt, ('trials', 'ntrials')] = inc_trs, sum(cov_trs)
 
     # Save plot.
     if do_plotting:
