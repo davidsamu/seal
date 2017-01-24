@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from quantities import s, ms, us, deg, Hz
 
-from seal.util import util
+from seal.util import util, constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
 from seal.analysis import direction
@@ -23,11 +23,13 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell=None, task=None, constants=None):
+    def __init__(self, TPLCell=None, task=None, task_info=None,
+                 task_consts=None, kset=None, answ_par=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
+        self.CTask = None
         self.UnitParams = pd.Series()
         self.SessParams = pd.Series()
         self.Waveforms = pd.DataFrame()
@@ -38,7 +40,6 @@ class Unit:
         self._Rates = pd.Series()
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
-        self.Constants = constants
 
         # Default unit params.
         self.UnitParams['hemisphere'] = None
@@ -81,6 +82,13 @@ class Unit:
         # Name unit.
         self.set_name()
 
+        # %% Task constants.
+
+        self.CTask = task_consts
+        self.CTask['all_dirs'] = task_info['all_dirs']
+        self.CTask['stim_dur'] = task_info['stim_dur']
+        self.CTask['del_lens'] = task_info['del_lens']
+
         # %% Waveforms.
 
         wfs = TPLCell.Waves
@@ -97,7 +105,7 @@ class Unit:
 
         # %% Stimulus parameters.
 
-        stim_params = constants['stim_params']
+        stim_params = task_consts['stim_params']
 
         # Extract all trial parameters.
         trpars = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
@@ -128,7 +136,7 @@ class Unit:
         Answer = pd.DataFrame()
 
         # Recode correct/incorrect answer column.
-        corr_ans = trpars[constants['answ_params']['correct']]
+        corr_ans = trpars[answ_par]
         if len(corr_ans.unique()) > 2:
             warnings.warn(('More than 2 unique values for correct answer: ' +
                            corr_ans.unique()))
@@ -149,8 +157,8 @@ class Unit:
         # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
-        S1dur = float(constants['stim_dur']['S1'].rescale(s))
-        S2dur = float(constants['stim_dur']['S2'].rescale(s))
+        S1dur = float(task_consts['stim_dur']['S1'].rescale(s))
+        S2dur = float(task_consts['stim_dur']['S2'].rescale(s))
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
         anchor_evts = [('S1 on', TPLCell.Timestamps[iS1off]-S1dur),
@@ -165,7 +173,7 @@ class Unit:
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
-                for evt, (rel, offset) in constants['tr_evts'].iterrows()]
+                for evt, (rel, offset) in task_consts['tr_evts'].iterrows()]
         evts = pd.DataFrame.from_items(evts)
 
         # Add dimension to timestamps (ms).
@@ -194,20 +202,20 @@ class Unit:
         # "Categorical" (rounded) delay length variable.
         delay_lens = util.dim_series_to_array(TrialParams['DelayLenPrec'])
         len_diff = [(i, np.abs(delay_lens - dl))
-                    for i, dl in enumerate(constants['delay_lengths'])]
+                    for i, dl in enumerate(task_consts['del_lens'])]
         min_diff = pd.DataFrame.from_items(len_diff).idxmin(1)
-        dlens = constants['delay_lengths'][min_diff]
+        dlens = task_consts['del_lens'][min_diff]
         TrialParams['DelayLen'] = list(util.remove_dim_from_series(dlens))
 
         # Add target feature to be reported.
-        if constants['task_info'].loc[task, 'toreport'] is not None:
-            to_report = constants['task_info'].loc[task, 'toreport']
+        if task_info['toreport'] is not None:
+            to_report = task_info['toreport']
         elif 'TrialType' in trpars:
             to_report = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
         else:
             warnings.warn('TrialType info not found in TPLCell of unit ' +
                           self.Name + '. Forgot define target for task ' +
-                          'in constants -- task_info?')
+                          'in config -- task_info?')
             to_report = None
         TrialParams['ToReport'] = to_report
 
@@ -232,12 +240,14 @@ class Unit:
 
         # Estimate firing rate in each trial.
         spikes = self._Spikes.get_spikes()
-        rate_list = [Rate(name, kernel, spikes, constants['step'])
-                     for name, kernel in constants['kset'].items()]
-        self._Rates = pd.Series(rate_list, index=constants['kset'].keys())
+        rate_list = [Rate(name, kernel, spikes, step)
+                     for name, (kernel, step) in kset.iterrows()]
+        self._Rates = pd.Series(rate_list, index=kset.keys())
 
         # %% Unit params.
 
+        self.UnitParams['hemisphere'] = task_info.hemisphere
+        self.UnitParams['region'] = task_info.region
         self.UnitParams['empty'] = False
         self.UnitParams['excluded'] = False
 
@@ -414,11 +424,8 @@ class Unit:
     def init_nrate(self, nrate=None):
         """Initialize rate name."""
 
-        def_nrate = self.Constants['def_nrate']
-
         if nrate is None:
-            nrate = (def_nrate if def_nrate in self._Rates
-                     else self._Rates.index[0])
+            nrate = self._Rates.index[0]
 
         elif nrate not in self._Rates:
             warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
@@ -461,14 +468,14 @@ class Unit:
 
         evt = self.Events.loc[trs, evname].copy()
         if add_latency:
-            evt += self.Constants['nphy_cons.latency'][self.get_region()]
+            evt += constants.nphy_cons.latency[self.get_region()]
 
         return evt
 
     def pr_times(self, prname, trs=None, add_latency=False, concat=True):
         """Return timing of period (start event, stop event) across trials."""
 
-        ev1, ev2 = self.Constants['tr_prds'].loc[prname]
+        ev1, ev2 = self.CTask['tr_prds'].loc[prname]
         evt1 = self.ev_times(ev1, trs, add_latency)
         evt2 = self.ev_times(ev2, trs, add_latency)
 
@@ -488,7 +495,7 @@ class Unit:
         """Get parameters of periods to analyse."""
 
         if prds is None:
-            prds = self.Constants['tr_third_prds'].copy()
+            prds = self.CTask['tr_third_prds'].copy()
 
         # Update cue plotting.
         to_report = self.TrData.ToReport.unique()
@@ -496,7 +503,7 @@ class Unit:
 
             # Set cue to beginning of trial.
             S1_prds = (prds.ref == 'S1 on')
-            cue_to_S1_on = self.Constants['tr_evts'].loc['fixate', 'shift']
+            cue_to_S1_on = self.CTask['tr_evts'].loc['fixate', 'shift']
             cue_to_S1_on += 100*ms  # add a bit to avoid axis
             prds.loc[S1_prds, 'cue'] = cue_to_S1_on
 
@@ -516,7 +523,7 @@ class Unit:
         for stim in prd_pars.stim.unique():
             stim_idx = (prd_pars.stim == stim) & (prd_pars.ref == (stim+' on'))
             tstart = prd_pars.loc[stim_idx, 'lbl_shift'][0]
-            tend = tstart + self.Constants['stim_dur'][stim]
+            tend = tstart + self.CTask['stim_dur'][stim]
             stim_prds.append((stim, float(tstart), float(tend)))
 
         return stim_prds
@@ -721,7 +728,7 @@ class Unit:
     def calc_DS(self, stim):
         """Calculate direction selectivity (DS)."""
 
-        ltncy, wndw_len = self.Constants['nphy_cons'].loc[self.get_region()]
+        ltncy, wndw_len = constants.nphy_cons.loc[self.get_region()]
 
         # Find maximal stimulus response across all directions combined.
         # WARNING: This assumes DS id maximal at time of maximum response!
@@ -742,7 +749,7 @@ class Unit:
         # Get direction response values and stats.
         stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+tstart, t1s+tend)
         resp_stats = util.calc_stim_resp_stats(stim_resp,
-                                               self.Constants['all_dirs'])
+                                               self.CTask['all_dirs'])
 
         # Convert each result to Numpy array.
         dirs = np.array(resp_stats.index) * deg

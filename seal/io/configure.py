@@ -39,4 +39,7 @@ def init_constants(fconstants):
                          (not isinstance(v, ModuleType) and    # modules
                          (k not in pqs))))                     # quantities
 
-    return constants
+    # Separate task info from task constants.
+    task_info = constants.pop('task_info')
+
+    return task_info, constants

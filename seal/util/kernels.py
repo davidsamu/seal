@@ -14,6 +14,12 @@ from quantities import ms
 from elephant.kernels import GaussianKernel, RectangularKernel
 
 
+# Constants.
+kstep = 10 * ms
+
+
+# %% Functions to create kernels.
+
 def rect_width_from_sigma(sigma):
     """Return rectangular kernel width from sigma."""
 
@@ -74,8 +80,21 @@ def kernel(kname):
     return kern
 
 
-def kernel_set(knames):
+def kernel_set(kpars):
     """Return set of kernels specified in list of knames."""
 
-    kset = pd.Series([kernel(kname) for kname in knames], index=knames)
+    kset = pd.DataFrame([(kernel(kname), kstep) for kname, kstep in kpars],
+                        index=[kp[0] for kp in kpars],
+                        columns=['kernel', 'step'])
     return kset
+
+
+# %% Predefined example kernel sets.
+
+R100_kernel = kernel_set([('R100', 10*ms)])
+G20_kernel = kernel_set([('G20', 10*ms)])
+RG_kernels = kernel_set([('G20', 10*ms), ('R100', 10*ms)])
+R2G2_kernels = kernel_set([('G20', 10*ms), ('G40', 10*ms),
+                           ('R100', 10*ms), ('R200', 10*ms)])
+shrtR_kernels = kernel_set([('R50', 10*ms), ('R75', 10*ms), ('R100', 10*ms)])
+lngR_kernels = kernel_set([('R100', 10*ms), ('R200', 10*ms), ('R500', 10*ms)])

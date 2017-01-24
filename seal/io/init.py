@@ -17,7 +17,7 @@ from seal.quality import test_units
 from seal.object import unit, unitarray
 
 
-def convert_TPL_to_Seal(data_dir, constants):
+def convert_TPL_to_Seal(data_dir, task_info, task_constants):
     """Convert TPLCells to Seal objects in project directory."""
 
     print('\nStarting unit conversion...')
@@ -61,7 +61,10 @@ def convert_TPL_to_Seal(data_dir, constants):
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
-            params = [(TPLCell, task, constants) for TPLCell in TPLCells]
+            kset = task_constants.pop('kset')
+            answ_par = task_constants.pop('answ_par')
+            params = [(TPLCell, task, task_info.loc[task], task_constants,
+                       kset, answ_par) for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.
