@@ -5,6 +5,7 @@ TODO list of Seal project
 preprocessing pipeline
 ----------------------
   - try automatic sorting using OpenElectrophys
+  - improve waveform duration estimation (e.g. by smoothing spline fit?)
 
 
 analyses to add from DD scripts

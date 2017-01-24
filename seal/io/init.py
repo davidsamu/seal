@@ -23,7 +23,7 @@ def convert_TPL_to_Seal(data_dir, task_info, task_constants):
     print('\nStarting unit conversion...')
 
     # Data directory with all recordings to be processed in subfolders.
-    rec_data_dir = data_dir + '/recordings/'
+    rec_data_dir = data_dir + 'recordings/'
 
     # Go through each session.
     for recording in sorted(os.listdir(rec_data_dir)):

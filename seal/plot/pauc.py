@@ -43,6 +43,6 @@ def plot_auc_over_time(auc, tvec, prds=None, evts=None, xlim=None, ylim=None,
     putil.set_max_n_ticks(ax, 5, 'y')
 
     # Plot event markers.
-    putil.plot_event_marker(evts, ax=ax)
+    putil.plot_event_markers(evts, ax=ax)
 
     return ax

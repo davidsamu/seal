@@ -617,7 +617,7 @@ class Unit:
 
         # Change index from trial index to trials start times.
         if tr_time_idx:
-            tr_time = self.TrialParams.loc[trs, 'TrialStart']
+            tr_time = self.TrData.loc[trs, 'TrialStart']
             rates.index = util.remove_dim_from_series(tr_time)
 
         return rates

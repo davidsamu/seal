@@ -177,8 +177,8 @@ def plot_events(events, add_names=True, color='black', alpha=1.0,
             txt.event_lbl = True  # add label to find these artists later
 
 
-def plot_event_marker(events, ypos=ypos_marker, marker='o', ms=6, mew=1,
-                      mec='orange', mfc='None', ax=None, **kwargs):
+def plot_event_markers(events, ypos=ypos_marker, marker='o', ms=6, mew=1,
+                       mec='orange', mfc='None', ax=None, **kwargs):
     """Add event markers to plot."""
 
     if events is None:

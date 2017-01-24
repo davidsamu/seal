@@ -161,7 +161,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
     dsplit_prd_pars = u.CTask['tr_half_prds'].copy()
     dcomb_prd_pars = u.CTask['tr_third_prds'].copy()
     targets = u.TrData['ToReport'].unique()
-    dlens = np.sort(u.TrData['DelayLen'].unique())
+    dlens = util.remove_dim_from_array(u.CTask['del_lens'])
 
     # Init axes.
     nrow = len(targets) + (len(targets) > 1)

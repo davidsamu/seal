@@ -122,7 +122,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
             putil.sync_axes(dur_axs, sync_y=True)
             putil.sync_axes(amp_dur_axs, sync_x=True, sync_y=True)
             putil.sync_axes(rate_axs, sync_y=True)
-            [putil.move_event_lbls(ax, yfac=0.92) for ax in rate_axs]
+            [putil.move_event_lbls(ax, y_lbl=0.92) for ax in rate_axs]
 
             # Save figure.
             if ftempl is not None:
@@ -234,7 +234,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
                                   w_pad=w_pad)
 
 
-def rec_stability_test(UA, periods=None, fname=None):
+def rec_stability_test(UA, fname=None, periods=None):
     """Check stability of recording session across tasks."""
 
     # Init.
@@ -242,7 +242,7 @@ def rec_stability_test(UA, periods=None, fname=None):
         periods = ['whole trial', 'fixation']
 
     # Init figure.
-    fig, gsp, axs = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
+    fig, gsp, axs = putil.get_gs_subplots(nrow=len(periods), ncol=1,
                                           subw=10, subh=2.5, create_axes=True,
                                           as_array=False)
 
@@ -299,7 +299,7 @@ def rec_stability_test(UA, periods=None, fname=None):
         putil.set_limits(ax, xlim=(tmin, tmax))
 
         # Add task labels after all tasks have been plotted.
-        putil.plot_events(task_stats[['t_start', 'label']], lbl_height=0.75,
+        putil.plot_events(task_stats[['t_start', 'label']], y_lbl=0.75,
                           lbl_ha='left', lbl_rotation=0, ax=ax)
 
         # Format plot.

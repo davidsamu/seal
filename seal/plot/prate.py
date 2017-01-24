@@ -14,8 +14,7 @@ from seal.util import util
 from seal.plot import putil
 
 
-def prep_rr_plot_params(u, prd, ref, ev_stims, nrate=None, trs=None,
-                        max_len=None):
+def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None, max_len=None):
     """Prepare plotting parameters."""
 
     # Get trial params.
