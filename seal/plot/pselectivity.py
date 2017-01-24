@@ -11,7 +11,6 @@ import pandas as pd
 
 from quantities import deg, ms
 
-from seal.object import constants
 from seal.analysis import direction, roc
 from seal.plot import putil, ptuning, prate, pauc
 from seal.util import util
@@ -69,6 +68,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
 
         # Init params.
+        prds = [u.Constants.ev_stims.loc[ref]]
         evnts = None
         if ppars.cue is not None:
             evnts = [{'time': ppars.cue}]
@@ -80,8 +80,8 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             cols = [next(colcyc) for itrs in range(len(trs))]
 
         # Plot response on raster and rate plots.
-        _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, evnts, nrate, trs,
-                                               ppars.max_len, cols=cols,
+        _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, prds, evnts, nrate,
+                                               trs, ppars.max_len, cols=cols,
                                                fig=fig, sps=rr_sps, **kwargs)
 
         # Add period name to rate plot.
@@ -94,13 +94,13 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             roc_ax = fig.add_subplot(roc_sps)
             # Init rates.
             plot_params = prate.prep_rr_plot_params(u, prd, ref, nrate, trs)
-            _, _, (rates1, rates2), stim_prd, _, _ = plot_params
+            _, _, (rates1, rates2), _, _ = plot_params
             # Calculate ROC results.
             aroc = roc.run_ROC_over_time(rates1, rates2, n_perm=0)
             # Set up plot params and plot results.
             tvec, auc = aroc.index, aroc.auc
             xlim = rate_ax.get_xlim()
-            pauc.plot_auc_over_time(auc, tvec, [stim_prd], evnts,
+            pauc.plot_auc_over_time(auc, tvec, prds, evnts,
                                     xlim=xlim, ax=roc_ax)
             axes_roc.append(roc_ax)
 
@@ -158,8 +158,8 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
     """Plot stimulus response in matrix layout by target and delay length."""
 
     # Init params.
-    dsplit_prd_pars = constants.tr_half_prds.copy()
-    dcomb_prd_pars = constants.tr_third_prds.copy()
+    dsplit_prd_pars = u.Constants.tr_half_prds.copy()
+    dcomb_prd_pars = u.Constants.tr_third_prds.copy()
     targets = u.TrData['ToReport'].unique()
     dlens = np.sort(u.TrData['DelayLen'].unique())
 
@@ -212,7 +212,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
             else:
                 prd_pars = dsplit_prd_pars.copy()
                 prd_pars = u.get_analysis_prds(prd_pars, from_trs)
-                S2_shift = constants.stim_dur['S1'] + dlen*ms
+                S2_shift = u.Constants.stim_dur['S1'] + dlen*ms
                 prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
                 if len(dlens) > 1:
                     tdiff = (dlen - dlens[-1]) * ms
@@ -348,7 +348,7 @@ def plot_DR_3x3(u, fig=None, sps=None):
     # Polar plot.
     putil.set_style('notebook', 'white')
     ax_polar = fig.add_subplot(gsp[4], polar=True)
-    for stim in constants.stim_dur.index:  # for each stimuli
+    for stim in u.Constants.stim_dur.index:  # for each stimuli
         stim_resp = u.get_stim_resp_vals(stim, 'Dir')
         resp_stats = util.calc_stim_resp_stats(stim_resp)
         dirs, resp = np.array(resp_stats.index) * deg, resp_stats['mean']
@@ -360,7 +360,7 @@ def plot_DR_3x3(u, fig=None, sps=None):
     # Raster-rate plots.
     putil.set_style('notebook', 'ticks')
     rr_pos = [5, 2, 1, 0, 3, 6, 7, 8]  # Position of each direction.
-    rr_dir_plot_pos = pd.Series(constants.all_dirs, index=rr_pos)
+    rr_dir_plot_pos = pd.Series(u.Constants.all_dirs, index=rr_pos)
 
     rate_axs = []
     for isp, d in rr_dir_plot_pos.iteritems():

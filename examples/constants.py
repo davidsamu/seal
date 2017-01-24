@@ -6,10 +6,11 @@ Definition of constants related to experiment, task and analysis.
 @author: David Samu
 """
 
+import numpy as np
 import pandas as pd
 from quantities import ms, deg, cm
 
-from seal.util import util, kernels
+from seal.util import kernels
 
 
 # %% Task constants and parameters.
@@ -35,7 +36,7 @@ stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 delay_lengths = pd.Series([1500*ms, 2000*ms])
 
 # All presented directions.
-all_dirs = util.quantity_linspace(0*deg, 315*deg, 8)
+all_dirs = np.linspace(0, 315, 8) * deg
 
 # Task information.
 # WARNING: Target value, if not None, overwrites any target feature information

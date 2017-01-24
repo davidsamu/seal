@@ -14,10 +14,10 @@ from seal.io import export
 from seal.util import util
 from seal.plot import putil
 from seal.quality import test_units
-from seal.object import constants, unit, unitarray
+from seal.object import unit, unitarray
 
 
-def convert_TPL_to_Seal(data_dir):
+def convert_TPL_to_Seal(data_dir, constants):
     """Convert TPLCells to Seal objects in project directory."""
 
     print('\nStarting unit conversion...')
@@ -61,15 +61,7 @@ def convert_TPL_to_Seal(data_dir):
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
-            hemisphere = constants.task_info.loc[task, 'hemisphere']
-            region = constants.task_info.loc[task, 'region']
-            kernels = constants.kset
-            step, stim_params = constants.step, constants.stim_params,
-            answ_params, stim_dur = constants.answ_params, constants.stim_dur
-            tr_evts = constants.tr_evts
-            params = [(TPLCell, hemisphere, region, task, kernels, step,
-                       stim_params, answ_params, stim_dur, tr_evts)
-                      for TPLCell in TPLCells]
+            params = [(TPLCell, task, constants) for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
             # Add them to unit list of recording, combining all tasks.
@@ -80,15 +72,14 @@ def convert_TPL_to_Seal(data_dir):
         util.write_objects({'UnitArr': UA}, fname_seal)
 
 
-def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
-                    fselection=None):
+def quality_control(data_dir, proj_name, task_order, plot_qm=True,
+                    plot_stab=True, fselection=None):
     """Run quality control (SNR, rate drift, ISI, etc) on each recording."""
 
     # Data directory with all recordings to be processed in subfolders.
     rec_data_dir = data_dir + 'recordings/'
 
     # Init combined UnitArray object.
-    task_order = constants.task_info.index
     combUA = unitarray.UnitArray(proj_name, task_order)
 
     print('\nStarting quality control...')
@@ -120,7 +111,7 @@ def quality_control(data_dir, proj_name, plot_qm=True, plot_stab=True,
         if plot_stab:
             print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
-            test_units.rec_stability_test(UA, fname)
+            test_units.rec_stability_test(UA, periods, fname)
 
         # Add to combined UA.
         combUA.add_recording(UA)

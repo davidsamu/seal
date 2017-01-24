@@ -12,7 +12,6 @@ from quantities import deg, rad, s
 
 from seal.analysis import tuning, direction
 from seal.plot import putil, pplot
-from seal.object import constants
 
 
 def plot_DS(u, no_labels=False, ftempl=None, **kwargs):
@@ -145,8 +144,8 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
 
 
 def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
-            complete_missing_dirs=False, color='b', title=None,
-            ffig=None, ax=None):
+            complete_missing_dirs=False, color='b', title=None, ffig=None,
+            ax=None):
     """
     Plot response to each directions on polar plot, with a vector pointing to
     preferred direction (PD) with length DSI.
@@ -161,13 +160,14 @@ def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
         putil.add_baseline(baseline, ax=ax)
 
     # Remove NaNs.
+    all_dirs = dirs
     not_nan = np.array(~pd.isnull(dirs) & ~pd.isnull(resp))
     dirs, resp = dirs[not_nan], np.array(resp[not_nan])
 
     # Prepare data.
     # Complete missing directions with 0 response.
     if complete_missing_dirs:
-        for i, d in enumerate(constants.all_dirs):
+        for i, d in enumerate(all_dirs):
             if d not in dirs:
                 dirs = np.insert(dirs, i, d) * dirs.units
                 resp = np.insert(resp, i, 0) * 1/s
@@ -176,7 +176,7 @@ def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
 
     # Plot response to each directions on polar plot.
     if plot_type == 'bar':  # sector plot
-        ndirs = constants.all_dirs.size
+        ndirs = all_dirs.size
         left_rad_dirs = rad_dirs - np.pi/ndirs  # no need for this in MPL 2.0?
         w = 2*np.pi / ndirs                     # same with edgecolor and else?
         pplot.bars(left_rad_dirs, resp, width=w, alpha=0.50, color=color, lw=1,

@@ -19,7 +19,7 @@ import pandas as pd
 import multiprocessing as mp
 from collections import Iterable
 
-from quantities import Quantity, s
+from quantities import Quantity
 
 
 # Constants.
@@ -745,23 +745,25 @@ def sign_periods(ts1, ts2, pval, test, min_len=None, **kwargs):
     return sign_periods
 
 
-def calc_stim_resp_stats(stim_resp):
+def calc_stim_resp_stats(stim_resp, all_stim_vals=None):
     """Calculate stimulus response statistics from raw response values."""
 
-    null_resp = np.nan * 1/s
-    resp_stats = pd.DataFrame(columns=['mean', 'std', 'sem'])
-    for v, v_grp in stim_resp.groupby(['vals']):
-        resp = np.array(v_grp['resp'])
+    # Init all stimulus values.
+    if all_stim_vals is None:
+        all_stim_vals = np.sort(stim_resp.vals.unique())
+
+    # Init response matrix.
+    resp_stats = pd.DataFrame(columns=['mean', 'std', 'sem'],
+                              index=all_stim_vals, dtype=float)
+
+    for v in all_stim_vals:
+        v = float(v)
+        resp = stim_resp.loc[stim_resp.vals == v, 'resp']
         # Calculate statistics.
         if resp.size:
-            mean_resp = np.mean(resp)
-            std_resp = np.std(resp)
+            mean_resp = resp.mean()
+            std_resp = resp.std()
             sem_resp = std_resp / np.sqrt(resp.size)
-        else:  # in case of no response
-            mean_resp = null_resp
-            std_resp = null_resp
-            sem_resp = null_resp
-
-        resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
+            resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
 
     return resp_stats

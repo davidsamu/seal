@@ -8,11 +8,11 @@ Class representing an array of units.
 
 
 import pandas as pd
-from collections import OrderedDict as OrdDict
 
 from seal.object import unit
 
 
+# Constants.
 idx_names = ['rec', 'ch', 'unit']
 
 
@@ -211,10 +211,8 @@ class UnitArray:
     def recordings(self):
         """Return list of recordings."""
 
-        uids = self.uids()
-        recordings = uids.index.get_level_values('rec')
-        unique_recordings = list(OrdDict.fromkeys(recordings))
-        return unique_recordings
+        recordings = self.Units.index.get_level_values('rec').unique()
+        return recordings
 
     def n_recordings(self):
         """Return number of recordings."""

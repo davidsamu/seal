@@ -14,9 +14,8 @@ import scipy as sp
 import pandas as pd
 
 from seal.util import util
-from seal.plot import putil, pplot, pselectivity
-from seal.object import constants
 from seal.quality import test_sorting
+from seal.plot import putil, pplot, pselectivity, pquality
 
 
 # Figure size constants
@@ -102,8 +101,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
             if plot_qm:
 
                 if res is not None:
-                    ax_res = test_sorting.plot_qm(u, fig=fig, sps=gsp[i],
-                                                  **res)
+                    ax_res = pquality.plot_qm(u, fig=fig, sps=gsp[i], **res)
 
                     # Collect axes.
                     ax_wfs, ax_wf_amp, ax_wf_dur, ax_amp_dur, ax_rate = ax_res
@@ -236,18 +234,19 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
                                   w_pad=w_pad)
 
 
-def rec_stability_test(UA, fname=None):
+def rec_stability_test(UA, periods=None, fname=None):
     """Check stability of recording session across tasks."""
 
-    # Init params.
-    periods = constants.tr_prds.loc[['whole trial', 'fixation']]
+    # Init.
+    if periods is None:
+        periods = ['whole trial', 'fixation']
 
     # Init figure.
     fig, gsp, axs = putil.get_gs_subplots(nrow=len(periods.index), ncol=1,
                                           subw=10, subh=2.5, create_axes=True,
                                           as_array=False)
 
-    for prd, ax in zip(periods.index, axs):
+    for prd, ax in zip(periods, axs):
 
         # Calculate and plot firing rate during given period in each trial
         # across session for all units.
@@ -304,7 +303,7 @@ def rec_stability_test(UA, fname=None):
                           lbl_ha='left', lbl_rotation=0, ax=ax)
 
         # Format plot.
-        xlab = 'Recording time (s)' if prd == periods.index[-1] else None
+        xlab = 'Recording time (s)' if prd == periods[-1] else None
         putil.set_labels(ax, xlab=xlab, ylab=prd)
         putil.set_spines(ax, left=False)
 

@@ -13,7 +13,6 @@ import pandas as pd
 from quantities import deg, rad
 
 from seal.analysis import tuning
-from seal.object import constants
 from seal.util import util
 
 # Constants.
@@ -81,9 +80,6 @@ def calc_DSI(u, fDSI=None, prd_pars=None, nrate=None):
 def max_DS(dirs, resp):
     """DS based on maximum rate only (legacy method)."""
 
-    # Init.
-    resp = np.array(resp)
-
     # Preferred and anti-preferred direction.
     PD = dirs[np.argmax(resp)]   # direction with maximal response
     AD = anti_dir(PD)
@@ -103,12 +99,9 @@ def max_DS(dirs, resp):
 def weighted_DS(dirs, resp):
     """DS based on weighted vector average method."""
 
-    # Init.
-    resp = np.array(resp)
-
     # DS and PD: length and direction of weighted average.
     DSI, PD = polar_wmean(dirs, resp)
-    cPD = coarse_dir(PD, constants.all_dirs)
+    cPD = coarse_dir(PD, dirs)
 
     # Anti-preferred.
     AD, cAD = [anti_dir(d) for d in (PD, cPD)]
@@ -129,7 +122,7 @@ def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
 
     # DS based on Gaussian tuning curve fit.
     PD = deg_mod(dir0 + fit_params.loc['fit', 'x0'] * deg)
-    cPD = coarse_dir(PD, constants.all_dirs)
+    cPD = coarse_dir(PD, dirs.unique()*deg)
 
     # Anti-preferred.
     AD, cAD = [anti_dir(d) for d in (PD, cPD)]
@@ -211,8 +204,8 @@ def polar_wmean(dirs, weights=None):
     if weights is None:
         weights = np.ones(len(dirs))
 
-    # Remove values correspinding to NaN weights.
-    idxs = np.logical_not(np.isnan(weights))
+    # Remove values corresponding to NaN weights.
+    idxs = ~np.isnan(weights)
     dirs, weights = dirs[idxs], weights[idxs]
 
     # Uniform zero weights (i.e. no response).

@@ -16,11 +16,6 @@ analyses to add from DD scripts
   - comparison effect
 
 
-constants
----------
-  - define a constants/parameter file per project
-
-
 unitarray / unit
 ----------------
   - add test and register whether unit's are matched across tasks

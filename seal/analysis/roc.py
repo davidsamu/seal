@@ -17,7 +17,6 @@ from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
 from seal.plot import putil, pplot
-from seal.object import constants
 
 
 # Some analysis constants.
@@ -212,7 +211,7 @@ def first_period(vec, time, prd_len, pvec=None, pth=None,
 
 
 # Plot S and D trials on raster and rate plots and add AROC, per unit.
-def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
+def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets, prds,
                       get_trials, get_trials_kwargs, fig_dir):
     """Plots AROC results for each unit."""
 
@@ -245,7 +244,8 @@ def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets,
         # Plot AROC
         pplot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1],
                     xlab=putil.t_lbl, ylab='AROC', ax=roc_ax, color='m')
-        putil.plot_periods(constants.stim_prds, t_unit=ms, ax=roc_ax)
+        if prds:
+            putil.plot_periods(prds, t_unit=ms, ax=roc_ax)
         roc_ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
         putil.show_spines(True, True, True, True, roc_ax)
 
