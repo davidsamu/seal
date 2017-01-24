@@ -501,7 +501,7 @@ def remove_dim_from_array(qvec, dtype=float):
 def remove_dim_from_series(qser):
     """Remove physical dimension from Pandas Series."""
 
-    arr = remove_dim_from_array(qser)
+    arr = remove_dim_from_array(np.array(qser))
     series = pd.Series(arr, index=qser.index, name=qser.name)
 
     return series

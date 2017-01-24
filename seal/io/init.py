@@ -48,6 +48,12 @@ def convert_TPL_to_Seal(data_dir, task_info, task_constants):
         # Reorder sessions by task order.
         task_order = np.argsort(itasks)
 
+        # Init task parameters common across tasks.
+        kset = task_constants['kset']
+        answ_par = task_constants['answ_par']
+        task_consts = dict((k, v) for k, v in task_constants.items()
+                           if k not in ['kset', 'answ_par'])
+
         # Create and collect all units from each task.
         UA = unitarray.UnitArray(recording)
         for i in task_order:
@@ -61,9 +67,7 @@ def convert_TPL_to_Seal(data_dir, task_info, task_constants):
             TPLCells = util.read_matlab_object(fname_matlab, 'TPLStructs')
 
             # Create list of Units from TPLCell structures.
-            kset = task_constants.pop('kset')
-            answ_par = task_constants.pop('answ_par')
-            params = [(TPLCell, task, task_info.loc[task], task_constants,
+            params = [(TPLCell, task, task_info.loc[task], task_consts,
                        kset, answ_par) for TPLCell in TPLCells]
             tUnits = util.run_in_pool(unit.Unit, params)
 
@@ -114,7 +118,7 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
         if plot_stab:
             print('  Plotting recording stability...')
             fname = qc_dir + 'recording_stability.png'
-            test_units.rec_stability_test(UA, periods, fname)
+            test_units.rec_stability_test(UA, fname)
 
         # Add to combined UA.
         combUA.add_recording(UA)

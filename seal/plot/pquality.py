@@ -27,8 +27,8 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     mean_rate = u.QualityMetrics['mFR']
 
     # Minimum and maximum gain.
-    gmin = u.UnitParams['minV']
-    gmax = u.UnitParams['maxV']
+    gmin = u.SessParams['minV']
+    gmax = u.SessParams['maxV']
 
     # %% Init plots.
 
@@ -174,8 +174,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                 xlab=xlab, ylab=ylab, ax=ax_rate)
 
     # Trial markers.
-    putil.plot_events(tr_markers, lw=0.5, ls='--', alpha=0.35,
-                      lbl_height=0.92, ax=ax_rate)
+    putil.plot_events(tr_markers, lw=0.5, ls='--', alpha=0.35, y_lbl=0.92, ax=ax_rate)
 
     # Excluded periods.
     excl_prds = []

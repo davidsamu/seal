@@ -82,7 +82,6 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
 
     # For each unit over all tasks.
     for uid in UA.uids():
-        print(uid)
 
         # Init figure.
         if plot_qm:

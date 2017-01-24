@@ -278,12 +278,12 @@ def test_task_relatedness(u):
     trs = u.inc_trials()
     test = 'wilcoxon'
     p = 0.05
-    is_task_related = False
 
     if not len(trs):
         return False
 
     # Go through each period to be tested
+    is_task_related = False
     for prd in prds_to_test:
 
         # Get rates during period.
