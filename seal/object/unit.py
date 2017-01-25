@@ -208,14 +208,14 @@ class Unit:
         TrialParams['DelayLen'] = list(util.remove_dim_from_series(dlens))
 
         # Add target feature to be reported.
-        if task_info['toreport'] is not None:
+        if task_info['toreport'] is not 'var':
             to_report = task_info['toreport']
-        elif 'TrialType' in trpars:
+        elif 'TrialType' in trpars:   # target feature varies by trials
             to_report = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
         else:
             warnings.warn('TrialType info not found in TPLCell of unit ' +
-                          self.Name + '. Forgot define target for task ' +
-                          'in config -- task_info?')
+                          self.Name + '. Maybe forgot to define target ' +
+                          'for task in config -- task_info?')
             to_report = None
         TrialParams['ToReport'] = to_report
 
@@ -468,7 +468,7 @@ class Unit:
 
         evt = self.Events.loc[trs, evname].copy()
         if add_latency:
-            evt += constants.nphy_cons.latency[self.get_region()]
+            evt = evt + constants.nphy_cons.latency[self.get_region()]
 
         return evt
 
@@ -504,7 +504,7 @@ class Unit:
             # Set cue to beginning of trial.
             S1_prds = (prds.ref == 'S1 on')
             cue_to_S1_on = self.CTask['tr_evts'].loc['fixate', 'shift']
-            cue_to_S1_on += 100*ms  # add a bit to avoid axis
+            cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
             prds.loc[S1_prds, 'cue'] = cue_to_S1_on
 
             # Remove cue from rest of the periods.

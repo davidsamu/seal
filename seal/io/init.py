@@ -27,6 +27,10 @@ def convert_TPL_to_Seal(data_dir, task_info, task_constants):
 
     # Go through each session.
     for recording in sorted(os.listdir(rec_data_dir)):
+
+        if recording[0] == '_':
+            continue
+
         print(recording)
 
         # Init folders.

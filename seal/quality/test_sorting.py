@@ -79,7 +79,11 @@ def calc_waveform_stats(waveforms):
     # Init.
     wfs = np.array(waveforms)
     minV, maxV = wfs.min(), wfs.max()
-    step = 1
+
+    # Spline fit and interpolation parameters.
+    step = 1  # interpolation step in microseconds
+    k = 3     # spline degree
+    s = 0     # smoothing factor, 0: no smoothing
 
     # Is waveform set truncated?
     is_truncated = np.sum(wfs == minV) > 1 or np.sum(wfs == maxV) > 1
@@ -93,8 +97,12 @@ def calc_waveform_stats(waveforms):
         ivalid = (y != minV) & (y != maxV)
         xv, yv = x[ivalid], y[ivalid]
 
+        # Check that enough data points remaining.
+        if len(xv) <= k:
+            np.nan, np.nan, True, len(xv)
+
         # Fit cubic spline and get fitted y values.
-        tck = sp.interpolate.splrep(xv, yv, s=0)
+        tck = sp.interpolate.splrep(xv, yv, s=s, k=k)
         xfit = np.arange(x[WF_T_START-2], xv[-1], step)
         yfit = sp.interpolate.splev(xfit, tck)
 

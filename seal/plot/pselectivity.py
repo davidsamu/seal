@@ -369,8 +369,7 @@ def plot_DR_3x3(u, fig=None, sps=None):
         first_dir = (isp == 0)
 
         # Plot direction response across trial periods.
-        res = plot_SR(u, feat='Dir', vals=[d], fig=fig,
-                      sps=gsp[isp], no_labels=True)
+        res = plot_SR(u, 'Dir', [d], fig=fig, sps=gsp[isp], no_labels=True)
         draster_axs, drate_axs, _ = res
 
         # Remove axis ticks.
