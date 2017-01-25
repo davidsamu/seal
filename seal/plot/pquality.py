@@ -39,7 +39,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     fig = putil.figure(fig)
     if sps is None:
         sps = putil.gridspec(1, 1)[0]
-    ogsp = putil.embed_gsp(sps, 2, 1, height_ratios=[0.12, 1])
+    ogsp = putil.embed_gsp(sps, 2, 1, height_ratios=[0.10, 1])
 
     info_sps, qm_sps = ogsp[0], ogsp[1]
 
@@ -174,7 +174,8 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                 xlab=xlab, ylab=ylab, ax=ax_rate)
 
     # Trial markers.
-    putil.plot_events(tr_markers, lw=0.5, ls='--', alpha=0.35, y_lbl=0.92, ax=ax_rate)
+    putil.plot_events(tr_markers, lw=0.5, ls='--', alpha=0.35, y_lbl=0.92,
+                      ax=ax_rate)
 
     # Excluded periods.
     excl_prds = []

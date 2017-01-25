@@ -121,7 +121,7 @@ def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
     fit_params, fit_res = tuning.fit_gaus_curve(dirs_ctrd, resp, **kwargs)
 
     # DS based on Gaussian tuning curve fit.
-    PD = deg_mod(dir0 + fit_params.loc['fit', 'x0'] * deg)
+    PD = deg_mod(dir0 + fit_params.x0['fit'] * deg)
     cPD = coarse_dir(PD, dirs.unique()*deg)
 
     # Anti-preferred.

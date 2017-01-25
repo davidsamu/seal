@@ -76,13 +76,27 @@ def write_objects(obj_dict, fname):
     pickle.dump(obj_dict, open(fname, 'wb'))
 
 
-def write_table(dataframe, excel_writer, **kwargs):
+def write_table(df, writer, **kwargs):
     """Write out Pandas dataframe as Excel table."""
 
-    if excel_writer is not None:
-        create_dir(excel_writer.path)
-        dataframe.to_excel(excel_writer, **kwargs)
-        excel_writer.save()
+    if writer is not None:
+        create_dir(writer.path)
+        df.to_excel(writer, **kwargs)
+        writer.save()
+
+
+def save_sheets(list_dfs, sheet_names, fname):
+    """Save each DataFrame from list into separate sheet of Excel document."""
+
+    # Init writer.
+    writer = pd.ExcelWriter(fname)
+    create_dir(writer.path)
+
+    # Save sheets.
+    for i, df in enumerate(list_dfs):
+        df.to_excel(writer, sheet_names[i])
+
+    writer.save()
 
 
 def get_latest_file(dir_name, ext='.data'):
@@ -581,6 +595,31 @@ def modulation_index(v1, v2):
     return mi
 
 
+def normalize(v, nmin=0, nmax=1):
+    """Normalize array into specified range."""
+
+    # Empty array.
+    if not v.size:
+        return v
+    if nmin >= nmax:
+        warnings.warn('min >= max')
+        return v
+
+    vmin, vmax = v.min(), v.max()
+
+    # All values are the same.
+    if vmin == vmax:
+        return np.ones(v.shape)
+
+    # Normalize into [0, 1]
+    vnorm = (v-vmin) / (vmax-vmin)
+
+    # Scale and shift into specified range.
+    vnorm = (nmax - nmin) * vnorm + nmin
+
+    return vnorm
+
+
 def fano_factor(v):
     """Calculate Fano factor of vector of spike counts."""
 
@@ -605,6 +644,32 @@ def lin_regress(x, y):
 
     return sp.stats.linregress(x, y)
 
+
+def calc_stim_resp_stats(stim_resp, all_stim_vals=None):
+    """Calculate stimulus response statistics from raw response values."""
+
+    # Init all stimulus values.
+    if all_stim_vals is None:
+        all_stim_vals = np.sort(stim_resp.vals.unique())
+
+    # Init response matrix.
+    resp_stats = pd.DataFrame(columns=['mean', 'std', 'sem'],
+                              index=all_stim_vals, dtype=float)
+
+    for v in all_stim_vals:
+        v = float(v)
+        resp = stim_resp.resp[stim_resp.vals == v]
+        # Calculate statistics.
+        if resp.size:
+            mean_resp = resp.mean()
+            std_resp = resp.std()
+            sem_resp = std_resp / np.sqrt(resp.size)
+            resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
+
+    return resp_stats
+
+
+# %% Statistical tests.
 
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
@@ -672,6 +737,8 @@ def mann_whithney_u_test(x, y, use_continuity=True, alternative='two-sided'):
 
     return stat, pval
 
+
+# %% Meta-functions testing statistical differences on time series.
 
 def sign_diff(ts1, ts2, p, test, **kwargs):
     """
@@ -743,27 +810,3 @@ def sign_periods(ts1, ts2, pval, test, min_len=None, **kwargs):
     sign_periods = periods(tsign, min_len)
 
     return sign_periods
-
-
-def calc_stim_resp_stats(stim_resp, all_stim_vals=None):
-    """Calculate stimulus response statistics from raw response values."""
-
-    # Init all stimulus values.
-    if all_stim_vals is None:
-        all_stim_vals = np.sort(stim_resp.vals.unique())
-
-    # Init response matrix.
-    resp_stats = pd.DataFrame(columns=['mean', 'std', 'sem'],
-                              index=all_stim_vals, dtype=float)
-
-    for v in all_stim_vals:
-        v = float(v)
-        resp = stim_resp.loc[stim_resp.vals == v, 'resp']
-        # Calculate statistics.
-        if resp.size:
-            mean_resp = resp.mean()
-            std_resp = resp.std()
-            sem_resp = std_resp / np.sqrt(resp.size)
-            resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
-
-    return resp_stats

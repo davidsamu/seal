@@ -213,11 +213,11 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
                 prd_pars = dsplit_prd_pars.copy()
                 prd_pars = u.get_analysis_prds(prd_pars, from_trs)
                 S2_shift = u.CTask['stim_dur']['S1'] + dlen*ms
-                prd_pars.loc['S2 half', 'lbl_shift'] = S2_shift
+                prd_pars.lbl_shift['S2 half'] = S2_shift
                 if len(dlens) > 1:
                     tdiff = (dlen - dlens[-1]) * ms
-                    S1_max_len = prd_pars.loc['S1 half', 'max_len'] + tdiff
-                    prd_pars.loc['S1 half', 'max_len'] = S1_max_len
+                    S1_max_len = prd_pars.max_len['S1 half'] + tdiff
+                    prd_pars.max_len['S1 half'] = S1_max_len
             prd_pars['cue_color'] = putil.cue_colors[target]
 
             # Plot response.

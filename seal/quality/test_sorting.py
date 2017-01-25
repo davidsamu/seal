@@ -83,7 +83,7 @@ def calc_waveform_stats(waveforms):
     # Spline fit and interpolation parameters.
     step = 1  # interpolation step in microseconds
     k = 3     # spline degree
-    s = 0     # smoothing factor, 0: no smoothing
+    smoothing_fac = 0     # smoothing factor, 0: no smoothing
 
     # Is waveform set truncated?
     is_truncated = np.sum(wfs == minV) > 1 or np.sum(wfs == maxV) > 1
@@ -97,12 +97,12 @@ def calc_waveform_stats(waveforms):
         ivalid = (y != minV) & (y != maxV)
         xv, yv = x[ivalid], y[ivalid]
 
-        # Check that enough data points remaining.
-        if len(xv) <= k:
-            np.nan, np.nan, True, len(xv)
+        # Check that enough data points remaining for fitting.
+        if len(xv) <= k or sum(ivalid[WF_T_START:]) < 2:
+            return np.nan, np.nan, True, len(xv)
 
         # Fit cubic spline and get fitted y values.
-        tck = sp.interpolate.splrep(xv, yv, s=s, k=k)
+        tck = sp.interpolate.splrep(xv, yv, s=smoothing_fac, k=k)
         xfit = np.arange(x[WF_T_START-2], xv[-1], step)
         yfit = sp.interpolate.splev(xfit, tck)
 
@@ -125,6 +125,9 @@ def calc_waveform_stats(waveforms):
     res = [calc_wf_stats(x, wfs[i, :]) for i in range(wfs.shape[0])]
     wfstats = pd.DataFrame(res, columns=['duration', 'amplitude',
                                          'truncated', 'nvalid'])
+
+    for i in range(wfs.shape[0]):
+        calc_wf_stats(x, wfs[i, :])
 
     return wfstats, is_truncated, minV, maxV
 

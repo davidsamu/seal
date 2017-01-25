@@ -117,7 +117,7 @@ class Unit:
         # Change type if required.
         stim_pars = StimParams.copy()
         for stim_par in stim_pars:
-            stim_type = stim_params.loc[stim_par, 'type']
+            stim_type = stim_params.type[stim_par]
             if stim_type is not None:
                 stim_pars[stim_par] = stim_pars[stim_par].astype(stim_type)
         StimParams = stim_pars
@@ -403,8 +403,8 @@ class Unit:
             t2 = self.SpikeParams['time'].max()
         else:
             # Include spikes occurring between first and last included trials.
-            t1 = self.TrData.loc[tr_inc, ('TrialStart')].min()
-            t2 = self.TrData.loc[tr_inc, ('TrialStop')].max()
+            t1 = self.TrData.TrialStart[tr_inc].min()
+            t2 = self.TrData.TrialStop[tr_inc].max()
 
         spk_inc = util.indices_in_window(self.SpikeParams['time'], t1, t2)
         self.SpikeParams['included'] = spk_inc
@@ -503,12 +503,12 @@ class Unit:
 
             # Set cue to beginning of trial.
             S1_prds = (prds.ref == 'S1 on')
-            cue_to_S1_on = self.CTask['tr_evts'].loc['fixate', 'shift']
+            cue_to_S1_on = self.CTask['tr_evts'].shift['fixate']
             cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
-            prds.loc[S1_prds, 'cue'] = cue_to_S1_on
+            prds.cue[S1_prds] = cue_to_S1_on
 
             # Remove cue from rest of the periods.
-            prds.loc[~S1_prds, 'cue'] = None
+            prds.cue[~S1_prds] = None
 
         # Add period duration (specific to unit).
         prds['dur'] = [self.pr_dur(prd, trs) for prd in prds.index]
@@ -522,7 +522,7 @@ class Unit:
         stim_prds = []
         for stim in prd_pars.stim.unique():
             stim_idx = (prd_pars.stim == stim) & (prd_pars.ref == (stim+' on'))
-            tstart = prd_pars.loc[stim_idx, 'lbl_shift'][0]
+            tstart = prd_pars.lbl_shift[stim_idx][0]
             tend = tstart + self.CTask['stim_dur'][stim]
             stim_prds.append((stim, float(tstart), float(tend)))
 
@@ -617,7 +617,7 @@ class Unit:
 
         # Change index from trial index to trials start times.
         if tr_time_idx:
-            tr_time = self.TrData.loc[trs, 'TrialStart']
+            tr_time = self.TrData.TrialStart[trs]
             rates.index = util.remove_dim_from_series(tr_time)
 
         return rates

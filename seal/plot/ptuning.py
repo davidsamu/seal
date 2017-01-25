@@ -58,7 +58,7 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
 
         # Extract params and results.
         a, b, x0, sigma, FWHM, R2, RMSE = DS.TP.loc[stim]
-        DSI = DS.DSI.loc[stim, 'wDS']
+        DSI = DS.DSI.wDS[stim]
         PD, cPD = DS.PD.loc[(stim, 'weighted'), ['PD', 'cPD']]
         dirs = np.array(DS.DR[stim].index) * deg
         SR, SRsem = [DS.DR[stim][col] for col in ('mean', 'sem')]
@@ -73,8 +73,7 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
         # Plot DR polar plot.
         color = putil.stim_colors.loc[stim]
         ttl = 'Direction response' if labels else None
-        plot_DR(dirs, SR, DSI, PD, baseline, title=ttl, color=color,
-                ax=ax_DR)
+        plot_DR(dirs, SR, DSI, PD, baseline, title=ttl, color=color, ax=ax_DR)
 
         # Collect parameters of DR plot (stimulus - response).
         s_pd = str(float(round(PD, 1)))
@@ -84,7 +83,7 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
         DR_patches.append(putil.get_artist(lgd_lbl, color))
 
         # Calculate and plot direction tuning curve.
-        xticks = [-180, -90, 0, 90, 180]
+        xticks = np.arange(-180, 180+1, 45)
         plot_tuning(x, y, dirsc, SR, SRsem, color, baseline, xticks,
                     ax=ax_tuning)
 
@@ -108,7 +107,7 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
 
     # Set super title.
     if title is not None:
-        fig.suptitle(title, y=0.98, fontsize='xx-large')
+        fig.suptitle(title, y=1.1, fontsize='x-large')
 
     # Set legends.
     ylegend = -0.38 if labels else -0.15
@@ -136,9 +135,8 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
             lgd.get_frame().set_linewidth(.5)
 
     # Save figure.
-    if hasattr(gsp, 'tight_layout'):
-        gsp.tight_layout(fig, rect=[0, 0.0, 1, 0.95])
-    putil.save_fig(fig, ffig)
+    if ffig is not None:
+        putil.save_gsp_figure(fig, gsp, ffig, rect_height=0.55)
 
     return ax_DR, ax_tuning
 
@@ -194,7 +192,7 @@ def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
         arr_props = dict(facecolor=color, edgecolor='k', shrink=0.0, alpha=0.5)
         ax.annotate('', xy, xytext=(0, 0), arrowprops=arr_props)
 
-    # Remove spines and tick marks.
+    # Remove spines and tick marks, maximize tick labels.
     putil.set_spines(ax, False, False)
     putil.hide_tick_marks(ax)
 
@@ -208,12 +206,14 @@ def plot_tuning(xfit, yfit, vals=None, meanr=None, semr=None, color='b',
                 ylab=None, title=None, ffig=None, ax=None, **kwargs):
     """Plot tuning curve, optionally with data samples."""
 
+    ax = putil.axes(ax)
+
     # Plot baseline.
     if baseline is not None:
         putil.add_baseline(baseline, ax=ax)
 
     # Plot fitted curve.
-    ax = pplot.lines(xfit, yfit, color=color, ax=ax)
+    pplot.lines(xfit, yfit, color=color, ax=ax)
 
     # Plot data samples.
     if meanr is not None and semr is not None:

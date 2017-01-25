@@ -672,12 +672,11 @@ def save_gsp_figure(fig, gsp=None, fname=None, title=None, ytitle=0.98,
     if title is not None:
         fig.suptitle(title, y=ytitle, fontsize=fs_title, **kwargs)
 
-    # Adjust gsp's plotting area and set tight layout.
-    if gsp is not None:
-        if rect_height is None:  # relative height of plotted area
-            rect_height = ytitle - border
-        rect = [border, border, 1.0-border, rect_height]
-        gsp.tight_layout(fig, rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
+    # Adjust plotting area and set tight layout.
+    if rect_height is None:  # relative height of plotted area
+        rect_height = ytitle - border
+    rect = [border, border, 1.0-border, rect_height]
+    fig.tight_layout(rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
 
     # Save figure.
     save_fig(fig, fname)

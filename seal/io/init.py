@@ -98,6 +98,9 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
 
     for recording in sorted(os.listdir(rec_data_dir)):
 
+        if recording[0] == '_':
+            continue
+
         # Report progress.
         print('  ' + recording)
 
