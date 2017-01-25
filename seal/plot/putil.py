@@ -18,7 +18,7 @@ from matplotlib import collections as mc
 
 import seaborn as sns
 
-from seal.util import util
+from seal.analysis import stats
 
 
 # %% Matplotlib setup and some plotting constants.
@@ -115,7 +115,7 @@ def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
         ypos = ax.get_ylim()[1]
 
     # Get intervals of significant differences between rates.
-    sign_periods = util.sign_periods(rates1, rates2, pval, test, **test_kws)
+    sign_periods = stats.sign_periods(rates1, rates2, pval, test, **test_kws)
 
     # Assamble line segments and add them to axes.
     line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_periods]
