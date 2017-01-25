@@ -195,7 +195,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     # %% Save figure.
     if ftempl is not None:
         fname = ftempl.format(u.name_to_fname())
-        putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
+        putil.save_fig(fig, fname, title, rect_height=0.92)
         putil.inline_on()
 
     return [ax_wf_inc, ax_wf_exc], ax_wf_amp, ax_wf_dur, ax_amp_dur, ax_rate

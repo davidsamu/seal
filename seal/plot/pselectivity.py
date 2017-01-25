@@ -70,7 +70,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         # Init params.
         prds = [u.CTask['ev_stims'].loc[ref]]
         evnts = None
-        if ppars.cue is not None:
+        if ('cue' in ppars) and (ppars.cue is not None):
             evnts = [{'time': ppars.cue}]
             evnts[0]['color'] = (ppars.cue_color if 'cue_color' in ppars.index
                                  else putil.cue_colors['all'])
@@ -218,7 +218,8 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
                     tdiff = (dlen - dlens[-1]) * ms
                     S1_max_len = prd_pars.max_len['S1 half'] + tdiff
                     prd_pars.max_len['S1 half'] = S1_max_len
-            prd_pars['cue_color'] = putil.cue_colors[target]
+            if 'cue' in prd_pars.columns:
+                prd_pars['cue_color'] = putil.cue_colors[target]
 
             # Plot response.
             res = plot_SR(u, param, vals, from_trs, prd_pars,

@@ -136,7 +136,7 @@ def plot_DR_tuning(DS, title=None, labels=True, baseline=None, DR_legend=True,
 
     # Save figure.
     if ffig is not None:
-        putil.save_gsp_figure(fig, gsp, ffig, rect_height=0.55)
+        putil.save_figure(fig, ffig, rect_height=0.55)
 
     return ax_DR, ax_tuning
 

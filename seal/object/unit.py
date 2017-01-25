@@ -495,20 +495,23 @@ class Unit:
         """Get parameters of periods to analyse."""
 
         if prds is None:
-            prds = self.CTask['tr_third_prds'].copy()
+            split_name = ('tr_third_prds' if 'tr_third_prds' in self.CTask
+                          else 'tr_half_prds')
+            prds = self.CTask[split_name].copy()
 
         # Update cue plotting.
-        to_report = self.TrData.ToReport.unique()
-        if len(to_report) == 1:   # feature to be reported is constant
+        if 'cue' in prds.columns:
+            to_report = self.TrData.ToReport.unique()
+            if len(to_report) == 1:   # feature to be reported is constant
 
-            # Set cue to beginning of trial.
-            S1_prds = (prds.ref == 'S1 on')
-            cue_to_S1_on = self.CTask['tr_evts'].shift['fixate']
-            cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
-            prds.cue[S1_prds] = cue_to_S1_on
+                # Set cue to beginning of trial.
+                S1_prds = (prds.ref == 'S1 on')
+                cue_to_S1_on = self.CTask['tr_evts'].loc['fixate', 'shift']
+                cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
+                prds[S1_prds, 'cue'] = cue_to_S1_on
 
-            # Remove cue from rest of the periods.
-            prds.cue[~S1_prds] = None
+                # Remove cue from rest of the periods.
+                prds[~S1_prds, 'cue'] = None
 
         # Add period duration (specific to unit).
         prds['dur'] = [self.pr_dur(prd, trs) for prd in prds.index]
