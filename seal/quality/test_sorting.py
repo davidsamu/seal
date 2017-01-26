@@ -16,6 +16,7 @@ from quantities import s, ms
 
 import elephant
 
+from seal.analysis import stats
 from seal.util import util
 
 
@@ -309,8 +310,8 @@ def test_task_relatedness(u):
         # Run test at each time sample across period.
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            sign_prds = util.sign_periods(prd_rates, base_rates, p, test,
-                                          min_len=MIN_TASK_RELATED_DUR)
+            sign_prds = stats.sign_periods(prd_rates, base_rates, p, test,
+                                           min_len=MIN_TASK_RELATED_DUR)
 
         # Check if there's any long-enough significant period.
         if len(sign_prds):

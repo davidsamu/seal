@@ -387,6 +387,14 @@ def set_legend(ax, loc=0, frameon=False, **kwargs):
     return legend
 
 
+def hide_legend(ax=None):
+    """Hide axes legend."""
+
+    ax = axes(ax)
+    if ax.legend_ is not None:
+        ax.legend().set_visible(False)
+
+
 # %% Functions to set/hide ticks and spines.
 
 def set_spines(ax=None, bottom=True, left=True, top=False, right=False):
@@ -534,7 +542,7 @@ def set_max_n_ticks(ax=None, max_n_ticks=5, axis='both'):
     ax.locator_params(axis=axis, nbins=max_n_ticks-1)
 
 
-# %% Functions to create, access and save axes and figures.
+# %% Functions to create and access axes and figures.
 
 def axes(ax=None, **kwargs):
     """Return new (or passed) axes."""
@@ -639,10 +647,18 @@ def embed_gsp(outer_gsp, nrow, ncol, **kwargs):
 
 # %% Functions to save figure.
 
-def save_fig(fig, ffig=None, title=None, ytitle=0.98, fs_title='xx-large',
-             rect_height=None, border=0.03, pad=1.08, h_pad=None, w_pad=None,
+def save_fig(ffig, fig=None, title=None, ytitle=0.98, fs_title='xx-large',
+             rect_height=None, border=0.03, pad=1.0, h_pad=None, w_pad=None,
              dpi=150, bbox_extra_artists=None, close=True, **kwargs):
     """Save composite (GridSpec) figure to file."""
+
+    # Init figure and folder to save figure into.
+    if ffig is None:
+        return
+    util.create_dir(ffig)
+
+    if fig is None:
+        fig = plt.gcf()
 
     # Add super title to figure.
     if title is not None:
@@ -653,14 +669,6 @@ def save_fig(fig, ffig=None, title=None, ytitle=0.98, fs_title='xx-large',
         rect_height = ytitle - border
     rect = [border, border, 1.0-border, rect_height]
     fig.tight_layout(rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
-
-    # Init figure and folder to save figure into.
-    if ffig is None:
-        return
-    util.create_dir(ffig)
-
-    if fig is None:
-        fig = plt.gcf()
 
     # Suppress warning about axes being incompatible with tight layout.
     with warnings.catch_warnings():

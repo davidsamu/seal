@@ -32,7 +32,7 @@ def scatter(x, y, is_sign=None, c='b', bc='w', alpha=0.5, xlim=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -66,7 +66,7 @@ def joint_scatter(x, y, is_sign=None, kind='reg', stat_func=util.pearson_r,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -81,7 +81,7 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -96,7 +96,7 @@ def bars(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -112,7 +112,7 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -127,7 +127,7 @@ def cat_hist(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -142,7 +142,7 @@ def multi_hist(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax
 
@@ -159,6 +159,6 @@ def heatmap(mat, vmin=None, vmax=None, cmap=None, cbar=True, cbar_ax=None,
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
 
     return ax

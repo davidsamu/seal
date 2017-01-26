@@ -116,8 +116,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
         putil.hide_ticks(ax, show_x_ticks=True, show_y_ticks=False)
 
     # Remove (hide) legend from all but last rate plot.
-    [ax.legend().set_visible(False) for ax in axes_rate[:-1]
-     if ax.legend_ is not None]
+    [putil.hide_legend(ax) for ax in axes_rate[:-1]]
 
     # Get middle x point in relative coordinates of first rate axes.
     xranges = np.array([ax.get_xlim() for ax in axes_rate])

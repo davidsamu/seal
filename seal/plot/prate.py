@@ -112,7 +112,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, evts=None,
     [ax.set_xlim(xlim) for ax in raster_axs]
 
     # Save and return plot.
-    putil.save_fig(fig, ffig)
+    putil.save_fig(ffig, fig)
     return fig, raster_axs, rate_ax
 
 
@@ -148,7 +148,7 @@ def raster(spk_trains, t_unit=ms, prds=None, size=1.8, c='b', xlim=None,
     ax.invert_yaxis()
 
     # Save and return plot.
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
     return ax
 
 
@@ -238,5 +238,5 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
     putil.plot_event_markers(evts, ax=ax)
 
     # Save and return plot.
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
     return ax

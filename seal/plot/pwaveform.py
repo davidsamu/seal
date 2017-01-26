@@ -57,5 +57,5 @@ def plot_wfs(waveforms, tvec, cols=None, lw=0.1, alpha=0.05, xlim=None,
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title)
 
     # Save and return plot.
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
     return ax

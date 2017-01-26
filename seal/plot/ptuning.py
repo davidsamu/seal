@@ -197,7 +197,7 @@ def plot_DR(dirs, resp, DSI=None, PD=None, baseline=None, plot_type='line',
     putil.hide_tick_marks(ax)
 
     # Save and return plot.
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
     return ax
 
 
@@ -230,5 +230,5 @@ def plot_tuning(xfit, yfit, vals=None, meanr=None, semr=None, color='b',
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title)
 
     # Save and return plot.
-    putil.save_fig(ffig=ffig)
+    putil.save_fig(ffig)
     return ax

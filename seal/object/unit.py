@@ -242,7 +242,7 @@ class Unit:
         spikes = self._Spikes.get_spikes()
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, (kernel, step) in kset.iterrows()]
-        self._Rates = pd.Series(rate_list, index=kset.keys())
+        self._Rates = pd.Series(rate_list, index=kset.index)
 
         # %% Unit params.
 

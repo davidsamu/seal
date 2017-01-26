@@ -115,10 +115,10 @@ class UnitArray:
 
         return u
 
-    def get_uids_of_rec(self, rec):
+    def get_uids_of_rec(self, rec, drop_level=False):
         """Return list of units from specific recording."""
 
-        rec_uids = self.uids().loc[rec]
+        rec_uids = self.uids().xs(rec, drop_level=drop_level)
         return rec_uids
 
     # %% Reporting methods.

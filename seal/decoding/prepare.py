@@ -223,8 +223,7 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
         if fname is None:
             fname = 'results/decoding/prepare/unit_trial_selection.png'
         title = 'Trial & unit selection prior decoding'
-        putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
-                              w_pad=3, h_pad=3)
+        putil.save_fig(fname, fig, title, rect_height=0.95, w_pad=3, h_pad=3)
 
     return RecInfo, UInfo
 
@@ -338,7 +337,8 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
 #
 # %% Trial type distribution analysis.
 
-def plot_trial_type_distribution(UA, RecInfo, utids=None, fname=None):
+def plot_trial_type_distribution(UA, RecInfo, utids=None, save_plot=False,
+                                 fname=None):
     """Plot distribution of trial types."""
 
     # Init.
@@ -399,11 +399,11 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, fname=None):
                 ax.legend_.remove()
 
     # Save plot.
-    title = 'Trial type distribution'
-    if fname is None:
-        fname = 'results/decoding/prepare/trial_type_distribution.png'
-    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.95,
-                          w_pad=3, h_pad=3)
+    if save_plot:
+        title = 'Trial type distribution'
+        if fname is None:
+            fname = 'results/decoding/prepare/trial_type_distribution.png'
+        putil.save_fig(fname, fig, title, rect_height=0.95, w_pad=3, h_pad=3)
 
 
 ## %% Do decoding.

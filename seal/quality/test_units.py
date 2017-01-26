@@ -78,7 +78,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
     putil.set_style('notebook', 'ticks')
 
     # Import unit&trial selection file.
-    UnTrSel = pd.read_excel(fselection) if fselection is not None else None
+    UnTrSel = pd.read_excel(fselection) if (fselection is not None) else None
 
     # For each unit over all tasks.
     for uid in UA.uids():
@@ -188,8 +188,7 @@ def DR_plot(UA, ftempl=None, match_scales=False):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_gsp_figure(fig, gsp, fname, title,
-                                  rect_height=0.92, w_pad=w_pad)
+            putil.save_fig(fname, fig, title, rect_height=0.92, w_pad=w_pad)
 
 
 def selectivity_summary(UA, ftempl=None, match_scales=False):
@@ -230,8 +229,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.96,
-                                  w_pad=w_pad)
+            putil.save_figure(fname, fig, title, rect_height=0.96, w_pad=w_pad)
 
 
 def rec_stability_test(UA, fname=None, periods=None):
@@ -309,4 +307,4 @@ def rec_stability_test(UA, fname=None, periods=None):
 
     # Save figure.
     title = 'Recording stability of ' + UA.Name
-    putil.save_gsp_figure(fig, gsp, fname, title, rect_height=0.92)
+    putil.save_fig(fname, fig, title, rect_height=0.92)
