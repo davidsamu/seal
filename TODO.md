@@ -44,11 +44,6 @@ plot
   - update colors and other theme elements after upgrading to matplotlib 2.0
 
 
-plot.scatter
-------------
-  - add diagonal distribution to scatter
-  - report and test significant values separately
-
 
 decoding
 --------

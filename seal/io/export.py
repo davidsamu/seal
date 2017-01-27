@@ -47,28 +47,33 @@ def export_unit_trial_selection(UA, fname):
     util.write_table(SelectDF, writer)
 
 
-def export_decoding_data(UA, fname, rec, task, trs, prd, nrate=None):
+def export_decoding_data(UA, fname, rec, task, trs=None, uids=None, prd=None,
+                         nrate=None):
     """Export decoding data into .mat file."""
 
-    # Init.
-    uids = UA.get_uids_of_rec(rec)
-
     # Below inits rely on these params being the same across units, which is
-    # only appropriate when exporting a single task of a single recording!
+    # only true when exporting a single task of a single recording!
+
+    if uids is None:
+        uids = UA.uids([task])[rec]
+
     u = UA.get_unit(uids[0], task)
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
+    start_ev = u.CTask['tr_prds'].start[prd]
+    ref_ev = u.CTask['tr_evts'].loc[start_ev, 'rel to']
+    ref_ts = u.ev_times(ref_ev)
     if nrate is None:
         nrate = u.init_nrate()
 
     # Trial params.
-    trpars = np.array([util.remove_dim_from_series(u.TrData[par])
+    trpars = np.array([util.remove_dim_from_series(u.TrData[par][trs])
                        for par in u.TrData]).T
     trpar_names = ['_'.join(col) if util.is_iterable(col) else col
                    for col in u.TrData.columns]
 
     # Trial events.
     trevents = u.Events
-    trevns = np.array([util.remove_dim_from_series(trevents[evn])
+    trevns = np.array([util.remove_dim_from_series(trevents.loc[trs, evn])
                        for evn in trevents]).T
     trevn_names = trevents.columns.tolist()
 
@@ -77,7 +82,7 @@ def export_decoding_data(UA, fname, rec, task, trs, prd, nrate=None):
                       for u in UA.iter_thru([task], uids)])
 
     # Sampling times.
-    times = np.array(u._Rates[nrate].get_rates(trs, t1s, t2s).columns)
+    times = np.array(u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts).columns)
 
     # Create dictionary to export.
     export_dict = {'recording': rec, 'task': task,

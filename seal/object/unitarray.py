@@ -13,7 +13,8 @@ from seal.object import unit
 
 
 # Constants.
-idx_names = ['rec', 'ch', 'unit']
+uid_names = ['rec', 'ch', 'unit']
+utid_names = ['rec', 'ch', 'unit', 'task']
 
 
 class UnitArray:
@@ -98,7 +99,7 @@ class UnitArray:
 
         return u
 
-    # %% Other methods to query and yield units.
+    # %% Other methods to query units.
 
     def get_unit(self, uid, task):
         """Return unit of given task and uid."""
@@ -115,12 +116,6 @@ class UnitArray:
 
         return u
 
-    def get_uids_of_rec(self, rec, drop_level=False):
-        """Return list of units from specific recording."""
-
-        rec_uids = self.uids().xs(rec, drop_level=drop_level)
-        return rec_uids
-
     # %% Reporting methods.
 
     def tasks(self):
@@ -135,79 +130,6 @@ class UnitArray:
         nsess = len(self.tasks())
         return nsess
 
-    def n_units_per_rec_task(self, recs=None, tasks=None):
-        """
-        Return all pairs of recording-task combinations (excluding tasks not
-        performed on a given recording day or with all units excluded).
-        """
-
-        if recs is None:
-            recs = self.recordings()
-        if tasks is None:
-            tasks = self.tasks()
-
-        MI_rec_tasks = pd.MultiIndex.from_product([recs, tasks])
-        nunits = pd.Series(0, index=MI_rec_tasks, dtype=int)
-        for rec in recs:
-            uids = list(self.get_uids_of_rec(rec))
-            for task in tasks:
-                nunits[rec, task] = len(list(self.iter_thru([task], uids)))
-
-        return nunits
-
-    def rec_task_order(self):
-        """Return original recording task order."""
-
-        tasks, recs = self.tasks(), self.recordings()
-        task_order = pd.DataFrame(index=recs, columns=tasks)
-
-        for rec in recs:
-            uids = list(self.get_uids_of_rec(rec))
-            for task in tasks:
-                ulist = list(self.iter_thru([task], uids, excl=True))
-                if not len(ulist):  # no non-empty unit in task recording
-                    continue
-                u = ulist[0]  # just take first unit (all should be the same)
-                task_order.loc[rec, task] = u.SessParams.loc['task #'] - 1
-
-        return task_order
-
-    def uids(self, req_tasks=None):
-        """
-        Return unit IDs [(recording, channel #, unit #) index triples]
-        for units with data available across all required tasks (optional).
-        """
-
-        uids = self.Units.index.to_series()
-
-        # Select only channel unit indices with all required tasks available.
-        if req_tasks is not None:
-            idx = [len(list(self.iter_thru(req_tasks, [ui]))) == len(req_tasks)
-                   for ui in uids]
-            uids = uids[idx]
-
-        return uids
-
-    def utids(self, req_tasks=None):
-        """
-        Return unit&task IDs [(rec, channel #, unit #, task) index quadruples]
-        for units with data available across required tasks (optional).
-        """
-
-        uids = self.uids(req_tasks)
-        utids = [u.get_utid() for uid in uids
-                 for u in list(self.iter_thru(req_tasks, [uid]))]
-        names = idx_names + ['task']
-        utids = pd.MultiIndex.from_tuples(utids, names=names).to_series()
-
-        return utids
-
-    def n_units(self):
-        """Return number of units (# of rows of UnitArray)."""
-
-        nunits = len(self.uids())
-        return nunits
-
     def recordings(self):
         """Return list of recordings."""
 
@@ -220,12 +142,99 @@ class UnitArray:
         n_recordings = len(self.recordings())
         return n_recordings
 
-    def unit_params(self):
-        """Return unit parameters in DataFrame."""
+    def n_units(self):
+        """Return number of units (# of rows of UnitArray)."""
 
-        unit_params = [u.get_unit_params() for u in self.iter_thru()]
-        unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
-        return unit_params
+        nunits = len(self.Units.index)
+        return nunits
+
+    def uids(self, recs=None, drop_rec=False):
+        """
+        Return uids [(rec, ch, ix) triples] from given recordings.
+        No check for missing or excluded units is performed!
+        """
+
+        # Init.
+        if recs is None:
+            recs = self.recordings()
+
+        # Select rows of recordings.
+        rec_rows = self.Units.index.get_level_values('rec').isin(recs)
+
+        # Get uids of rows.
+        uids = self.Units.index[rec_rows]
+
+        # Remove levels values not in index any more.
+        uids = pd.MultiIndex.from_tuples(uids.tolist(), names=uids.names)
+
+        if drop_rec:
+            uids = uids.droplevel('rec')
+
+        return uids
+
+    def utids(self, tasks=None, recs=None, miss=False, excl=False):
+        """
+        Return utids [(rec, ch, ix, task) quadruples] for units with data
+        available across required tasks and from given recordings (optional).
+        """
+
+        # Init.
+        if tasks is None:
+            tasks = self.tasks()
+
+        # Get all uids of requested recordings.
+        uids = self.uids(recs, drop_rec=False)
+
+        # Query utids.
+        utids = [u.get_utid() for u in self.iter_thru(tasks, uids, miss, excl)]
+
+        # Format as MultiIndex.
+        if len(utids):
+            utids = pd.MultiIndex.from_tuples(utids, names=utid_names)
+        else:
+            utids = pd.MultiIndex(levels=len(utid_names)*[[]],  # no units
+                                  labels=len(utid_names)*[[]],
+                                  names=utid_names)
+
+        return utids
+
+    def n_units_per_rec_task(self, recs=None, tasks=None,
+                             empty=False, excluded=False):
+        """
+        Return number of units for all pairs of recording-task combinations
+        (excluding tasks not performed on a given recording day or with all
+        units excluded).
+        """
+
+        if recs is None:
+            recs = self.recordings()
+        if tasks is None:
+            tasks = self.tasks()
+
+        MI_rec_tasks = pd.MultiIndex.from_product([recs, tasks])
+        nUnits = pd.Series(0, index=MI_rec_tasks, dtype=int)
+        for rec in recs:
+            for task in tasks:
+                nUnits[rec, task] = len(self.utids([task], [rec]))
+
+        return nUnits
+
+    def rec_task_order(self):
+        """Return original recording task order."""
+
+        tasks, recs = self.tasks(), self.recordings()
+        task_order = pd.DataFrame(index=recs, columns=tasks)
+
+        for rec in recs:
+            uids = list(self.uids([rec]))
+            for task in tasks:
+                ulist = list(self.iter_thru([task], uids, excl=True))
+                if not len(ulist):  # no non-empty unit in task recording
+                    continue
+                u = ulist[0]  # just take first unit (all should be the same)
+                task_order.loc[rec, task] = u.SessParams.loc['task #'] - 1
+
+        return task_order
 
     # %% Methods to add sets of units.
 
@@ -236,7 +245,7 @@ class UnitArray:
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
         uids = [u.get_uid() for u in task_units]
-        midx = pd.MultiIndex.from_tuples(uids, names=idx_names)
+        midx = pd.MultiIndex.from_tuples(uids, names=uid_names)
         task_df = pd.DataFrame(task_units, columns=[task_name], index=midx)
         self.Units = pd.concat([self.Units, task_df], axis=1, join='outer')
 
@@ -258,7 +267,7 @@ class UnitArray:
 
         # Reformat index.
         self.Units.index = pd.MultiIndex.from_tuples(self.Units.index,
-                                                     names=idx_names)
+                                                     names=uid_names)
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
@@ -328,3 +337,10 @@ class UnitArray:
                 # of indexing across tasks.
                 if not u.is_empty():
                     u.add_index_to_name(i+1)
+
+    def unit_params(self):
+        """Return unit parameters in DataFrame."""
+
+        unit_params = [u.get_unit_params() for u in self.iter_thru()]
+        unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
+        return unit_params
