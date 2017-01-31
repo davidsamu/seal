@@ -122,13 +122,21 @@ def get_copy(obj, deep=True):
 
 # %% String formatting functions.
 
-def params_from_fname(fname, nchar_date=6, n_ext=4):
+def params_from_fname(fname, nchar_date=6):
     """Extract recording parameters from file name."""
 
     # Remove extension and split into parts by '_' underscore character.
-    [monkey, dateprobe, task, sortno] = fname[:-n_ext].split('_')
-    [date, probe] = [dateprobe[:nchar_date], dateprobe[nchar_date:].upper()]
-    return monkey, date, probe, task, sortno
+    froot = os.path.splitext(fname)[0]
+    [monkey, dateprobe, taskidx, sortno] = froot.split('_')
+    date, probe = [dateprobe[:nchar_date], dateprobe[nchar_date:].upper()]
+    task, idx = taskidx[:-1], int(taskidx[-1])
+
+    # Return in Series.
+    index = ['monkey', 'date', 'probe', 'taskidx', 'task', 'idx', 'sortno']
+    name_fields = pd.Series([monkey, date, probe, taskidx, task, idx, sortno],
+                            index=index)
+
+    return name_fields
 
 
 def format_to_fname(s):

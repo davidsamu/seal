@@ -87,4 +87,4 @@ def rec_stability_test(UA, fname=None, periods=None):
 
     # Save figure.
     title = 'Recording stability of ' + UA.Name
-    putil.save_fig(fname, fig, title, rect_height=0.92)
+    putil.save_fig(fname, fig, title, ytitle=1.1)

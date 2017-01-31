@@ -266,13 +266,13 @@ class Unit:
     def get_region(self):
         """Return unit's region of origin."""
 
-        my_region = self.UnitParams['region']
+        my_region = self.SessParams['region']
         return my_region
 
     def get_hemisphere(self):
         """Return unit's hemisphere of origin."""
 
-        my_hemisphere = self.UnitParams['hemisphere']
+        my_hemisphere = self.SessParams['hemisphere']
         return my_hemisphere
 
     def get_task(self):

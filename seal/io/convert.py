@@ -49,7 +49,7 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_name, rec_info, excl_tasks=[]):
 
     # Extract task names from file names.
     tasks = pd.Series(f_tpl_cells, name='f_tpl_cell')
-    tasks.index = [util.params_from_fname(f_tpl)[3][:-1]
+    tasks.index = [util.params_from_fname(f_tpl).loc['idx']
                    for f_tpl in f_tpl_cells]
 
     # Exclude some tasks.

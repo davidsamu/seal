@@ -130,25 +130,28 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
             if ftempl is not None:
                 uid_str = util.format_uid(uid)
                 title = uid_str.replace('_', ' ')
-                fname = ftempl.format(uid_str)
-                putil.save_fig(fig, fname, title, rect_height=0.92,
+                ffig = ftempl.format(uid_str)
+                putil.save_fig(ffig, fig, title, rect_height=0.92,
                                w_pad=w_pad)
 
 
-def report_unit_exclusion_stats(UA):
+def report_unit_exclusion_stats(UA, fname):
     """Exclude low quality units."""
 
     exclude = []
     for u in UA.iter_thru(excl=True):
         exclude.append(u.is_excluded())
 
-    # Report unit exclusion results.
+    # Log unit exclusion results into file.
     n_tot = len(exclude)
     n_exc, n_inc = sum(exclude), sum(np.invert(exclude))
     perc_exc, perc_inc = 100 * n_exc / n_tot, 100 * n_inc / n_tot
-    rep_str = '  {} / {} ({:.1f}%) units {} analysis.'
-    print(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
-    print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
+    rep_str = '  {} / {} ({:.1f}%) units {} analysis.\n'
+
+    with open(fname, 'w') as f:
+        f.write(UA.Name + '\n\n')
+        f.write(rep_str.format(n_inc, n_tot, perc_inc, 'included into'))
+        f.write(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
 
 
 def quality_control(data_dir, proj_name, task_order, plot_qm=True,
