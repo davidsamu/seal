@@ -93,7 +93,7 @@ class Unit:
 
         # %% Spike params.
 
-        spk_pars = [('time', util.fill_dim(TPLCell.Spikes)),
+        spk_pars = [('time', util.fill_dim(np.array(TPLCell.Spikes))),
                     ('included', True)]
         self.SpikeParams = pd.DataFrame.from_items(spk_pars)
 
