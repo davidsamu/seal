@@ -24,7 +24,7 @@ class Unit:
 
     # %% Constructor
     def __init__(self, TPLCell=None, task=None, task_info=None,
-                 task_consts=None, kset=None, answ_par=None):
+                 task_consts=None, kset=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
@@ -136,7 +136,7 @@ class Unit:
         Answer = pd.DataFrame()
 
         # Recode correct/incorrect answer column.
-        corr_ans = trpars[answ_par]
+        corr_ans = trpars['subjectAnswer']
         if len(corr_ans.unique()) > 2:
             warnings.warn(('More than 2 unique values for correct answer: ' +
                            corr_ans.unique()))

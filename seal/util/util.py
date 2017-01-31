@@ -75,10 +75,12 @@ def write_objects(obj_dict, fname):
 def write_table(df, writer, **kwargs):
     """Write out Pandas dataframe as Excel table."""
 
-    if writer is not None:
-        create_dir(writer.path)
-        df.to_excel(writer, **kwargs)
-        writer.save()
+    if writer is None:
+        return
+
+    create_dir(writer.path)
+    df.to_excel(writer, **kwargs)
+    writer.save()
 
 
 def save_sheets(list_dfs, sheet_names, fname):

@@ -6,8 +6,162 @@ Definition of generic constants (not specific to any experiment/task).
 @author: David Samu
 """
 
+
+import numpy as np
 import pandas as pd
-from quantities import ms
+
+from seal.util import kernels
+from quantities import ms, deg, cm
+
+
+# %% Stimulus constants.
+
+# All presented directions.
+_all_dirs = np.linspace(0, 315, 8) * deg
+
+# Stimulus durations. These are fixed, fundamental constants for now.
+_stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
+
+# Delay length(s). Predefined, actual lengths are rounded to these values.
+_del_lens = pd.Series([1500*ms, 2000*ms])
+
+
+# %% Experiment constants and parameters.
+
+# Task information.
+# WARNING: Target value ('toreport'), if not 'var', overwrites any target
+# feature information in TPLCell's data
+# (define in TrialType column of TrialParams)!
+# This is necessary for non-combined tasks at the moment.
+# Possible target values: 'loc', 'dir', 'var' (variable) or 'pas' (passive).
+task_info = [('com', ('LH', 'PFC', 'var',  _all_dirs, _stim_dur, _del_lens)),
+             ('loc', ('LH', 'PFC', 'loc', _all_dirs, _stim_dur, _del_lens)),
+             ('dd1', ('LH', 'PFC', 'dir', _all_dirs, _stim_dur, _del_lens)),
+             ('dd2', ('LH', 'PFC', 'dir', _all_dirs, _stim_dur, _del_lens)),
+             ('comPas', ('LH', 'PFC', 'pas', _all_dirs, _stim_dur, _del_lens))]
+_cols = ['hemisphere', 'region', 'toreport', 'all_dirs',
+         'stim_dur', 'del_lens']
+task_info = pd.DataFrame.from_items(task_info, _cols, 'index')
+
+
+# Stimulus parameters.
+stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
+                            ('S2', 'Dir'): ('markS2Dir', deg, int),
+                            ('S1', 'LocX'): ('markS1LocX', cm, None),
+                            ('S1', 'LocY'): ('markS1LocY', cm, None),
+                            ('S2', 'LocX'): ('MarkS2LocX', cm, None),
+                            ('S2', 'LocY'): ('MarkS2LocY', cm, None),
+                            ('S1', 'Rng'): ('markS1range', deg, None),
+                            ('S2', 'Rng'): ('markS2range', deg, None)},
+                           index=('name', 'dim', 'type')).T
+
+
+# %% Relative timing of different trial events and periods.
+
+# Trial events are defined relative to the anchor events coming from Tempo,
+# ['S1 on', 'S1 off', 'S2 on', 'S2 off'].
+# The relative timing of these anchor events can change from trial to trial.
+
+tr_evts = [  # Basic task events.
+           ('fixate', ('S1 on', -1000*ms)),
+           ('S1 on', ('S1 on', 0*ms)),
+           ('S1 off', ('S1 off', 0*ms)),
+           ('S2 on', ('S2 on', 0*ms)),
+           ('S2 off', ('S2 off', 0*ms)),
+           ('saccade', ('S2 off', 1000*ms)),
+
+           # Delay sub-period limits.
+           ('1/3 delay', ('S1 off', 500*ms)),
+           ('2/3 delay', ('S2 on', -500*ms)),
+
+           # Cue-related events.
+           ('no cue', ('S1 off', 750*ms)),  # latest time without cue on
+           ('cue', ('S2 on', -750*ms)),
+
+           # Baseline period limits.
+           ('base on', ('S1 on', -750*ms)),
+           ('base off', ('S1 on', -250*ms))]
+
+tr_evts = pd.DataFrame.from_items(tr_evts, ['rel to', 'shift'], 'index')
+
+
+# Trial periods are defined relative to trial events (the exact timing of which
+# are relative themselves to the anchor events, see above).
+
+# ***: times do not match across trials for variable delay lengths!
+
+tr_prds = [('whole trial', ('fixate', 'saccade')),  # ***
+
+           # Basic task periods.
+           ('fixation', ('fixate', 'S1 on')),
+           ('S1', ('S1 on', 'S1 off')),
+           ('delay', ('S1 off', 'S2 on')),  # ***
+           ('S2', ('S2 on', 'S2 off')),
+           ('post-S2', ('S2 off', 'saccade')),
+
+           # Extended stimulus periods.
+           # Maximal consistent (stimulus matching) periods around stimuli.
+           ('extended S1', ('fixate', 'no cue')),
+           ('extended S2', ('cue', 'saccade')),
+
+           # Trial halves.
+           ('S1 half', ('fixate', 'S2 on')),  # ***
+           ('S2 half', ('S2 on', 'saccade')),
+
+           # Delay sub-periods.
+           ('early delay', ('S1 off', '1/3 delay')),
+           ('late delay', ('2/3 delay', 'S2 on')),
+
+           # Baseline activity period.
+           ('baseline', ('base on', 'base off')),
+
+           # Cue related periods.
+           ('S1 to cue', ('S1', 'cue')),  # ***
+           ('cue to S2', ('cue', 'S2 on'))]
+
+tr_prds = pd.DataFrame.from_items(tr_prds, ['start', 'stop'], 'index')
+
+
+# Stimulus start and stop time relative to each event.
+ev_stims = pd.DataFrame(columns=['stim', 'start', 'stop'])
+for _ev, (_rel_to, _shift) in tr_evts.iterrows():
+    _stim, _on_off = _rel_to.split()
+    _stim_start = -_shift
+    _stim_stop = -_shift + (1 if _on_off == 'on' else -1) * _stim_dur[_stim]
+    ev_stims.loc[_ev] = [_stim, _stim_start, _stim_stop]
+
+
+# %% Time periods to build across-trial raster and rate plots.
+
+_S2_S1_lbl_shift = _stim_dur['S1'] + _del_lens.min()
+_prd_lbls = ['stim', 'ref', 'lbl_shift', 'max_len']
+
+
+# Classic two periods for delay length split plotting.
+tr_half_prds = [('S1 half', ('S1', 'S1 on', 0*ms, 3500*ms)),
+                ('S2 half', ('S2', 'S2 on', _S2_S1_lbl_shift, 1500*ms))]
+tr_half_prds = pd.DataFrame.from_items(tr_half_prds, _prd_lbls, 'index')
+# Add cue timing.
+tr_half_prds['cue'] = [(tr_evts.loc['cue', 'shift']
+                        if ref == tr_evts.loc['cue', 'rel to'] else None)
+                       for ref in tr_half_prds.ref]
+
+
+# Three periods consistent across different delay lengths.
+tr_third_prds = [('extended S1', ('S1', 'S1 on', 0*ms, 2750*ms)),
+                 ('cue to S2', ('S1', 'S2 on', _S2_S1_lbl_shift, 750*ms)),
+                 ('S2 half', ('S2', 'S2 on', _S2_S1_lbl_shift, 1500*ms))]
+tr_third_prds = pd.DataFrame.from_items(tr_third_prds, _prd_lbls, 'index')
+# Add cue timing.
+tr_third_prds['cue'] = [(tr_evts.loc['cue', 'shift']
+                         if ref == tr_evts.loc['cue', 'rel to'] else None)
+                        for ref in tr_third_prds.ref]
+
+
+# %% Constants related to firing rate estimation.
+
+# Kernel set to be used.
+kset = kernels.RG_kernels
 
 
 # %% Neurophysiological constants.

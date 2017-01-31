@@ -7,16 +7,18 @@ for different sets of trials or trial periods.
 @author: David Samu
 """
 
+import os
 import warnings
 
 import numpy as np
-import scipy as sp
 import pandas as pd
 
+from seal.io import export
 from seal.util import util
+from seal.object import unitarray
 from seal.quality import test_sorting
-from seal.plot import putil, pplot, pselectivity, pquality
-
+from seal.plot import putil, pquality
+from seal.quality import test_stability
 
 # Figure size constants
 subw = 7
@@ -149,162 +151,70 @@ def report_unit_exclusion_stats(UA):
     print(rep_str.format(n_exc, n_tot, perc_exc, 'excluded from'))
 
 
-def DR_plot(UA, ftempl=None, match_scales=False):
-    """Plot responses to all 8 directions and polar plot in the center."""
+def quality_control(data_dir, proj_name, task_order, plot_qm=True,
+                    plot_stab=True, fselection=None):
+    """Run quality control (SNR, rate drift, ISI, etc) on each recording."""
 
-    # Init plotting theme.
-    putil.set_style('notebook', 'ticks')
+    # Data directory with all recordings to be processed in subfolders.
+    rec_data_dir = data_dir + 'recordings/'
 
-    # For each unit over all tasks.
-    for uid in UA.uids():
+    # Init combined UnitArray object.
+    combUA = unitarray.UnitArray(proj_name, task_order)
 
-        # Init figure.
-        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
-                                            subw=subw, subh=subw)
-        task_rate_axs, task_polar_axs = [], []
+    print('\nStarting quality control...')
+    putil.inline_off()
 
-        # Plot direction response of unit in each task.
-        for task, sps in zip(UA.tasks(), gsp):
-            u = UA.get_unit(uid, task)
+    for recording in sorted(os.listdir(rec_data_dir)):
 
-            # Plot DR of unit.
-            res = (pselectivity.plot_DR_3x3(u, fig, sps)
-                   if not u.is_excluded() and u.to_plot() else None)
-            if res is not None:
-                ax_polar, rate_axs = res
-                task_rate_axs.extend(rate_axs)
-                task_polar_axs.append(ax_polar)
-            else:
-                putil.add_mock_axes(fig, sps)
+        if recording[0] == '_':
+            continue
 
-        # Match scale of y axes across tasks.
-        if match_scales:
-            putil.sync_axes(task_polar_axs, sync_y=True)
-            putil.sync_axes(task_rate_axs, sync_y=True)
-            [putil.adjust_decorators(ax) for ax in task_rate_axs]
+        # Report progress.
+        print('  ' + recording)
 
-        # Save figure.
-        if ftempl is not None:
-            uid_str = util.format_uid(uid)
-            title = uid_str.replace('_', ' ')
-            fname = ftempl.format(uid_str)
-            putil.save_fig(fname, fig, title, rect_height=0.92, w_pad=w_pad)
+        # Init folders.
+        rec_dir = rec_data_dir + recording + '/'
+        seal_dir = rec_dir + 'SealCells/'
+        qc_dir = rec_dir + 'quality_control/'
 
+        # Read in Units.
+        f_data = seal_dir + recording + '.data'
+        UA = util.read_objects(f_data, 'UnitArr')
 
-def selectivity_summary(UA, ftempl=None, match_scales=False):
-    """Test unit responses within trails."""
+        # Test unit quality, save result figures, add stats to units and
+        # exclude low quality trials and units.
+        ftempl = qc_dir + 'quality_metrics/{}.png'
+        quality_test(UA, ftempl, plot_qm, fselection)
 
-    # Init plotting theme.
-    putil.set_style('notebook', 'ticks')
+        # Report unit exclusion stats.
+        report_unit_exclusion_stats(UA)
 
-    # For each unit over all tasks.
-    for uid in UA.uids():
+        # Test stability of recording session across tasks.
+        if plot_stab:
+            print('  Plotting recording stability...')
+            fname = qc_dir + 'recording_stability.png'
+            test_stability.rec_stability_test(UA, fname)
 
-        # Init figure.
-        fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
-                                            subw=16, subh=32)
-        ls_axs, ds_axs = [], []
+        # Add to combined UA.
+        combUA.add_recording(UA)
 
-        # Plot stimulus response summary plot of unit in each task.
-        for task, sps in zip(UA.tasks(), gsp):
-            u = UA.get_unit(uid, task)
+    # Add index to unit names.
+    combUA.index_units()
 
-            res = (pselectivity.plot_selectivity(u, fig, sps)
-                   if not u.is_excluded() and u.to_plot() else None)
-            if res is not None:
-                ls_axs.extend(res[0])
-                ds_axs.extend(res[1])
+    # Save Units with quality metrics added.
+    print('\nExporting combined UnitArray...')
+    fname = data_dir + '/all_recordings.data'
+    util.write_objects({'UnitArr': combUA}, fname)
 
-            else:
-                putil.add_mock_axes(fig, sps)
+    # Export unit and trial selection results.
+    if fselection is None:
+        print('Exporting automatic unit and trial selection results...')
+        fname = data_dir + '/unit_trial_selection.xlsx'
+        export.export_unit_trial_selection(combUA, fname)
 
-        # Match scale of y axes across tasks.
-        if match_scales:
-            for rate_axs in [ls_axs, ds_axs]:
-                putil.sync_axes(rate_axs, sync_y=True)
-                [putil.adjust_decorators(ax) for ax in rate_axs]
+    # Export unit list.
+    print('Exporting combined unit list...')
+    export.export_unit_list(combUA, data_dir + '/unit_list.xlsx')
 
-        # Save figure.
-        if ftempl is not None:
-            uid_str = util.format_uid(uid)
-            title = uid_str.replace('_', ' ')
-            fname = ftempl.format(uid_str)
-            putil.save_figure(fname, fig, title, rect_height=0.96, w_pad=w_pad)
-
-
-def rec_stability_test(UA, fname=None, periods=None):
-    """Check stability of recording session across tasks."""
-
-    # Init.
-    if periods is None:
-        periods = ['whole trial', 'fixation']
-
-    # Init figure.
-    fig, gsp, axs = putil.get_gs_subplots(nrow=len(periods), ncol=1,
-                                          subw=10, subh=2.5, create_axes=True,
-                                          as_array=False)
-
-    for prd, ax in zip(periods, axs):
-
-        # Calculate and plot firing rate during given period in each trial
-        # across session for all units.
-        colors = putil.get_colors()
-        task_stats = pd.DataFrame(columns=['t_start', 't_stops', 'label'])
-        for task, color in zip(UA.tasks(), colors):
-
-            # Get activity of all units in task.
-            tr_rates = []
-            for u in UA.iter_thru([task]):
-                rates = u.get_prd_rates(prd, tr_time_idx=True)
-                tr_rates.append(util.remove_dim_from_series(rates))
-            tr_rates = pd.DataFrame(tr_rates)
-
-            # Not (non-empty and included) unit during task.
-            if not len(tr_rates.index):
-                continue
-
-            # Plot each rate in task.
-            tr_times = tr_rates.columns
-            pplot.lines(tr_times, tr_rates.T, zorder=1, alpha=0.5,
-                        color=color, ax=ax)
-
-            # Plot mean +- sem rate.
-            tr_time = tr_rates.columns
-            mean_rate, sem_rate = tr_rates.mean(), tr_rates.std()
-            lower, upper = mean_rate-sem_rate, mean_rate+sem_rate
-            lower[lower < 0] = 0  # remove negative values
-            ax.fill_between(tr_time, lower, upper, zorder=2, alpha=.5,
-                            facecolor='grey', edgecolor='grey')
-            pplot.lines(tr_time, mean_rate, lw=2, color='k', ax=ax)
-
-            # Add task stats.
-            task_lbl = '{}, {} units'.format(task, len(tr_rates.index))
-
-            # Add grand mean FR.
-            task_lbl += '\nFR: {:.1f} sp/s'.format(tr_rates.mean().mean())
-
-            # Calculate linear trend to test gradual drift.
-            slope, _, _, p_value, _ = sp.stats.linregress(tr_times, mean_rate)
-            slope = 3600*slope  # convert to change in spike per hour
-            pval = util.format_pvalue(p_value, max_digit=3)
-            task_lbl += '\n$\delta$FR: {:.1f} sp/s/h'.format(slope)
-            task_lbl += '\n{}'.format(pval)
-
-            task_stats.loc[task] = (tr_times.min(), tr_times.max(), task_lbl)
-
-        # Set axes limits.
-        tmin, tmax = task_stats.t_start.min(), task_stats.t_stops.max()
-        putil.set_limits(ax, xlim=(tmin, tmax))
-
-        # Add task labels after all tasks have been plotted.
-        putil.plot_events(task_stats[['t_start', 'label']], y_lbl=0.75,
-                          lbl_ha='left', lbl_rotation=0, ax=ax)
-
-        # Format plot.
-        xlab = 'Recording time (s)' if prd == periods[-1] else None
-        putil.set_labels(ax, xlab=xlab, ylab=prd)
-        putil.set_spines(ax, left=False)
-
-    # Save figure.
-    title = 'Recording stability of ' + UA.Name
-    putil.save_fig(fname, fig, title, rect_height=0.92)
+    # Re-enable inline plotting
+    putil.inline_on()
