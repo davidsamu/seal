@@ -46,6 +46,8 @@ def to_report(task):
         return 'pas'
     elif task.startswith('dd'):
         return 'dd'
+    elif task.startswith('rng'):
+        return 'dd'
     elif task.startswith('loc'):
         return 'loc'
     else:
