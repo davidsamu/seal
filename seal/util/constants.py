@@ -17,32 +17,13 @@ from quantities import ms, deg, cm
 # %% Stimulus constants.
 
 # All presented directions.
-_all_dirs = np.linspace(0, 315, 8) * deg
+all_dirs = np.linspace(0, 315, 8) * deg
 
 # Stimulus durations. These are fixed, fundamental constants for now.
-_stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
+stim_dur = pd.Series({'S1': 500*ms, 'S2': 500*ms})
 
 # Delay length(s). Predefined, actual lengths are rounded to these values.
-_del_lens = pd.Series([1500*ms, 2000*ms])
-
-
-# %% Experiment constants and parameters.
-
-# Task information.
-# WARNING: Target value ('toreport'), if not 'var', overwrites any target
-# feature information in TPLCell's data
-# (define in TrialType column of TrialParams)!
-# This is necessary for non-combined tasks at the moment.
-# Possible target values: 'loc', 'dir', 'var' (variable) or 'pas' (passive).
-task_info = [('com', ('LH', 'PFC', 'var',  _all_dirs, _stim_dur, _del_lens)),
-             ('loc', ('LH', 'PFC', 'loc', _all_dirs, _stim_dur, _del_lens)),
-             ('dd1', ('LH', 'PFC', 'dir', _all_dirs, _stim_dur, _del_lens)),
-             ('dd2', ('LH', 'PFC', 'dir', _all_dirs, _stim_dur, _del_lens)),
-             ('comPas', ('LH', 'PFC', 'pas', _all_dirs, _stim_dur, _del_lens))]
-_cols = ['hemisphere', 'region', 'toreport', 'all_dirs',
-         'stim_dur', 'del_lens']
-task_info = pd.DataFrame.from_items(task_info, _cols, 'index')
-
+del_lens = pd.Series([1500*ms, 2000*ms])
 
 # Stimulus parameters.
 stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
@@ -54,6 +35,22 @@ stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
                             ('S1', 'Rng'): ('markS1range', deg, None),
                             ('S2', 'Rng'): ('markS2range', deg, None)},
                            index=('name', 'dim', 'type')).T
+
+
+# %% Experiment constants.
+
+def to_report(task):
+    """Return name of feature to be reported."""
+
+    if 'Pas' in task:
+        return 'pas'
+    elif task.startswith('dd'):
+        return 'dd'
+    elif task.startswith('loc'):
+        return 'loc'
+    else:
+        print('Cannot find feature to report for task', task)
+        return None
 
 
 # %% Relative timing of different trial events and periods.
@@ -127,13 +124,13 @@ ev_stims = pd.DataFrame(columns=['stim', 'start', 'stop'])
 for _ev, (_rel_to, _shift) in tr_evts.iterrows():
     _stim, _on_off = _rel_to.split()
     _stim_start = -_shift
-    _stim_stop = -_shift + (1 if _on_off == 'on' else -1) * _stim_dur[_stim]
+    _stim_stop = -_shift + (1 if _on_off == 'on' else -1) * stim_dur[_stim]
     ev_stims.loc[_ev] = [_stim, _stim_start, _stim_stop]
 
 
 # %% Time periods to build across-trial raster and rate plots.
 
-_S2_S1_lbl_shift = _stim_dur['S1'] + _del_lens.min()
+_S2_S1_lbl_shift = stim_dur['S1'] + del_lens.min()
 _prd_lbls = ['stim', 'ref', 'lbl_shift', 'max_len']
 
 

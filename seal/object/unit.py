@@ -23,13 +23,11 @@ class Unit:
     """Generic class to store data of a unit (neuron or group of neurons)."""
 
     # %% Constructor
-    def __init__(self, TPLCell=None, task=None, task_info=None,
-                 task_consts=None, kset=None):
+    def __init__(self, TPLCell=None, rec_info=None, kset=None):
         """Create Unit instance from TPLCell data structure."""
 
         # Create empty instance.
         self.Name = ''
-        self.CTask = None
         self.UnitParams = pd.Series()
         self.SessParams = pd.Series()
         self.Waveforms = pd.DataFrame()
@@ -42,8 +40,6 @@ class Unit:
         self.DS = pd.Series()
 
         # Default unit params.
-        self.UnitParams['hemisphere'] = None
-        self.UnitParams['region'] = None
         self.UnitParams['empty'] = True
         self.UnitParams['excluded'] = True
 
@@ -55,7 +51,7 @@ class Unit:
 
         # Prepare session params.
         subj, date, probe, exp, isort = util.params_from_fname(TPLCell.File)
-        task_idx = int(exp[-1])
+        task, task_idx = exp[:-1], int(exp[-1])
         [chan, un] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
@@ -78,16 +74,14 @@ class Unit:
                    ('paraminfo', pinfo),
                    ('sampl_prd', sampl_prd)]
         self.SessParams = util.series_from_tuple_list(sp_list)
+        self.SessParams = self.SessParams.append(rec_info)
 
         # Name unit.
         self.set_name()
 
-        # %% Task constants.
-
-        self.CTask = task_consts
-        self.CTask['all_dirs'] = task_info['all_dirs']
-        self.CTask['stim_dur'] = task_info['stim_dur']
-        self.CTask['del_lens'] = task_info['del_lens']
+        # Unit params.
+        self.UnitParams['empty'] = False
+        self.UnitParams['excluded'] = False
 
         # %% Waveforms.
 
@@ -105,7 +99,7 @@ class Unit:
 
         # %% Stimulus parameters.
 
-        stim_params = task_consts['stim_params']
+        stim_params = constants.stim_params
 
         # Extract all trial parameters.
         trpars = pd.DataFrame(TPLCell.TrialParams, columns=TPLCell.Header)
@@ -157,8 +151,8 @@ class Unit:
         # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
-        S1dur = float(task_consts['stim_dur']['S1'].rescale(s))
-        S2dur = float(task_consts['stim_dur']['S2'].rescale(s))
+        S1dur = float(constants.stim_dur['S1'].rescale(s))
+        S2dur = float(constants.stim_dur['S2'].rescale(s))
         iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
         iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
         anchor_evts = [('S1 on', TPLCell.Timestamps[iS1off]-S1dur),
@@ -173,7 +167,7 @@ class Unit:
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
-                for evt, (rel, offset) in task_consts['tr_evts'].iterrows()]
+                for evt, (rel, offset) in constants.tr_evts.iterrows()]
         evts = pd.DataFrame.from_items(evts)
 
         # Add dimension to timestamps (ms).
@@ -202,21 +196,16 @@ class Unit:
         # "Categorical" (rounded) delay length variable.
         delay_lens = util.dim_series_to_array(TrialParams['DelayLenPrec'])
         len_diff = [(i, np.abs(delay_lens - dl))
-                    for i, dl in enumerate(task_consts['del_lens'])]
+                    for i, dl in enumerate(constants.del_lens)]
         min_diff = pd.DataFrame.from_items(len_diff).idxmin(1)
-        dlens = task_consts['del_lens'][min_diff]
+        dlens = constants.del_lens[min_diff]
         TrialParams['DelayLen'] = list(util.remove_dim_from_series(dlens))
 
         # Add target feature to be reported.
-        if task_info['toreport'] is not 'var':
-            to_report = task_info['toreport']
-        elif 'TrialType' in trpars:   # target feature varies by trials
+        if task == 'com':  # Combined task: target feature varies.
             to_report = trpars.TrialType.replace([0, 1], ['loc', 'dir'])
         else:
-            warnings.warn('TrialType info not found in TPLCell of unit ' +
-                          self.Name + '. Maybe forgot to define target ' +
-                          'for task in config -- task_info?')
-            to_report = None
+            to_report = constants.to_report(task)
         TrialParams['ToReport'] = to_report
 
         # Init included trials (all trials included initially).
@@ -243,13 +232,6 @@ class Unit:
         rate_list = [Rate(name, kernel, spikes, step)
                      for name, (kernel, step) in kset.iterrows()]
         self._Rates = pd.Series(rate_list, index=kset.index)
-
-        # %% Unit params.
-
-        self.UnitParams['hemisphere'] = task_info.hemisphere
-        self.UnitParams['region'] = task_info.region
-        self.UnitParams['empty'] = False
-        self.UnitParams['excluded'] = False
 
     # %% Utility methods.
 
@@ -475,7 +457,7 @@ class Unit:
     def pr_times(self, prname, trs=None, add_latency=False, concat=True):
         """Return timing of period (start event, stop event) across trials."""
 
-        ev1, ev2 = self.CTask['tr_prds'].loc[prname]
+        ev1, ev2 = constants.tr_prds.loc[prname]
         evt1 = self.ev_times(ev1, trs, add_latency)
         evt2 = self.ev_times(ev2, trs, add_latency)
 
@@ -495,9 +477,8 @@ class Unit:
         """Get parameters of periods to analyse."""
 
         if prds is None:
-            split_name = ('tr_third_prds' if 'tr_third_prds' in self.CTask
-                          else 'tr_half_prds')
-            prds = self.CTask[split_name].copy()
+            prds = (constants.tr_third_prds.copy() if self.SessParams.combined
+                    else constants.tr_half_prds.copy())
 
         # Update cue plotting.
         if 'cue' in prds.columns:
@@ -506,7 +487,7 @@ class Unit:
 
                 # Set cue to beginning of trial.
                 S1_prds = (prds.ref == 'S1 on')
-                cue_to_S1_on = self.CTask['tr_evts'].loc['fixate', 'shift']
+                cue_to_S1_on = constants.tr_evts.loc['fixate', 'shift']
                 cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
                 prds[S1_prds, 'cue'] = cue_to_S1_on
 
@@ -526,7 +507,7 @@ class Unit:
         for stim in prd_pars.stim.unique():
             stim_idx = (prd_pars.stim == stim) & (prd_pars.ref == (stim+' on'))
             tstart = prd_pars.lbl_shift[stim_idx][0]
-            tend = tstart + self.CTask['stim_dur'][stim]
+            tend = tstart + constants.stim_dur[stim]
             stim_prds.append((stim, float(tstart), float(tend)))
 
         return stim_prds
@@ -751,8 +732,7 @@ class Unit:
 
         # Get direction response values and stats.
         stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+tstart, t1s+tend)
-        resp_stats = util.calc_stim_resp_stats(stim_resp,
-                                               self.CTask['all_dirs'])
+        resp_stats = util.calc_stim_resp_stats(stim_resp, constants.all_dirs)
 
         # Convert each result to Numpy array.
         dirs = np.array(resp_stats.index) * deg
