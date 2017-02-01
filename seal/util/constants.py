@@ -166,5 +166,6 @@ kset = kernels.RG_kernels
 # %% Neurophysiological constants.
 
 nphy_cons = pd.DataFrame.from_items([('MT', (50*ms, 500*ms)),
-                                     ('PFC', (100*ms, 200*ms))],
+                                     ('PFC', (100*ms, 200*ms)),
+                                     ('MT/PFC', (50*ms, 200*ms))],
                                     ['latency', 'DSwindow'], 'index')
