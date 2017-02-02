@@ -111,9 +111,43 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     # Run ROC across time.
     roc_res = pd.DataFrame([ROC(rates[t], target_vec, n_perm, clf)
                             for t in rates],
-                            index=rates.columns, columns=['auc', 'pval'])
+                           index=rates.columns, columns=['auc', 'pval'])
 
     return roc_res
+
+
+def run_group_ROC_over_time(ulist, stim, param, vals_list, prd, ref,
+                            n_perm=None, nrate=None, verbose=True,
+                            truncate_to_complete_prd=True):
+    """Run ROC over list of units over time."""
+
+    aroc_dict = {}
+    for i, u in enumerate(ulist):
+
+        # Report progress.
+        if verbose:
+            print(u.Name)
+
+        # Set up params: trials, time period and rates.
+        trs = u.trials_by_param(param, vals_list[i])
+        t1s, t2s = u.pr_times(prd, concat=False)
+        ref_ts = u.ev_times(ref)
+
+        # Calculate AROC on rates.
+        rates1, rates2 = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
+                          for tr in trs]
+        aroc = run_ROC_over_time(rates1, rates2, n_perm).auc
+        aroc_dict[u.Name] = aroc
+
+    # Concat into DF.
+    aroc_res = pd.concat(aroc_dict, axis=1).T
+
+    # Truncate to period with data for all units.
+    if truncate_to_complete_prd:
+        tfull = aroc_res.columns[~aroc_res.isnull().any()]
+        aroc_res = aroc_res[tfull]
+
+    return aroc_res
 
 
 # TODO: from this point, functions below need updating.

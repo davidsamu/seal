@@ -336,7 +336,7 @@ class Unit:
         upars['Name'] = self.Name
         upars['hemisphere'] = self.get_hemisphere()
         upars['region'] = self.get_region()
-        upars['excluded'] = self.is_excluded()
+        upars['included'] = not self.is_excluded()
 
         # Recording params.
         upars['Session information'] = ''
