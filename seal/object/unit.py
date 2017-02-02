@@ -334,6 +334,7 @@ class Unit:
 
         # Basic params.
         upars['Name'] = self.Name
+        upars['hemisphere'] = self.get_hemisphere()
         upars['region'] = self.get_region()
         upars['excluded'] = self.is_excluded()
 
@@ -361,6 +362,8 @@ class Unit:
                               in zip(pdf_melt.variable, stim_list)]
             upars = upars.append(util.get_scalar_vals(pdf_melt.value,
                                                       rem_dims))
+
+        upars.drop_duplicates(inplace=True)
 
         return upars
 

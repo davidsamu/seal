@@ -72,8 +72,8 @@ def quality_control(rec_name, rec_data_dir, qc_dir, comb_data_dir,
         export.export_unit_trial_selection(UA, fname)
 
     # Export unit list.
-    # TODO: fix this!
-    #export.export_unit_list(UA, comb_data_dir + 'unit_list.xlsx')
+    fulist = comb_data_dir + 'unit_list.xlsx'
+    export.export_unit_list(UA, fulist)
 
     # Re-enable inline plotting
     putil.inline_on()

@@ -136,13 +136,13 @@ def calc_waveform_stats(waveforms):
 def isi_stats(spk_times):
     """Returns ISIs and some related statistics."""
 
-    # No spike: ISI v.r. and TrueSpikes are uninterpretable.
+    # No spike: ISI v.r. and TrueSpikes no calculable.
     if not spk_times.size:
         return np.nan, np.nan
 
     # Only one spike: ISI v.r. is 0%, TrueSpikes is 100%.
     if spk_times.size == 1:
-        return 100, 0
+        return 0, 100
 
     isi = elephant.statistics.isi(spk_times).rescale(ms)
 
@@ -164,7 +164,7 @@ def isi_stats(spk_times):
     det = 1/4 - float(r*T / (2*tdif*N**2))  # determinant
     true_spikes = 100*(1/2 + np.sqrt(det)) if det >= 0 else np.nan
 
-    return true_spikes, percent_ISI_vr
+    return percent_ISI_vr, true_spikes
 
 
 def calc_snr(waveforms):
@@ -380,7 +380,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     mean_rate = np.sum(spk_inc) / float(t2_inc-t1_inc)
 
     # ISI statistics.
-    true_spikes, ISIvr = isi_stats(np.array(spk_times[spk_inc])*s)
+    ISIvr, true_spikes = isi_stats(np.array(spk_times[spk_inc])*s)
     isolation = is_isolated(snr, true_spikes)
 
     # Add quality metrics to unit.
