@@ -507,7 +507,8 @@ def set_xtick_labels(ax=None, pos=None, lbls=None, **kwargs):
     """Set tick labels on x axis."""
 
     ax = axes(ax)
-    ax.set_xticks(pos)
+    if pos is not None:
+        ax.set_xticks(pos)
     if lbls is not None:
         ax.set_xticklabels(lbls, **kwargs)
 
@@ -516,7 +517,8 @@ def set_ytick_labels(ax=None, pos=None, lbls=None, **kwargs):
     """Set tick labels on y axis."""
 
     ax = axes(ax)
-    ax.set_yticks(pos)
+    if pos is not None:
+        ax.set_yticks(pos)
     if lbls is not None:
         ax.set_yticklabels(lbls, **kwargs)
 
@@ -540,6 +542,28 @@ def set_max_n_ticks(ax=None, max_n_ticks=5, axis='both'):
 
     ax = axes(ax)
     ax.locator_params(axis=axis, nbins=max_n_ticks-1)
+
+
+def sparsify_tick_labels(ax=None, axis='x', freq=10, istart=0, reverse=False):
+    """Sparsify tick labels on y axis by keeping only every n-th label."""
+
+    ax = axes(ax)
+
+    all_lbls = ax.get_xticklabels() if axis is 'x' else ax.get_yticklabels()
+    fset_lbls = set_xtick_labels if axis is 'x' else set_ytick_labels
+
+    lbls = [lbl.get_text() for lbl in all_lbls]
+
+    if reverse:
+        lbls = lbls[::-1]
+
+    lbls = [lbl if i >= istart and (i-istart) % freq == 0 else ''
+            for i, lbl in enumerate(lbls)]
+
+    if reverse:
+        lbls = lbls[::-1]
+
+    fset_lbls(ax, lbls=lbls)
 
 
 # %% Functions to create and access axes and figures.

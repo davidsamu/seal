@@ -116,7 +116,9 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     return roc_res
 
 
-def run_AROC(Units, nrate, t1, t2, offsets, n_perm,
+# TODO: from this point, functions below need updating.
+
+def run_AROC(ulist, nrate, t1, t2, offsets, n_perm,
              get_trials, get_trials_kwargs, base_dir, force_run):
     """Run AROC and save results."""
 
@@ -139,7 +141,7 @@ def run_AROC(Units, nrate, t1, t2, offsets, n_perm,
 
         # Set up parameters for parallel computing.
         params = [(u, get_trials, get_trials_kwargs, nrate, t1, t2, n_perm)
-                  for u in Units]
+                  for u in ulist]
 
         # Calculate AROC and p-value by permutation test.
         res = np.array(util.run_in_pool(run_unit_ROC, params))

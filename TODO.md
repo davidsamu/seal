@@ -19,7 +19,6 @@ analyses to add from DD scripts
 
 unitarray / unit
 ----------------
-  - add monkey to UA (monkey, rec, ch, idx)
   - add test and register whether unit's are matched across tasks
 
 

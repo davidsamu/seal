@@ -149,13 +149,15 @@ def multi_hist(vals, xlim=None, ylim=None, xlab=None, ylab='n', title=None,
 
 def heatmap(mat, vmin=None, vmax=None, cmap=None, cbar=True, cbar_ax=None,
             annot=None, square=False, xlab=None, ylab=None, title=None,
-            ytitle=None, xlim=None, ylim=None, ffig=None, ax=None):
+            ytitle=None, xlim=None, ylim=None, xticklabels=True,
+            yticklabels=True, ffig=None, ax=None):
     """Plot rectangular data as heatmap."""
 
     # Plot data.
     ax = putil.axes(ax)
     sns.heatmap(mat, vmin, vmax, cmap, annot=annot, cbar=cbar, cbar_ax=cbar_ax,
-                square=square, ax=ax)
+                square=square, xticklabels=xticklabels,
+                yticklabels=yticklabels, ax=ax)
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)

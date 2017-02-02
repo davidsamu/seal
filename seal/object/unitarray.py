@@ -118,10 +118,13 @@ class UnitArray:
 
     # %% Reporting methods.
 
-    def tasks(self):
+    def tasks(self, with_idx=True):
         """Return task names."""
 
         task_names = self.Units.columns
+        if not with_idx:  # remove task index
+            task_names = task_names.str[:-1]
+
         return task_names
 
     def n_tasks(self):
@@ -132,6 +135,9 @@ class UnitArray:
 
     def recordings(self):
         """Return list of recordings."""
+
+        if not len(self.Units.index):
+            return []
 
         recordings = self.Units.index.get_level_values('rec').unique()
         return recordings
@@ -153,6 +159,9 @@ class UnitArray:
         Return uids [(rec, ch, ix) triples] from given recordings.
         No check for missing or excluded units is performed!
         """
+
+        if not len(self.Units.index):
+            return []
 
         # Init.
         if recs is None:
@@ -241,6 +250,9 @@ class UnitArray:
     def add_task(self, task_name, task_units):
         """Add new task data as extra column to Units table of UnitArray."""
 
+        if not len(task_units):
+            return
+
         # Concatenate new task as last column.
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
@@ -310,6 +322,9 @@ class UnitArray:
 
     def clean_array(self, keep_excl=True):
         """Remove empty (and excluded) uids (rows) and tasks (columns)."""
+
+        for uid in self.uids():
+            len(list(self.iter_thru(uids=[uid], excl=keep_excl)))
 
         # Clean uids.
         empty_uids = [uid for uid in self.uids()
