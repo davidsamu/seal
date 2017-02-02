@@ -108,7 +108,7 @@ class Rate:
 
     # %% Methods to get rates for given trials and time periods.
 
-    def get_rates(self, trs, t1s, t2s, ref_ts=None):
+    def get_rates(self, trs, t1s, t2s, ref_ts=None, rem_all_nan_ts=True):
         """
         Return firing rates of some trials within trial-specific time windows.
 
@@ -142,7 +142,11 @@ class Rate:
             r.index = r.index - ref_ts[i]
 
         # Stack rate vectors into dataframe, adding NaNs to samples missing
-        # from any trials.
+        # from some trials.
         rates = pd.concat(rates, axis=1).T if len(rates) else pd.DataFrame()
+
+        # Remove time points with all NaN rates (no measurement?)
+        if rem_all_nan_ts:
+            rates = rates.loc[:, ~rates.isnull().all()]
 
         return rates

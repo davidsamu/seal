@@ -16,7 +16,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
-from seal.plot import putil, pplot
+from seal.plot import putil, pplot, pauc
 
 
 # Some analysis constants.
@@ -116,12 +116,11 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     return roc_res
 
 
-def run_group_ROC_over_time(ulist, stim, param, vals_list, prd, ref,
-                            n_perm=None, nrate=None, verbose=True,
-                            truncate_to_complete_prd=True):
+def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
+                            nrate=None, verbose=True):
     """Run ROC over list of units over time."""
 
-    aroc_dict = {}
+    aroc_dict, pval_dict = {}, {}
     for i, u in enumerate(ulist):
 
         # Report progress.
@@ -129,80 +128,95 @@ def run_group_ROC_over_time(ulist, stim, param, vals_list, prd, ref,
             print(u.Name)
 
         # Set up params: trials, time period and rates.
-        trs = u.trials_by_param(param, vals_list[i])
         t1s, t2s = u.pr_times(prd, concat=False)
         ref_ts = u.ev_times(ref)
+        trs = trs_list[i]
 
         # Calculate AROC on rates.
         rates1, rates2 = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
                           for tr in trs]
-        aroc = run_ROC_over_time(rates1, rates2, n_perm).auc
-        aroc_dict[u.Name] = aroc
+        aroc_res = run_ROC_over_time(rates1, rates2, n_perm)
+        aroc_dict[u.Name] = aroc_res.auc
+        pval_dict[u.Name] = aroc_res.pval
 
     # Concat into DF.
     aroc_res = pd.concat(aroc_dict, axis=1).T
+    pval_res = pd.concat(pval_dict, axis=1).T
 
-    # Truncate to period with data for all units.
-    if truncate_to_complete_prd:
-        tfull = aroc_res.columns[~aroc_res.isnull().any()]
-        aroc_res = aroc_res[tfull]
+    return aroc_res, pval_res
 
-    return aroc_res
+
+# Calculate AROC values for both stimuli.
+def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
+                   nrate, title, ffig, fres, verbose=True,
+                   remove_nan_lines=True):
+    """Calculate and plot AROC over time between specified sets of trials."""
+
+    aroc_list, pval_list = [], []
+    for stim in stims:
+
+        # Set up params.
+        prd = stim + ' half'
+        ref = stim + ' on'
+
+        # Calculate AROC DF.
+        aroc, pval = run_group_ROC_over_time(ulist, trs_list[stim], prd, ref,
+                                             n_perm, nrate, verbose)
+
+        if stim == 'S2':
+            aroc.columns = aroc.columns + stim_timings.loc['S2', 'on']
+            pval.columns = pval.columns + stim_timings.loc['S2', 'on']
+
+        # Truncate to provided period limits.
+        tstart, tstop = [prd_limits.loc[stim, t] for t in ['start', 'stop']]
+        prdcols = aroc.columns[(aroc.columns >= tstart) &
+                               (aroc.columns <= tstop)]
+        aroc = aroc[prdcols]
+        pval = pval[prdcols]
+
+        aroc_list.append(aroc)
+        pval_list.append(pval)
+
+    # Concatenate them and format them.
+    aroc = pd.concat(aroc_list, axis=1)
+    pval = pd.concat(pval_list, axis=1)
+    aroc.columns = aroc.columns.astype(int)
+    pval.columns = pval.columns.astype(int)
+    aroc = aroc.loc[:, ~aroc.columns.duplicated()]
+    pval = pval.loc[:, ~pval.columns.duplicated()]
+
+    # Remove full NaN lines (not enough trials to do ROC).
+    if remove_nan_lines:
+        to_keep = ~aroc.isnull().all(1)
+        aroc = aroc.loc[to_keep, :]
+        pval = pval.loc[to_keep, :]
+
+    # Init plotting.
+    xlab = 'time since S1 onset (ms)'
+    ylab = 'unit index'
+
+    # Get trial periods.
+    events = pd.DataFrame(columns=['time', 'label'])
+    for stim in stims:
+        ton, toff = stim_timings.loc[stim]
+        ion, ioff = [int(np.where(np.array(aroc.columns) == t)[0])
+                     for t in (ton, toff)]
+        events.loc[stim+' on'] = (ion, stim+' on')
+        events.loc[stim+' off'] = (ioff, stim+' off')
+
+    # Plot on heatmap and save figure.
+    pauc.plot_auc_heatmap(aroc, cmap='viridis', events=events,
+                          xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
+                          title=title, ffig=ffig)
+
+    # Save results.
+    if fres is not None:
+        aroc_results = {'aroc': aroc, 'pval': pval, 'n_perm': n_perm,
+                        'nrate': nrate}
+        util.write_objects(aroc_results, fres)
 
 
 # TODO: from this point, functions below need updating.
-
-def run_AROC(ulist, nrate, t1, t2, offsets, n_perm,
-             get_trials, get_trials_kwargs, base_dir, force_run):
-    """Run AROC and save results."""
-
-    # Results folder and file name.
-    dir_res, file_res = res_dir_file_name(base_dir, nrate, n_perm, offsets)
-    prev_results = util.get_latest_file(dir_res, ext='.data')
-
-    if not force_run and prev_results:
-
-        f_res = dir_res + prev_results
-        print('Loading in saved results from: ' + f_res)
-
-        # Load in save results.
-        objs = ['aroc', 'pval', 'tvec', 't1', 't2',
-                'n_perm', 'nrate', 'offsets']
-        aroc_res = util.read_objects(f_res, objs)
-        aroc, pval, tvec, t1, t2, n_perm, nrate, offsets = aroc_res
-
-    else:
-
-        # Set up parameters for parallel computing.
-        params = [(u, get_trials, get_trials_kwargs, nrate, t1, t2, n_perm)
-                  for u in ulist]
-
-        # Calculate AROC and p-value by permutation test.
-        res = np.array(util.run_in_pool(run_unit_ROC, params))
-        aroc = res[:, :, 0]
-        pval = res[:, :, 1]
-        tvec = util.quantity_linspace(t1, t2, aroc.shape[1], ms)
-
-        # Save results.
-        aroc_results = {'aroc': aroc, 'pval': pval, 'tvec': tvec,
-                        't1': t1, 't2': t2, 'n_perm': n_perm,
-                        'nrate': nrate, 'offsets': offsets}
-        f_res = dir_res + file_res
-        util.write_objects(aroc_results, f_res)
-
-    return aroc, pval, tvec, t1, t2, n_perm, nrate, offsets, f_res
-
-
-def res_dir_file_name(base_dir, nrate, n_perm, offsets):
-    """Return folder and file name for results."""
-
-    # Create parameterized folder and file name.
-    offset_str = '_'.join([str(int(off)) for off in offsets])
-    dir_res = '{}{}_nperm_{}_offsets_{}/pickle/'.format(base_dir, nrate,
-                                                        n_perm, offset_str)
-    file_res = util.timestamp() + '.data'
-
-    return dir_res, file_res
 
 
 # %% Post-AROC analysis functions.
@@ -244,50 +258,6 @@ def first_period(vec, time, prd_len, pvec=None, pth=None,
         t = None
 
     return effect_dir, t
-
-
-# Plot S and D trials on raster and rate plots and add AROC, per unit.
-def plot_AROC_results(Units, aroc, tvec, t1, t2, nrate, offsets, prds,
-                      get_trials, get_trials_kwargs, fig_dir):
-    """Plots AROC results for each unit."""
-
-    colors = ['b', 'r']
-    for i, u in enumerate(Units):
-
-        fig, gsp, axs = putil.get_gs_subplots(nrow=2, ncol=1, subw=6, subh=3,
-                                              height_ratios=[2, 1],
-                                              create_axes=False)
-
-        # Plot standard raster-rate plot
-        trials = get_trials(u, **get_trials_kwargs)
-
-        rr_gsp = putil.embed_gsp(gsp[0, 0], 2, 1)
-        fig, raster_axs, rate_ax = u.plot_raster_rate(nrate, trials, t1, t2,
-                                                      colors=colors, fig=fig,
-                                                      outer_gsp=rr_gsp)
-
-        # Remove x axis and label from rate plot
-        rate_ax.get_xaxis().set_visible(False)
-
-        # Add axes for AROC
-        roc_ax = fig.add_subplot(gsp[1, 0])
-
-        # Add chance line and grid lines
-        putil.add_chance_level(ax=roc_ax)
-        for y in [0.25, 0.75]:
-            putil.add_chance_level(ylevel=y, ls=':', ax=roc_ax)
-
-        # Plot AROC
-        pplot.lines(tvec, aroc[i, :], xlim=[t1, t2], ylim=[0, 1],
-                    xlab=putil.t_lbl, ylab='AROC', ax=roc_ax, color='m')
-        if prds:
-            putil.plot_periods(prds, t_unit=ms, ax=roc_ax)
-        roc_ax.set_yticks([0.0, 0.25, 0.50, 0.75, 1.0])
-        putil.show_spines(True, True, True, True, roc_ax)
-
-        # Save plot
-        ffig = fig_dir + u.name_to_fname() + '.png'
-        putil.save_fig(fig, ffig)
 
 
 # Analyse ROC results.

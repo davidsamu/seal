@@ -62,6 +62,7 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
     xlbls = aroc_mat.columns.map(str)
     xlbls[aroc_mat.columns % xlbl_freq != 0] = ''
     putil.set_xtick_labels(ax, lbls=xlbls)
+    putil.rot_xtick_labels(ax, rot=0, ha='center')
     putil.sparsify_tick_labels(ax, 'y', istart=ylbl_freq-1, freq=ylbl_freq,
                                reverse=True)
 
@@ -71,4 +72,4 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
                           ls='-', lw=1, ax=ax)
 
     # Save plot.
-    putil.save_fig(ffig)
+    putil.save_fig(ffig, dpi=300)

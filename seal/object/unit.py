@@ -619,46 +619,50 @@ class Unit:
 
     # %% Methods to get trials with specific stimulus directions.
 
-    def dir_trials(self, direc, stims=['S1', 'S2'], offsets=[0*deg],
-                   comb_trs=False):
+    def dir_trials(self, direc, stims=['S1', 'S2'], offsets=[0*deg]):
         """Return trials with some direction +- offset during S1 and/or S2."""
 
         # Init list of directions.
-        direcs = [float(direction.deg_mod(direc + offset))
-                  for offset in offsets]
+        dirs = [float(direction.deg_mod(direc + offset)) for offset in offsets]
 
         # Get trials for direction + each offset value.
-        sd_trs = [((stim, d), self.trials_by_param((stim, 'Dir'), [d]).loc[d])
-                  for d in direcs for stim in stims]
-        sd_trs = util.series_from_tuple_list(sd_trs)
-
-        # Combine values across trials.
-        if comb_trs:
-            sd_trs = util.combine_lists(sd_trs)
+        sd_trs = [self.trials_by_param((stim, 'Dir'), dirs, True)[0]
+                  for stim in stims]
+        names = [(stim+' '+str(dirs)) for stim in stims]
+        sd_trs = pd.Series(sd_trs, index=names)
 
         return sd_trs
 
-    def dir_pref_trials(self, pref_of, **kwargs):
+    def dir_pref_trials(self, pref_of, stims=None, offsets=[0*deg]):
         """Return trials with preferred direction."""
 
+        if stims is None:
+            stims = [pref_of]
+
         pdir = self.pref_dir(pref_of)
-        trs = self.dir_trials(pdir, **kwargs)
+        trs = self.dir_trials(pdir, stims, offsets)
 
         return trs
 
-    def dir_anti_trials(self, anti_of, **kwargs):
+    def dir_anti_trials(self, anti_of, stims=None, offsets=[0*deg]):
         """Return trials with anti-preferred direction."""
 
+        if stims is None:
+            stims = [anti_of]
+
         adir = self.anti_pref_dir(anti_of)
-        trs = self.dir_trials(adir, **kwargs)
+        trs = self.dir_trials(adir, stims, offsets)
 
         return trs
 
-    def dir_pref_anti_trials(self, pref_anti_of, **kwargs):
+    def dir_pref_anti_trials(self, pref_anti_of, stims=None, offsets=[0*deg]):
         """Return trials with preferred and antipreferred direction."""
 
-        pref_trials = self.dir_pref_trials(pref_anti_of, **kwargs)
-        apref_trials = self.dir_anti_trials(pref_anti_of, **kwargs)
+        if stims is None:
+            stims = [pref_anti_of]
+
+        pref_trials = self.dir_pref_trials(pref_anti_of, stims, offsets)
+        apref_trials = self.dir_anti_trials(pref_anti_of, stims, offsets)
         pref_apref_trials = pref_trials.append(apref_trials)
 
         return pref_apref_trials
@@ -674,7 +678,7 @@ class Unit:
         for offset in offsets:
 
             # Trials to given offset to preferred direction.
-            # stims order must be first S2, then S1!
+            # stimulus order must be first S2, then S1!
             trs = self.dir_pref_trials(pref_of=pref_of, stims=['S2', 'S1'],
                                        offsets=[offset])
 
@@ -685,6 +689,10 @@ class Unit:
         # Combine S- and D-trials across offsets.
         trS = util.union_lists(trS, 'S trials')
         trD = util.union_lists(trD, 'D trials')
+
+        # Check that there's no overlap between trials.
+        if len(np.intersect1d(trS[0], trD[0])):
+            warnings.warn('S and D trails overlap!')
 
         trsSD = trS.append(trD)
 
