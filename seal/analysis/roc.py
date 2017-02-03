@@ -287,6 +287,19 @@ def load_aroc_res(res_dir, nrate, n_perm, offsets):
 
 # %% Post-AROC analysis functions.
 
+
+def get_v_ths(vth_hi, vth_low, n_perm):
+    """
+    Returns default high and low value thresholds, depending on whether
+    permutation test has been done.
+    """
+
+    vth_hi = vth_hi if (n_perm == 0) or (n_perm is None) else 0.5
+    vth_lo = vth_lo if (n_perm == 0) or (n_perm is None) else 0.5
+
+    return vth_hi, vth_lo
+
+
 def first_period(vauc, pvec, min_len, pth=None, vth_hi=0.5, vth_lo=0.5):
     """
     Return effect direction and times of earliest period with given length
