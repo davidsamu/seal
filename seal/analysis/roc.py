@@ -7,7 +7,6 @@ Functions for performing and processing ROC analyses.
 """
 
 import numpy as np
-from quantities import ms
 import pandas as pd
 
 from sklearn.metrics import roc_auc_score
@@ -16,7 +15,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
-from seal.plot import putil, pplot, pauc
+from seal.plot import pauc
 
 
 # Some analysis constants.
@@ -149,7 +148,7 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
 # Calculate AROC values for both stimuli.
 def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
                    nrate, title, ffig, fres, verbose=True,
-                   remove_nan_lines=True):
+                   remove_all_nan_units=True, remove_any_nan_times=True):
     """Calculate and plot AROC over time between specified sets of trials."""
 
     aroc_list, pval_list = [], []
@@ -177,19 +176,40 @@ def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
         aroc_list.append(aroc)
         pval_list.append(pval)
 
-    # Concatenate them and format them.
+    # Concatenate them them.
     aroc = pd.concat(aroc_list, axis=1)
     pval = pd.concat(pval_list, axis=1)
     aroc.columns = aroc.columns.astype(int)
     pval.columns = pval.columns.astype(int)
-    aroc = aroc.loc[:, ~aroc.columns.duplicated()]
-    pval = pval.loc[:, ~pval.columns.duplicated()]
 
-    # Remove full NaN lines (not enough trials to do ROC).
-    if remove_nan_lines:
+    # Remove units (rows) with all NaN values (not enough trials to do ROC).
+    if remove_all_nan_units:
         to_keep = ~aroc.isnull().all(1)
         aroc = aroc.loc[to_keep, :]
         pval = pval.loc[to_keep, :]
+
+    # Remove time points (columns) with any NaN value (S2 happened earlier).
+    if remove_any_nan_times:
+        to_keep = ~aroc.isnull().any(0)
+        aroc = aroc.loc[:, to_keep]
+        pval = pval.loc[:, to_keep]
+
+    # Remove duplicated time points (overlaps of periods).
+    aroc = aroc.loc[:, ~aroc.columns.duplicated()]
+    pval = pval.loc[:, ~pval.columns.duplicated()]
+
+    # Plot results on heatmap.
+    plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig)
+
+    # Save results.
+    if fres is not None:
+        aroc_results = {'aroc': aroc, 'pval': pval, 'n_perm': n_perm,
+                        'nrate': nrate}
+        util.write_objects(aroc_results, fres)
+
+
+def plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig=None):
+    """Plot AROC result matrix (units by time points) on heatmap."""
 
     # Init plotting.
     xlab = 'time since S1 onset (ms)'
@@ -209,19 +229,52 @@ def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
                           xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
                           title=title, ffig=ffig)
 
-    # Save results.
-    if fres is not None:
-        aroc_results = {'aroc': aroc, 'pval': pval, 'n_perm': n_perm,
-                        'nrate': nrate}
-        util.write_objects(aroc_results, fres)
 
+def aroc_res_fname(res_dir, nrate, n_perm, offsets):
+    """Return full path to AROC result with given parameters."""
+
+    offset_str = '_'.join([str(int(d)) for d in offsets])
+    fres = '{}res/{}_nperm_{}_offs_{}.data'.format(res_dir, nrate,
+                                                   n_perm, offset_str)
+    return fres
+
+
+def aroc_fig_fname(res_dir, prefix, offsets, sort_prd=None):
+    """Return full path to AROC result with given parameters."""
+
+    sort_prd_str = ('sorted_by_' + util.format_to_fname(sort_prd)
+                    if sort_prd is not None else 'unsorted')
+    offset_str = '_'.join([str(int(d)) for d in offsets])
+    ffig = '{}AROC_{}_{}_{}.png'.format(res_dir, prefix, offset_str,
+                                        sort_prd_str)
+    return ffig
+
+
+def aroc_fig_title(between_str, monkey, task, nrec, offsets, sort_prd=None):
+    """Return full path to AROC result with given parameters."""
+
+    prd_str = 'sorted by: ' + sort_prd if sort_prd is not None else 'unsorted'
+    offset_str = ', '.join([str(int(d)) for d in offsets])
+    title = ('AROC between {}, {}\n'.format(between_str, prd_str) +
+             'monkey: {}, task: {}'.format(monkey, task) +
+             ', # recordings: {}, offsets: {} deg'.format(nrec, offset_str))
+    return title
+
+
+def load_aroc_res(res_dir, nrate, n_perm, offsets):
+    """Load AROC results."""
+
+    fres = aroc_res_fname(res_dir, nrate, n_perm, offsets)
+    aroc_res = util.read_objects(fres, ['aroc', 'pval', 'n_perm', 'nrate'])
+
+    return aroc_res
 
 # TODO: from this point, functions below need updating.
 
 
 # %% Post-AROC analysis functions.
 
-def first_period(vec, time, prd_len, pvec=None, pth=None,
+def first_period(aroc_vec, prd_len, pvec=None, pth=None,
                  vth_hi=0.5, vth_lo=0.5):
     """
     Return effect direction and times of earliest period with given length
@@ -246,7 +299,7 @@ def first_period(vec, time, prd_len, pvec=None, pth=None,
     earliest_hi_run = min([prd[0] for prd in hi_prds]) if hi_prds else np.nan
     earliest_lo_run = min([prd[0] for prd in lo_prds]) if lo_prds else np.nan
 
-    # Find the earlier one, if any.
+    # Find the earliest one, if any.
     try:
         earliest_times = [earliest_hi_run, earliest_lo_run]
         iearlier = np.nanargmin(earliest_times)
