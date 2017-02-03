@@ -147,9 +147,9 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
 
 # %% Meta-functions to run and plot AROC over a different trial periods.
 
-def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
-                   nrate, title, ffig, fres, verbose=True,
-                   remove_all_nan_units=True, remove_any_nan_times=True):
+def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
+              fres, verbose=True, remove_all_nan_units=True,
+              remove_any_nan_times=True):
     """Calculate and plot AROC over time between specified sets of trials."""
 
     aroc_list, pval_list = [], []
@@ -199,17 +199,16 @@ def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
     aroc = aroc.loc[:, ~aroc.columns.duplicated()]
     pval = pval.loc[:, ~pval.columns.duplicated()]
 
-    # Plot results on heatmap.
-    plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig)
-
     # Save results.
     if fres is not None:
         aroc_results = {'aroc': aroc, 'pval': pval, 'n_perm': n_perm,
                         'nrate': nrate}
         util.write_objects(aroc_results, fres)
 
+    return aroc, pval
 
-def plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig=None):
+
+def plot_AROC_heatmap(aroc, stims, stim_timings, title, cmap='jet', ffig=None):
     """Plot AROC result matrix (units by time points) on heatmap."""
 
     # Init plotting.
@@ -226,7 +225,7 @@ def plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig=None):
         events.loc[stim+' off'] = (ioff, stim+' off')
 
     # Plot on heatmap and save figure.
-    pauc.plot_auc_heatmap(aroc, cmap='viridis', events=events,
+    pauc.plot_auc_heatmap(aroc, cmap=cmap, events=events,
                           xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
                           title=title, ffig=ffig)
 
@@ -242,14 +241,14 @@ def aroc_res_fname(res_dir, nrate, n_perm, offsets):
     return fres
 
 
-def aroc_fig_fname(res_dir, prefix, offsets, sort_prd=None):
+def aroc_fig_fname(res_dir, prefix, offsets, cmap, sort_prd=None):
     """Return full path to AROC result with given parameters."""
 
     sort_prd_str = ('sorted_by_' + util.format_to_fname(sort_prd)
                     if sort_prd is not None else 'unsorted')
     ostr = 'offset_' + '_'.join([str(int(d)) for d in offsets])
-    ffig = '{}heatmap/{}/AROC_{}_{}.png'.format(res_dir, ostr, prefix,
-                                                sort_prd_str)
+    ffig = '{}heatmap/{}/{}/AROC_{}_{}.png'.format(res_dir, ostr, cmap,
+                                                   prefix, sort_prd_str)
     return ffig
 
 
@@ -264,8 +263,8 @@ def aroc_fig_title(between_str, monkey, task, nrec, offsets, sort_prd=None):
     return title
 
 
-def aroc_res_table_fname(res_dir, monkey, task, nrate, n_perm, offsets,
-                         sort_prd, min_len, pth, vth_hi, vth_lo):
+def aroc_table_fname(res_dir, monkey, task, nrate, n_perm, offsets,
+                     sort_prd, min_len, pth, vth_hi, vth_lo):
     """Return full path to AROC results table with given parameters."""
 
     ostr = '_'.join([str(int(d)) for d in offsets])
@@ -288,7 +287,7 @@ def load_aroc_res(res_dir, nrate, n_perm, offsets):
 # %% Post-AROC analysis functions.
 
 
-def get_v_ths(vth_hi, vth_low, n_perm):
+def get_v_ths(vth_hi, vth_lo, n_perm):
     """
     Returns default high and low value thresholds, depending on whether
     permutation test has been done.
@@ -343,7 +342,7 @@ def first_period(vauc, pvec, min_len, pth=None, vth_hi=0.5, vth_lo=0.5):
 
 
 # Analyse ROC results.
-def results_table(aroc, pval, tmin, tmax, fout=None, **kwargs):
+def sort_by_time(aroc, pval, tmin, tmax, fout=None, **kwargs):
     """Return restuls table with AROC effect sizes and timings."""
 
     # Get interval to sort by.
@@ -358,9 +357,9 @@ def results_table(aroc, pval, tmin, tmax, fout=None, **kwargs):
     # Sort by effect timing.
     sorted_dfs = [eff_res.loc[eff_res.effect_dir == eff].sort_values('time')
                   for eff in ('high', 'none', 'low')]
-    sorted_eff_res = pd.concat(sorted_dfs)
+    sorted_res = pd.concat(sorted_dfs)
 
     # Export table as Excel table
-    util.save_sheets([sorted_eff_res], 'effect results', fout)
+    util.save_sheets([sorted_res], 'effect results', fout)
 
-    return sorted_eff_res
+    return sorted_res
