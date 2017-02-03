@@ -130,7 +130,7 @@ for _ev, (_rel_to, _shift) in tr_evts.iterrows():
     ev_stims.loc[_ev] = [_stim, _stim_start, _stim_stop]
 
 
-# %% Time periods to build across-trial raster and rate plots.
+# %% Periods to build across-trial raster and rate plots.
 
 _S2_S1_lbl_shift = stim_dur['S1'] + del_lens.min()
 _prd_lbls = ['stim', 'ref', 'lbl_shift', 'max_len']
@@ -155,6 +155,37 @@ tr_third_prds = pd.DataFrame.from_items(tr_third_prds, _prd_lbls, 'index')
 tr_third_prds['cue'] = [(tr_evts.loc['cue', 'shift']
                          if ref == tr_evts.loc['cue', 'rel to'] else None)
                         for ref in tr_third_prds.ref]
+
+
+# %% Periods to group level analysis.
+
+# To be handled with care! Stimulus timing is not guaranteed to follow this
+# across all experiments, e.g. in Combined task! Effected periods are marked
+# by ***!
+
+fixed_tr_prds = [('whole trial', (-1000*ms, 3500*ms)),  # ***
+
+                 # Basic task periods.
+                 ('fixation', (-1000*ms, 0*ms)),
+                 ('S1', (0*ms, 500*ms)),
+                 ('delay', (500*ms, 2000*ms)),  # ***
+                 ('S2', (2000*ms, 2500*ms)),    # ***
+                 ('post-S2', (2500*ms, 3500*ms)),  # ***
+
+                 # Trial halves.
+                 ('S1 half', (-1000*ms, 2000*ms)),  # ***
+                 ('S2 half', (2000*ms, 3500*ms)),   # ***
+
+                 # Delay sub-periods.
+                 ('early delay', (500*ms, 1000*ms)),
+                 ('mid delay', (1000*ms, 1500*ms)),   # ***
+                 ('late delay', (1500*ms, 2000*ms)),  # ***
+
+                 # Baseline activity period.
+                 ('baseline', (-750*ms, -250*ms))]
+
+fixed_tr_prds = pd.DataFrame.from_items(fixed_tr_prds,
+                                        ['start', 'stop'], 'index')
 
 
 # %% Constants related to firing rate estimation.

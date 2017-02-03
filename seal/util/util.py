@@ -673,3 +673,28 @@ def calc_stim_resp_stats(stim_resp, all_stim_vals=None):
             resp_stats.loc[v] = (mean_resp, std_resp, sem_resp)
 
     return resp_stats
+
+
+def long_periods(vec, min_len):
+    """Return indices of periods with length at least as specified minimum."""
+
+    if vec.dtype != 'bool':
+        warnings.warn('vec is not boolean Series.')
+
+    # Entire period is 'off'.
+    if not vec.any():
+        return pd.Series(name='index', dtype=object)
+
+    # Chop vector into blocks of consequtive time points with same value.
+    blocks = (vec.shift(1) != vec).astype(int).cumsum()
+    df = pd.DataFrame.from_items([('vec', vec), ('blocks', blocks)])
+    prds = df.reset_index().groupby(['vec', 'blocks'])['index'].apply(np.array)
+
+    # Select only 'on' periods.
+    prds = prds[True]
+
+    # Keep only ones having at least minimum length.
+    idxs = [(prd[-1] - prd[0]) > min_len for idx, prd in prds.iteritems()]
+    prds = prds[idxs]
+
+    return prds

@@ -93,7 +93,7 @@ def ROC(x, y, n_perm=None, clf=None):
     return true_auc, pvalue
 
 
-# %% Wrapper functions.
+# %% Higher level functions to run AROC on a unit and group of units over time.
 
 def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     """Run ROC analysis between two rate frames (trials by time)."""
@@ -145,7 +145,8 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
     return aroc_res, pval_res
 
 
-# Calculate AROC values for both stimuli.
+# %% Meta-functions to run and plot AROC over a different trial periods.
+
 def calc_plot_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm,
                    nrate, title, ffig, fres, verbose=True,
                    remove_all_nan_units=True, remove_any_nan_times=True):
@@ -230,6 +231,8 @@ def plot_AROC_heatmap(aroc, stims, stim_timings, title, ffig=None):
                           title=title, ffig=ffig)
 
 
+# %% Utility functions for getting file names, and import / export data.
+
 def aroc_res_fname(res_dir, nrate, n_perm, offsets):
     """Return full path to AROC result with given parameters."""
 
@@ -244,9 +247,9 @@ def aroc_fig_fname(res_dir, prefix, offsets, sort_prd=None):
 
     sort_prd_str = ('sorted_by_' + util.format_to_fname(sort_prd)
                     if sort_prd is not None else 'unsorted')
-    offset_str = '_'.join([str(int(d)) for d in offsets])
-    ffig = '{}AROC_{}_{}_{}.png'.format(res_dir, prefix, offset_str,
-                                        sort_prd_str)
+    ostr = 'offset_' + '_'.join([str(int(d)) for d in offsets])
+    ffig = '{}heatmap/{}/AROC_{}_{}.png'.format(res_dir, ostr, prefix,
+                                                sort_prd_str)
     return ffig
 
 
@@ -254,11 +257,23 @@ def aroc_fig_title(between_str, monkey, task, nrec, offsets, sort_prd=None):
     """Return full path to AROC result with given parameters."""
 
     prd_str = 'sorted by: ' + sort_prd if sort_prd is not None else 'unsorted'
-    offset_str = ', '.join([str(int(d)) for d in offsets])
+    ostr = ', '.join([str(int(d)) for d in offsets])
     title = ('AROC between {}, {}\n'.format(between_str, prd_str) +
              'monkey: {}, task: {}'.format(monkey, task) +
-             ', # recordings: {}, offsets: {} deg'.format(nrec, offset_str))
+             ', # recordings: {}, offsets: {} deg'.format(nrec, ostr))
     return title
+
+
+def aroc_res_table_fname(res_dir, monkey, task, nrate, n_perm, offsets,
+                         sort_prd, min_len, pth, vth_hi, vth_lo):
+    """Return full path to AROC results table with given parameters."""
+
+    ostr = '_'.join([str(int(d)) for d in offsets])
+    ftable = ('{}_nperm_{}_offs_{}'.format(nrate, n_perm, ostr) +
+              '_prd_{}_min_len_{}_pth_{}'.format(sort_prd, int(min_len), pth) +
+              '_vth_hi_{}_vth_lo_{}'.format(vth_hi, vth_lo))
+    ftable = res_dir + 'tables/' + util.format_to_fname(ftable) + '.xlsx'
+    return ftable
 
 
 def load_aroc_res(res_dir, nrate, n_perm, offsets):
@@ -269,86 +284,70 @@ def load_aroc_res(res_dir, nrate, n_perm, offsets):
 
     return aroc_res
 
-# TODO: from this point, functions below need updating.
-
 
 # %% Post-AROC analysis functions.
 
-def first_period(aroc_vec, prd_len, pvec=None, pth=None,
-                 vth_hi=0.5, vth_lo=0.5):
+def first_period(vauc, pvec, min_len, pth=None, vth_hi=0.5, vth_lo=0.5):
     """
     Return effect direction and times of earliest period with given length
-    above or below value threshold (optional) and
-    below p-value threshold (optional).
+    above or below value threshold and below p-value threshold (both optional).
     """
 
     # Indices with significant p-values.
-    sign_idx = np.ones(len(vec), dtype=bool)
-    if pth is not None and pvec is not None and not np.all(np.isnan(pvec)):
+    sign_idx = pd.Series(True, index=vauc.index, name=vauc.name)
+    if ((pth is not None) and (pvec is not None)
+        and (not pvec.isnull().all().all())):
         sign_idx = pvec < pth
 
     # Indices above and below value thresholds and with significant p values.
-    sign_hi_idxs = np.logical_and(vec > vth_hi, sign_idx)
-    sign_lo_idxs = np.logical_and(vec < vth_lo, sign_idx)
+    sig_hi = (vauc >= vth_hi) & sign_idx
+    sig_lo = (vauc <= vth_lo) & sign_idx
 
     # Corresponding periods with minimum length.
-    hi_prds = util.periods(sign_hi_idxs, time, prd_len)
-    lo_prds = util.periods(sign_lo_idxs, time, prd_len)
+    hi_prds = util.long_periods(sig_hi, min_len)
+    lo_prds = util.long_periods(sig_lo, min_len)
 
     # Earliest periods of each.
-    earliest_hi_run = min([prd[0] for prd in hi_prds]) if hi_prds else np.nan
-    earliest_lo_run = min([prd[0] for prd in lo_prds]) if lo_prds else np.nan
+    first_hi_run = pd.Series(hi_prds.apply(min)).min()
+    first_lo_run = pd.Series(lo_prds.apply(min)).min()
 
-    # Find the earliest one, if any.
-    try:
-        earliest_times = [earliest_hi_run, earliest_lo_run]
-        iearlier = np.nanargmin(earliest_times)
-        effect_dir = ['S > D', 'D > S'][iearlier]
-        t = earliest_times[iearlier]
-    except ValueError:
-        # No sufficiently long period of either type.
-        effect_dir = 'S = D'
-        t = None
+    # Do different runs exist at all?
+    hi_run = not np.isnan(first_hi_run)
+    lo_run = not np.isnan(first_lo_run)
 
-    return effect_dir, t
+    # Select first significant period and effect direction, if any exists.
+    if hi_run and lo_run:
+        t = np.nanmin([first_hi_run, first_lo_run])
+        effect_dir = 'high' if first_hi_run < first_lo_run else 'low'
+    elif hi_run and not lo_run:
+        t, effect_dir = first_hi_run, 'high'
+    elif lo_run and not hi_run:
+        t, effect_dir = first_lo_run, 'low'
+    else:
+        t, effect_dir = np.nan, 'none'
+
+    return t, effect_dir
 
 
 # Analyse ROC results.
-def results_table(Units, aroc, pval, tvec, tmin, tmax, prd_len,
-                  th_hi, th_lo, pth, excel_writer=None):
+def results_table(aroc, pval, tmin, tmax, fout=None, **kwargs):
     """Return restuls table with AROC effect sizes and timings."""
 
-    # Get timing of earliest significant run of each unit.
+    # Get interval to sort by.
+    aroc_w, pval_w = [df.ix[:, float(tmin):float(tmax)] for df in (aroc, pval)]
 
-    # Get interval of interest from results.
-    t_idxs = util.indices_in_window(tvec, tmin, tmax)
-    tvec_w = tvec[t_idxs]
-    aroc_w = aroc[:, t_idxs]
-    pval_w = pval[:, t_idxs]
+    # Get timing of first significant run of each unit.
+    eff_time = [first_period(aroc_w.loc[uid], pval_w.loc[uid], **kwargs)
+                for uid in aroc.index]
+    eff_res = pd.DataFrame(eff_time, columns=['time', 'effect_dir'],
+                           index=aroc.index)
 
-    eff_time = [first_period(aroc_w[i, :], tvec_w, prd_len, pval_w[i, :], pth,
-                             th_hi, th_lo) for i in range(aroc_w.shape[0])]
-    eff_time = np.array(eff_time)
-
-    # Put results into data table.
-    T = pd.DataFrame()
-    T['index'] = range(1, aroc_w.shape[0]+1)
-    T['name'] = [u.Name for u in Units]
-    T['utidx'] = [u.get_rec_ch_un_task_index() for u in Units]
-    T['effect'] = eff_time[:, 0]
-    T['time'] = np.array(eff_time[:, 1], dtype=float)
-    T['AROC'] = [aroc_w[i, util.index(tvec_w, t)] if pd.notnull(t) else None
-                 for i, t in enumerate(T['time'])]
-    T['p-value'] = [pval_w[i, util.index(tvec_w, t)] if pd.notnull(t) else None
-                    for i, t in enumerate(T['time'])]
-
-    # Order by effect timing.
-    isort = T.sort_values(['effect', 'time'],
-                          ascending=[True, False]).index
-    T['sorted index'] = np.argsort(isort)
+    # Sort by effect timing.
+    sorted_dfs = [eff_res.loc[eff_res.effect_dir == eff].sort_values('time')
+                  for eff in ('high', 'none', 'low')]
+    sorted_eff_res = pd.concat(sorted_dfs)
 
     # Export table as Excel table
-    util.write_table(T, excel_writer, sheet_name='AROC',
-                     na_rep='N/A', index=False)
+    util.save_sheets([sorted_eff_res], 'effect results', fout)
 
-    return T
+    return sorted_eff_res
