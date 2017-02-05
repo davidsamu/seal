@@ -4,8 +4,12 @@ TODO list of Seal project
 
 preprocessing pipeline
 ----------------------
-  - try automatic sorting using OpenElectrophys
+  - add recording location to session table
+  - try automatic sorting using OpenElectrophys or some Matlab solutions
   - improve waveform duration estimation (e.g. by smoothing spline fit?)
+  - task-responsiveness test should be done on trial groups sorted by stimulus feature and on all trials combined
+  - latency calculation: timing and direction (by method of Zaksas 2006), per direction/location and to all combined
+  - separate QC metrics based on recording location, e.g. base rate
 
 
 analyses to add from DD scripts
@@ -25,6 +29,7 @@ unitarray / unit
 permutation tests
 -----------------
   - consider using Numba
+  - identify p-value based on false positive rate during fixation
 
 
 spikes and rates
@@ -48,3 +53,5 @@ plot
 decoding
 --------
   - extend with error trial analysis
+  - choice probability
+  
