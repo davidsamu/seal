@@ -154,7 +154,7 @@ class UnitArray:
         nunits = len(self.Units.index)
         return nunits
 
-    def uids(self, recs=None, drop_rec=False):
+    def uids(self, recs=None, drop_rec=False, as_series=False):
         """
         Return uids [(rec, ch, ix) triples] from given recordings.
         No check for missing or excluded units is performed!
@@ -179,9 +179,14 @@ class UnitArray:
         if drop_rec:
             uids = uids.droplevel('rec')
 
+        # Convert to Series.
+        if as_series:
+            uids = pd.Series(list(uids), index=uids)
+
         return uids
 
-    def utids(self, tasks=None, recs=None, miss=False, excl=False):
+    def utids(self, tasks=None, recs=None, miss=False, excl=False,
+              as_series=False):
         """
         Return utids [(rec, ch, ix, task) quadruples] for units with data
         available across required tasks and from given recordings (optional).
@@ -204,6 +209,10 @@ class UnitArray:
             utids = pd.MultiIndex(levels=len(utid_names)*[[]],  # no units
                                   labels=len(utid_names)*[[]],
                                   names=utid_names)
+
+        # Convert to Series.
+        if as_series:
+            utids = pd.Series(list(utids), index=utids)
 
         return utids
 

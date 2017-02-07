@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 from seal.plot import putil
+from seal.util import util
 
 # Constants.
 min_n_units = 5           # minimum number of units to keep
@@ -40,7 +41,8 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
     # Result DF.
     rec_task = pd.MultiIndex.from_tuples([rt for rt, _ in u_rt_grpby],
                                          names=['rec', 'task'])
-    cols = ['units', 'nunits', 'nallunits', 'trials', 'ntrials', 'nalltrials']
+    cols = ['units', 'nunits', 'nallunits', '% remaining units',
+            'trials', 'ntrials', 'nalltrials', '% remaining trials']
     RecInfo = pd.DataFrame(index=rec_task, columns=cols)
     rt_utids = [utids.xs((r, t), level=('rec', 'task')) for r, t in rec_task]
     RecInfo.nallunits = [len(utids) for utids in rt_utids]
@@ -55,10 +57,10 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
         sns.heatmap(IncTrsMat, cmap='RdYlGn', center=0.5, cbar=False, ax=ax)
         # Set tick labels.
         putil.hide_tick_marks(ax)
-        tr_ticks = [1] + list(np.arange(20, IncTrsMat.shape[1]+1, 20))
+        tr_ticks = [1] + list(np.arange(25, IncTrsMat.shape[1]+1, 25))
         ax.xaxis.set_ticks(tr_ticks)
         ax.set_xticklabels(tr_ticks)
-        putil.rot_xtick_labels(ax, 45)
+        putil.rot_xtick_labels(ax, 0)
         putil.rot_ytick_labels(ax, 0, va='center')
         putil.set_labels(ax, xlab, ylab, title, ytitle)
 
@@ -218,12 +220,15 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
         inc_trs = pd.Int64Index(np.where(cov_trs)[0])
         RecInfo.loc[rt, ('trials', 'ntrials')] = inc_trs, sum(cov_trs)
 
+    RecInfo['% remaining units'] = 100 * RecInfo.nunits / RecInfo.nallunits
+    RecInfo['% remaining trials'] = 100 * RecInfo.ntrials / RecInfo.nalltrials
+
     # Save plot.
     if do_plotting:
         if fname is None:
             fname = 'results/decoding/prepare/unit_trial_selection.png'
         title = 'Trial & unit selection prior decoding'
-        putil.save_fig(fname, fig, title, rect_height=0.95, w_pad=3, h_pad=3)
+        putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
 
     return RecInfo, UInfo
 
@@ -337,11 +342,12 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
 #
 # %% Trial type distribution analysis.
 
-def plot_trial_type_distribution(UA, RecInfo, utids=None, save_plot=False,
-                                 fname=None):
+def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
+                                 save_plot=False, fname=None):
     """Plot distribution of trial types."""
 
     # Init.
+    par_str = util.format_to_fname(str(tr_par))
     if utids is None:
         utids = UA.utids()
     recs, tasks = [RecInfo.index.get_level_values(v).unique()
@@ -367,19 +373,23 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, save_plot=False,
             # Get includecd trials and their parameters.
             inc_trs = RecInfo.loc[(rec, task), 'trials']
             utid = utids.xs([rec, task], level=('rec', 'task'))[0]
-            TrData = UA.get_unit(utid[:3], utid[3]).TrData.loc[inc_trs].copy()
+            TrData = UA.get_unit(utid[:3], utid[3]).TrData.loc[inc_trs]
 
-            # Format some trials params.
-            TrData['answer'] = 'error'
-            TrData.loc[TrData.correct, 'answer'] = 'correct'
+            # Create DF to plot.
+            anw_df = TrData[[tr_par, 'correct']].copy()
+            anw_df['answer'] = 'error'
+            anw_df.loc[anw_df.correct, 'answer'] = 'correct'
+            all_df = anw_df.copy()
+            all_df.answer = 'all'
+            comb_df = pd.concat([anw_df, all_df])
 
             if not TrData.size:
                 ax.set_axis_off()
                 continue
 
             # Plot as countplot.
-            sns.countplot(x=('S1', 'Dir'), hue='answer', data=TrData,
-                          hue_order=['correct', 'error'], ax=ax)
+            sns.countplot(x=tr_par, hue='answer', data=comb_df,
+                          hue_order=['all', 'correct', 'error'], ax=ax)
             sns.despine(ax=ax)
             putil.hide_tick_marks(ax)
             putil.set_max_n_ticks(ax, 6, 'y')
@@ -387,12 +397,12 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, save_plot=False,
 
             # Add title.
             title = '{} {}'.format(rec, task)
-            nce = TrData.answer.value_counts()
+            nce = anw_df.answer.value_counts()
             nc, ne = [nce[c] if c in nce else 0 for c in ('correct', 'error')]
             pnc, pne = 100*nc/nce.sum(), 100*ne/nce.sum()
             title += '\n\n# correct: {} ({:.0f}%)'.format(nc, pnc)
             title += '      # error: {} ({:.0f}%)'.format(ne, pne)
-            putil.set_labels(ax, title=title, xlab='S1 direction')
+            putil.set_labels(ax, title=title, xlab=par_str)
 
             # Format legend.
             if (ir != 0) or (it != 0):
@@ -402,8 +412,10 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, save_plot=False,
     if save_plot:
         title = 'Trial type distribution'
         if fname is None:
-            fname = 'results/decoding/prepare/trial_type_distribution.png'
-        putil.save_fig(fname, fig, title, rect_height=0.95, w_pad=3, h_pad=3)
+            fname = ('results/decoding/prepare/' + par_str +
+                     '_trial_type_distr.png')
+
+        putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
 
 
 ## %% Do decoding.
