@@ -49,11 +49,13 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_name, rec_info, excl_tasks=[]):
 
     # Extract task names from file names.
     tasks = pd.Series(f_tpl_cells, name='f_tpl_cell')
-    tasks.index = [util.params_from_fname(f_tpl).loc['idx']
+    tasks.index = [util.params_from_fname(f_tpl).loc['taskidx']
                    for f_tpl in f_tpl_cells]
 
     # Exclude some tasks.
-    tasks = tasks[~tasks.index.isin(excl_tasks)]
+    to_exclude = [util.params_from_fname(f_tpl).loc['task'] in excl_tasks
+                  for f_tpl in f_tpl_cells]
+    tasks = tasks[~tasks.index(to_exclude)]
 
     if not len(tasks):
         print('  No TPLCell object found in ' + tpl_dir)

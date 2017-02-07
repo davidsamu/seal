@@ -50,8 +50,9 @@ class Unit:
         # %% Session parameters.
 
         # Prepare session params.
-        subj, date, probe, exp, isort = util.params_from_fname(TPLCell.File)
-        task, task_idx = exp[:-1], int(exp[-1])
+        fname_pars = util.params_from_fname(TPLCell.File)
+        subj, date, probe = fname_pars[['monkey', 'date', 'probe']]
+        task, task_idx, sortno = fname_pars[['task', 'idx', 'sortno']]
         [chan, un] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
@@ -68,7 +69,7 @@ class Unit:
                    ('probe', probe),
                    ('channel #', chan),
                    ('unit #', un),
-                   ('sort #', isort),
+                   ('sort #', sortno),
                    ('filepath', TPLCell.Filename),
                    ('filename', TPLCell.File),
                    ('paraminfo', pinfo),

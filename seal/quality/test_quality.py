@@ -47,32 +47,32 @@ def quality_control(rec_name, rec_data_dir, qc_dir, comb_data_dir,
 
     # Test unit quality, save result figures, add stats to units and
     # exclude low quality trials and units.
-    ftempl = qc_dir + 'quality_metrics/{}.png'
+    ftempl = qc_dir + 'QC_plots/{}.png'
     test_units.quality_test(UA, ftempl, plot_qm, fselection)
 
     # Report unit exclusion stats.
-    fname = qc_dir + 'exclusion.log'
+    fname = qc_dir + rec_name + '_exclusion.log'
     test_units.report_unit_exclusion_stats(UA, fname)
 
     # Test stability of recording session across tasks.
     if plot_stab:
-        fname = qc_dir + 'recording_stability.png'
+        fname = qc_dir + rec_name + '_recording_stability.png'
         test_stability.rec_stability_test(UA, fname)
 
     # Add index to unit names.
     UA.index_units()
 
     # Save Units with quality metrics added.
-    fname = comb_data_dir + 'all_recordings.data'
+    fname = comb_data_dir + rec_name + '_all_tasks.data'
     util.write_objects({'UnitArr': UA}, fname)
 
     # Export unit and trial selection results.
     if fselection is None:
-        fname = comb_data_dir + '/unit_trial_selection.xlsx'
+        fname = qc_dir + rec_name + '_unit_trial_selection.xlsx'
         export.export_unit_trial_selection(UA, fname)
 
     # Export unit list.
-    fulist = comb_data_dir + 'unit_list.xlsx'
+    fulist = qc_dir + rec_name + '_unit_list.xlsx'
     export.export_unit_list(UA, fulist)
 
     # Re-enable inline plotting
