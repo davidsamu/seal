@@ -211,9 +211,8 @@ def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
 
     # Save results.
     if fres is not None:
-        aroc_results = {'aroc': aroc, 'pval': pval, 'n_perm': n_perm,
-                        'nrate': nrate}
-        util.write_objects(aroc_results, fres)
+        aroc_res = {'aroc': aroc, 'pval': pval}
+        util.write_objects(aroc_res, fres)
 
     return aroc, pval
 
@@ -263,7 +262,7 @@ def aroc_fig_fname(res_dir, prefix, offsets, cmap, sort_prd=None):
 
 
 def aroc_fig_title(between_str, monkey, task, nrec, offsets, sort_prd=None):
-    """Return full path to AROC result with given parameters."""
+    """Return title to AROC results figure with given parameters."""
 
     prd_str = 'sorted by: ' + sort_prd if sort_prd is not None else 'unsorted'
     ostr = ', '.join([str(int(d)) for d in offsets])
@@ -289,7 +288,7 @@ def load_aroc_res(res_dir, nrate, n_perm, offsets):
     """Load AROC results."""
 
     fres = aroc_res_fname(res_dir, nrate, n_perm, offsets)
-    aroc_res = util.read_objects(fres, ['aroc', 'pval', 'n_perm', 'nrate'])
+    aroc_res = util.read_objects(fres, ['aroc', 'pval'])
 
     return aroc_res
 

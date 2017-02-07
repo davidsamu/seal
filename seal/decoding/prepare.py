@@ -5,9 +5,10 @@ Functions to prepare data for decoding analysis.
 @author: David Samu
 """
 
+import os
+
 import numpy as np
 import pandas as pd
-
 import seaborn as sns
 
 from seal.plot import putil
@@ -17,10 +18,12 @@ from seal.util import util
 min_n_units = 5           # minimum number of units to keep
 min_n_trs_per_unit = 10   # minimum number of trials per unit to keep
 
+fres = 'results/decoding/prepare/unit_trial_selection.data'
+
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
+def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
     """Select optimal set of units and trials for population decoding."""
 
     print('Selecting optimal set of units and trials for decoding...')
@@ -223,12 +226,16 @@ def select_units_trials(UA, utids=None, do_plotting=True, fname=None):
     RecInfo['% remaining units'] = 100 * RecInfo.nunits / RecInfo.nallunits
     RecInfo['% remaining trials'] = 100 * RecInfo.ntrials / RecInfo.nalltrials
 
+    # Save results.
+    results = {'RecInfo': RecInfo, 'UInfo': UInfo}
+    util.write_objects(results, fres)
+
     # Save plot.
     if do_plotting:
-        if fname is None:
-            fname = 'results/decoding/prepare/unit_trial_selection.png'
+        if ffig is None:
+            ffig = os.path.splitext(fres)[0] + '.png'
         title = 'Trial & unit selection prior decoding'
-        putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
+        putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
 
     return RecInfo, UInfo
 

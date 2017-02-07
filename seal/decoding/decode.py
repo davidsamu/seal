@@ -6,6 +6,7 @@ Functions to perform decoding analyses and process results.
 @author: David Samu
 """
 
+import os
 import warnings
 
 import numpy as np
@@ -16,6 +17,7 @@ from sklearn.model_selection import KFold
 
 from seal.util import util
 
+# For reproducable (deterministic) results.
 seed = None
 
 
@@ -93,11 +95,54 @@ def run_logreg_across_time(rates, vtarget, corr_trs=None, ncv=5):
     # Best regularisation parameter value
     C = pd.Series(list(C), index=tvec)
     # Prediction scores over time.
-    ScoresDF = pd.DataFrame.from_records(Scores, index=tvec).T
+    Scores = pd.DataFrame.from_records(Scores, index=tvec).T
     # Coefficients (unit by value) over time.
     coef_ser = {t: pd.DataFrame(Coefs[i], columns=uids[i],
                                 index=Classes[i]).unstack()
                 for i, t in enumerate(tvec)}
-    CoefsDF = pd.concat(coef_ser, axis=1)
+    Coefs = pd.concat(coef_ser, axis=1)
 
-    return ScoresDF, CoefsDF, C
+    return Scores, Coefs, C
+
+
+# %% Utility functions for getting file names, and import / export data.
+
+def res_fname(res_dir, feat, nrate, ncv, sep_err_trs):
+    """Return full path to decoding result with given parameters."""
+
+    feat_str = util.format_to_fname(str(feat))
+    err_str = 'w{}_err'.format('o' if sep_err_trs else '')
+    ncv_str = 'ncv_{}'.format(ncv)
+    fres = '{}{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate,
+                                       ncv_str, err_str)
+    return fres
+
+
+def fig_fname(res_dir, feat, nrate, ncv, sep_err_trs, ext='png'):
+    """Return full path to decoding result with given parameters."""
+
+    fres = res_fname(res_dir, feat, nrate, ncv, sep_err_trs)
+    ffig = os.path.splitext(fres)[0] + '.' + ext
+
+    return ffig
+
+
+def fig_title(res_dir, feat, nrate, ncv, sep_err_trs):
+    """Return title for decoding result figure with given parameters."""
+
+    feat_str = util.format_to_fname(str(feat))
+    err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
+    title = ('Decoding {}\n'.format(feat_str) +
+             'FR kernel: {}, {}\n'.format(nrate, err_str) +
+             'Logistic regression with {}-fold CV'.format(ncv))
+
+    return title
+
+
+def load_res(res_dir, feat, nrate, ncv, sep_err_trs):
+    """Load decoding results."""
+
+    fres = res_fname(res_dir, feat, nrate, ncv, sep_err_trs)
+    dec_res = util.read_objects(fres, ['Scores', 'Coefs', 'C'])
+
+    return dec_res
