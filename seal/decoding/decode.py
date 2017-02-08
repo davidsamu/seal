@@ -20,6 +20,8 @@ from seal.util import util
 # For reproducable (deterministic) results.
 seed = None
 
+verbose = True
+
 
 # %% Core decoding functions.
 
@@ -29,13 +31,34 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     internal regularization over a number of regularisation parameters (Cs).
     """
 
-    # Init.
-    yvals = np.unique(y)
-    if len(yvals) < 2:
-        warnings.warn('Number of different values in y is less then 2!')
-        return np.nan, np.nan, np.nan
+    # Remove missing values from data.
+    idx = np.logical_and(np.all(~np.isnan(X), 1), ~np.isnan(y))
+    X, y = X[idx], y[idx]
 
-    binary = (len(yvals) == 2)
+    # Init data params.
+    classes, vcounts = np.unique(y, return_counts=True)
+    ntrials, nfeatures = X.shape
+    nclasses = len(classes)
+
+    # Init results.
+    score = np.nan * np.zeros(ncv)
+    coef = np.nan * np.zeros((nclasses, nfeatures))
+    C = np.nan
+
+    # Check that there's at least two classes.
+    if nclasses < 2:
+        if verbose:
+            warnings.warn('Number of different values in y is less then 2!')
+        return score, coef, C, classes
+
+    # Check that we have enough trials to split into folds during CV.
+    if np.any(vcounts < ncv):
+        if verbose:
+            warnings.warn('Not enough trials to split into folds during CV')
+        return score, coef, C, classes
+
+    # Init LogRegCV parameters.
+    binary = (nclasses == 2)
     if multi_class is None:
         multi_class = 'orv' if binary else 'multinomial'
 
@@ -57,7 +80,7 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     # Prediction score of each CV fold.
     i_best = np.where(LRCV.Cs_ == C)[0][0]  # index of reg. giving best result
     # Scores should be the same across different classes (multinomial case).
-    score = LRCV.scores_[yvals[0]][:, i_best].squeeze()
+    score = LRCV.scores_[classes[0]][:, i_best].squeeze()
 
     # Coefficients (weights) of features by predictors.
     coef = LRCV.coef_
@@ -77,7 +100,8 @@ def run_logreg_across_time(rates, vtarget, corr_trs=None, ncv=5):
     # Check that we have enough trials to split into folds during CV.
     vcounts = corr_trg.value_counts()
     if (vcounts < ncv).any():
-        warnings.warn('Not enough trials to do decoding with CV')
+        if verbose:
+            warnings.warn('Not enough trials to do decoding with CV')
         return None, None, None, None, None
 
     # Run logistic regression at each time point.
