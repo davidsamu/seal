@@ -172,42 +172,16 @@ def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
         # Calculate AROC DF.
         aroc, pval = run_group_ROC_over_time(ulist, trs_list[stim], prd, ref,
                                              n_perm, nrate, verbose)
-
-        if stim == 'S2':
-            aroc.columns = aroc.columns + stim_timings.loc['S2', 'on']
-            pval.columns = pval.columns + stim_timings.loc['S2', 'on']
-
-        # Truncate to provided period limits.
-        tstart, tstop = [prd_limits.loc[stim, t] for t in ['start', 'stop']]
-        prdcols = aroc.columns[(aroc.columns >= tstart) &
-                               (aroc.columns <= tstop)]
-        aroc = aroc[prdcols]
-        pval = pval[prdcols]
-
         aroc_list.append(aroc)
         pval_list.append(pval)
 
-    # Concatenate them them.
-    aroc = pd.concat(aroc_list, axis=1)
-    pval = pd.concat(pval_list, axis=1)
-    aroc.columns = aroc.columns.astype(int)
-    pval.columns = pval.columns.astype(int)
-
-    # Remove units (rows) with all NaN values (not enough trials to do ROC).
-    if remove_all_nan_units:
-        to_keep = ~aroc.isnull().all(1)
-        aroc = aroc.loc[to_keep, :]
-        pval = pval.loc[to_keep, :]
-
-    # Remove time points (columns) with any NaN value (S2 happened earlier).
-    if remove_any_nan_times:
-        to_keep = ~aroc.isnull().any(0)
-        aroc = aroc.loc[:, to_keep]
-        pval = pval.loc[:, to_keep]
-
-    # Remove duplicated time points (overlaps of periods).
-    aroc = aroc.loc[:, ~aroc.columns.duplicated()]
-    pval = pval.loc[:, ~pval.columns.duplicated()]
+    # Concatenate stimulus-specific results.
+    offsets = [None, stim_timings.loc['S2', 'on']]
+    truncate_prds = [prd_limits.loc[stim, t] for t in ['start', 'stop']]
+    aroc = util.concat_stim_prd_res(aroc_list, offsets, truncate_prds,
+                                    remove_all_nan_units, remove_any_nan_times)
+    pval = util.concat_stim_prd_res(pval_list, offsets, truncate_prds,
+                                    remove_all_nan_units, remove_any_nan_times)
 
     # Save results.
     if fres is not None:
@@ -351,7 +325,8 @@ def first_period(vauc, pvec, min_len, pth=None, vth_hi=0.5, vth_lo=0.5):
 
 
 # Analyse ROC results.
-def sort_by_time(aroc, pval, tmin, tmax, fout=None, **kwargs):
+def sort_by_time(aroc, pval, tmin, tmax, merge_hi_lo=False, fout=None,
+                 **kwargs):
     """Return restuls table with AROC effect sizes and timings."""
 
     # Get interval to sort by.
@@ -364,8 +339,10 @@ def sort_by_time(aroc, pval, tmin, tmax, fout=None, **kwargs):
                            index=aroc.index)
 
     # Sort by effect timing.
-    sorted_dfs = [eff_res.loc[eff_res.effect_dir == eff].sort_values('time')
-                  for eff in ('high', 'none', 'low')]
+    effs_list = ([['high', 'low'], ['none']] if merge_hi_lo else
+                 [['high'], ['none'], ['low']])
+    sorted_dfs = [eff_res.loc[eff_res.effect_dir.isin(effs)].sort_values('time')
+                  for effs in effs_list]
     sorted_res = pd.concat(sorted_dfs)
 
     # Export table as Excel table

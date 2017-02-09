@@ -550,6 +550,60 @@ def add_quant_col(df, col, colname):
     df[colname] = add_dim_to_series(df[colname], col.units)
 
 
+# %% Functions to init and handle analysis of multiple stimulus periods.
+
+def init_stim_prds(stims, feat, tr_prds):
+    """Initialize stimulus periods to be analyzed."""
+
+    pars = pd.DataFrame(index=stims)
+    pars['prd'] = [stim + ' half' for stim in stims]
+    pars['ref_ev'] = [stim + ' on' for stim in stims]
+    pars['feat'] = [(stim, feat) for stim in stims]
+    pars['stim_start'] = [tr_prds.loc[prd].start for prd in pars.index]
+    pars['stim_stop'] = [tr_prds.loc[prd].stop for prd in pars.index]
+    pars['prd_start'] = [tr_prds.loc[prd].start for prd in pars['prd']]
+    pars['prd_stop'] = [tr_prds.loc[prd].stop for prd in pars['prd']]
+
+    return pars
+
+
+def concat_stim_prd_res(res_list, offsets=None, truncate_prds=None,
+                        remove_all_nan_units=True, remove_any_nan_times=True):
+    """Concatenate stimulus period results."""
+
+    # Offset time points (columns).
+    if offsets is not None and len(offsets):
+        for i, offset in enumerate(offsets):
+            res_list[i].columns = res_list[i].columns + offset
+
+    # Truncate to provided time period.
+    if truncate_prds is not None and len(truncate_prds):
+        for i, (tstart, tstop) in enumerate(truncate_prds):
+            cols = res_list[i].columns
+            prdcols = cols[(cols >= tstart) & (cols <= tstop)]
+            res_list[i] = res_list[i][prdcols]
+
+    # Concatenate stimulus-period specific results.
+    res = pd.concat(res_list, axis=1)
+    res.columns = res.columns.astype(int)
+
+    # Remove units (rows) with all NaN values
+    # (e.g. because of not enough trials to do unit-specific analysis).
+    if remove_all_nan_units:
+        to_keep = ~res.isnull().all(1)
+        res = res.loc[to_keep, :]
+
+    # Remove time points (columns) with any NaN value (S2 happened earlier).
+    if remove_any_nan_times:
+        to_keep = ~res.isnull().any(0)
+        res = res.loc[:, to_keep]
+
+    # Remove duplicated time points (overlaps of periods).
+    res = res.loc[:, ~res.columns.duplicated()]
+
+    return res
+
+
 # %% General statistics and analysis functions.
 
 def zscore_timeseries(timeseries, axis=0):
