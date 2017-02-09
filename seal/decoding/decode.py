@@ -32,7 +32,7 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     """
 
     # Remove missing values from data.
-    idx = np.logical_and(np.all(~np.isnan(X), 1), ~np.isnan(y))
+    idx = np.logical_and(np.all(~np.isnan(X), 1), [iy is not None for iy in y])
     X, y = X[idx], y[idx]
 
     # Init data params.
@@ -60,7 +60,7 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     # Init LogRegCV parameters.
     binary = (nclasses == 2)
     if multi_class is None:
-        multi_class = 'orv' if binary else 'multinomial'
+        multi_class = 'ovr' if binary else 'multinomial'
 
     if solver is None:
         solver = 'lbfgs' if len(y) < 500 else 'sag'
@@ -74,7 +74,7 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     LRCV.fit(X, y)
 
     # Get results for best fit.
-    classes = LRCV.classes_
+    classes = [list(LRCV.scores_.keys())[0]] if binary else LRCV.classes_
     C = LRCV.C_[0]   # should be the same for all class (as refit=True)
 
     # Prediction score of each CV fold.
@@ -88,17 +88,17 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     return score, coef, C, classes
 
 
-def run_logreg_across_time(rates, vtarget, corr_trs=None, ncv=5):
+def run_logreg_across_time(rates, vfeat, corr_trs=None, ncv=5):
     """Run logistic regression analysis across trial time."""
 
     # Correct and error trials and targets.
     if corr_trs is None:
-        corr_trs = pd.Series(True, index=vtarget.index)
+        corr_trs = pd.Series(True, index=vfeat.index)
     err_trs = ~corr_trs
-    corr_trg, err_trg = [vtarget[trs] for trs in [corr_trs, err_trs]]
+    corr_feat, err_feat = [vfeat[trs] for trs in [corr_trs, err_trs]]
 
     # Check that we have enough trials to split into folds during CV.
-    vcounts = corr_trg.value_counts()
+    vcounts = corr_feat.value_counts()
     if (vcounts < ncv).any():
         if verbose:
             warnings.warn('Not enough trials to do decoding with CV')
@@ -110,7 +110,7 @@ def run_logreg_across_time(rates, vtarget, corr_trs=None, ncv=5):
     for t, rt in rates.items():
         rtmat = rt.unstack().T
         corr_rates, err_rates = [rtmat.loc[trs] for trs in [corr_trs, err_trs]]
-        LRparams.append((corr_rates, corr_trg, None, ncv))
+        LRparams.append((corr_rates, corr_feat, None, ncv))
         uids.append(rtmat.columns)
     Scores, Coefs, C, Classes = zip(*util.run_in_pool(run_logreg, LRparams))
 

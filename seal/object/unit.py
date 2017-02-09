@@ -130,9 +130,11 @@ class Unit:
         feats = np.unique([f[1] for f in StimParams.columns
                            if util.is_iterable(f) and len(f) == 2])
         for feat in feats:
-            s1f, s2f, dsf = ('S1', feat), ('S2', feat), ('S_D', feat)
-            if (s1f in StimParams) and (s2f in StimParams):
-                StimParams[dsf] = (StimParams[s1f] == StimParams[s2f])
+                s1f, s2f, dsf = ('S1', feat), ('S2', feat), ('S_D', feat)
+                if (s1f in StimParams) and (s2f in StimParams):
+                    StimParams[dsf] = 'diff'
+                    isame = (StimParams[s1f] == StimParams[s2f])
+                    StimParams.loc[isame, dsf] = 'same'
 
         # %% Subject answer parameters.
 
