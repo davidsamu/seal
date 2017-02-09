@@ -239,10 +239,8 @@ class Unit:
         # %% Rates.
 
         # Estimate firing rate in each trial.
-        spikes = self._Spikes.get_spikes()
-        rate_list = [Rate(name, kernel, spikes, step)
-                     for name, (kernel, step) in kset.iterrows()]
-        self._Rates = pd.Series(rate_list, index=kset.index)
+        for name, (kernel, step) in kset.iterrows():
+            self.add_rate(name, kernel, step)
 
     # %% Utility methods.
 
@@ -599,7 +597,12 @@ class Unit:
 
         return tr_grps
 
-    # %% Methods that provide interface to Unit's Spikes data.
+    # %% Methods that provide interface to Unit's Spikes and Rates data.
+
+    def add_rate(self, name, kernel, step):
+        """Calculate and add specified firing rate estimate to unit."""
+
+        self._Rates[name] = Rate(name, kernel, self._Spikes.get_spikes(), step)
 
     def get_time_rates(self, trs=None, t1s=None, t2s=None, tr_time_idx=False):
         """Return rates within time window in given trials."""
