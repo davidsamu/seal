@@ -36,6 +36,9 @@ stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
                             ('S2', 'Rng'): ('markS2range', deg, None)},
                            index=('name', 'dim', 'type')).T
 
+# Trial features specific to stimulus.
+stim_feats = ('Dir', 'Loc', 'LocX', 'LocY', 'Rng')
+
 
 # %% Experiment constants.
 

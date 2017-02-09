@@ -21,6 +21,8 @@ from collections import Iterable
 
 from quantities import Quantity
 
+from seal.util import constants
+
 
 # %% Input / output and object manipulation functions.
 
@@ -552,15 +554,20 @@ def add_quant_col(df, col, colname):
 
 # %% Functions to init and handle analysis of multiple stimulus periods.
 
-def init_stim_prds(stims, feat, tr_prds):
+def init_stim_prds(stims, feat, tr_prds, prds=None, ref_ev=None):
     """Initialize stimulus periods to be analyzed."""
 
     pars = pd.DataFrame(index=stims)
-    pars['prd'] = [stim + ' half' for stim in stims]
-    pars['ref_ev'] = [stim + ' on' for stim in stims]
-    pars['feat'] = [(stim, feat) for stim in stims]
-    pars['stim_start'] = [tr_prds.loc[prd].start for prd in pars.index]
-    pars['stim_stop'] = [tr_prds.loc[prd].stop for prd in pars.index]
+    pars['feat'] = [(stim, feat) if feat in constants.stim_feats else feat
+                    for stim in stims]
+
+    pars['prd'] = [stim + ' half' for stim in stims] if prds is None else prds
+    pars['ref_ev'] = ([stim + ' on' for stim in stims]
+                      if ref_ev is None else ref_ev)
+
+    pars['stim_start'] = [tr_prds.loc[stim].start for stim in stims]
+    pars['stim_stop'] = [tr_prds.loc[stim].stop for stim in stims]
+
     pars['prd_start'] = [tr_prds.loc[prd].start for prd in pars['prd']]
     pars['prd_stop'] = [tr_prds.loc[prd].stop for prd in pars['prd']]
 

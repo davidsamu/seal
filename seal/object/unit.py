@@ -126,6 +126,14 @@ class Unit:
                 stim_pars[stim, 'Loc'] = [(x, y) for x, y in zip(lx, ly)]
         StimParams = stim_pars.sort_index(axis=1)
 
+        # Add same-different columns (S/D trials).
+        feats = np.unique([f[1] for f in StimParams.columns
+                           if util.is_iterable(f) and len(f) == 2])
+        for feat in feats:
+            s1f, s2f, dsf = ('S1', feat), ('S2', feat), ('S_D', feat)
+            if (s1f in StimParams) and (s2f in StimParams):
+                StimParams[dsf] = (StimParams[s1f] == StimParams[s2f])
+
         # %% Subject answer parameters.
 
         Answer = pd.DataFrame()
