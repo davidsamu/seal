@@ -158,8 +158,8 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
 # %% Meta-functions to run and plot AROC over a different trial periods.
 
 def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
-              fres, verbose=True, remove_all_nan_units=True,
-              remove_any_nan_times=True):
+              fres, verbose=True, rem_all_nan_units=True,
+              rem_any_nan_times=True):
     """Calculate and plot AROC over time between specified sets of trials."""
 
     aroc_list, pval_list = [], []
@@ -179,9 +179,9 @@ def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
     offsets = [None, stim_timings.loc['S2', 'on']]
     truncate_prds = [prd_limits.loc[stim, t] for t in ['start', 'stop']]
     aroc = util.concat_stim_prd_res(aroc_list, offsets, truncate_prds,
-                                    remove_all_nan_units, remove_any_nan_times)
+                                    rem_all_nan_units, rem_any_nan_times)
     pval = util.concat_stim_prd_res(pval_list, offsets, truncate_prds,
-                                    remove_all_nan_units, remove_any_nan_times)
+                                    rem_all_nan_units, rem_any_nan_times)
 
     # Save results.
     if fres is not None:

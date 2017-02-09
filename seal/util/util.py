@@ -571,6 +571,13 @@ def concat_stim_prd_res(res_list, offsets=None, truncate_prds=None,
                         remove_all_nan_units=True, remove_any_nan_times=True):
     """Concatenate stimulus period results."""
 
+    # Make a copy of input data.
+    res_list = [res.copy() for res in res_list]
+
+    # Convert Series to DataFrame.
+    if isinstance(res_list[0], pd.Series):
+        res_list = [pd.DataFrame(res).T for res in res_list]
+
     # Offset time points (columns).
     if offsets is not None and len(offsets):
         for i, offset in enumerate(offsets):
@@ -600,6 +607,10 @@ def concat_stim_prd_res(res_list, offsets=None, truncate_prds=None,
 
     # Remove duplicated time points (overlaps of periods).
     res = res.loc[:, ~res.columns.duplicated()]
+
+    # Convert single row DataFrame to Series.
+    if len(res.index) == 1:
+        res = res.T.squeeze()
 
     return res
 
