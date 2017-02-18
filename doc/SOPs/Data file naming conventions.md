@@ -31,12 +31,12 @@ This is the *TT* part of the filename above. It composed of the following keywor
   - *mem*: memory saccade (?)
   - *map*: RF mapping, this can contain additional characters, e.g. *mapping*
 - 2nd part: task modifier, capitalized!
-  - Pas: passive (no saccade required, just fixation)
-  - Rem: remote (both, or one(?) of S1 and S2 appear out of RF, at the ipsilater hemifield)
-  - Sep: separated (one of S1 or S2 appears within RF, the other out of RF)
-  - Sim: simultaneous MT + PFC recordings
-  - Uncert: uncertain location (S2 appears at same/different location to S1 at 50/50% of the times)
-  - X: PFC inactivated
+  - *Pas*: passive (no saccade required, just fixation)
+  - *Rem*: remote (both, or one(?) of S1 and S2 appear out of RF, at the ipsilater hemifield)
+  - *Sep*: separated (one of S1 or S2 appears within RF, the other out of RF)
+  - *Sim*: simultaneous MT + PFC recordings
+  - *Uncert*: uncertain location (S2 appears at same/different location to S1 at 50/50% of the times)
+  - *X*: PFC inactivated
   
 Multiple modifier keywords can be used, e.g. ddRemPasX, but keep with order applied for previous recordings. For all task names that occur in previous recordings, see column headers of recording table files in 
 y:\yesbackup\ElectrophysiologyData\Session Notes\Generated Recording Tables\Recording Tables\
