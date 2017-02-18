@@ -17,8 +17,8 @@
 - Press 'Merge' button in toolbar.
 - For merge type, select second option: ‘Merge files consecutively in specified order (top to bottom)’, then press 'Next'.
 - Set output folder and file name in next window.
-  - Folder should be: ..\Sorted\Merged (see [folder structure conventions](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Data%20folder%20structure%20conventions.md))
-  - File name should be: *SSS_MMDDYYee_mrg.plx*, e.g. 201_071516v1_mrg.plx (see [file naming convention](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Naming%20conventions.md)).
+  - Change folder from ..\Plexon\Unsorted\* to ..\Plexon\Sorted\* (see [folder structure conventions](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Data%20folder%20structure%20conventions.md))
+  - Keep suggested filename unchanged.
 - Press 'Next'.
 - Press 'Finish' to generate merged Plexon file.
 
