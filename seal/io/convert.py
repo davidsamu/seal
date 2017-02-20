@@ -23,7 +23,7 @@ def task_TPL_to_Seal(f_tpl, f_seal, task, rec_info):
         print('  TPLCell data is empty in ', f_tpl)
         return
 
-    # Create list of Units from TPLCell structures.
+    # Create UnitArray (list of units) from TPLCell structures.
     kset = constants.kset
     params = [(TPLCell, rec_info, kset) for TPLCell in TPLCells]
     tUnits = util.run_in_pool(unit.Unit, params)
@@ -36,7 +36,7 @@ def task_TPL_to_Seal(f_tpl, f_seal, task, rec_info):
     util.write_objects({'UnitArr': UA}, f_seal)
 
 
-def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_name, rec_info, excl_tasks=[]):
+def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_info, excl_tasks=[]):
     """Convert TPLCell data to Seal data in recording folder."""
 
     if not os.path.exists(tpl_dir):
@@ -53,9 +53,9 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_name, rec_info, excl_tasks=[]):
                    for f_tpl in f_tpl_cells]
 
     # Exclude some tasks.
-    to_exclude = [util.params_from_fname(f_tpl).loc['task'] in excl_tasks
+    to_include = [util.params_from_fname(f_tpl).loc['task'] not in excl_tasks
                   for f_tpl in f_tpl_cells]
-    tasks = tasks[~tasks.index(to_exclude)]
+    tasks = tasks[tasks.index[to_include]]
 
     if not len(tasks):
         print('  No TPLCell object found in ' + tpl_dir)

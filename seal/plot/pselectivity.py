@@ -13,7 +13,7 @@ from quantities import deg, ms
 
 from seal.analysis import direction, roc
 from seal.plot import putil, ptuning, prate, pauc
-from seal.util import util
+from seal.util import util, constants
 
 
 # %% Functions to plot stimulus feature selectivity.
@@ -68,7 +68,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             rr_sps = putil.embed_gsp(gsp[i], 1, 1, hspace=0.3)[0]
 
         # Init params.
-        prds = [u.CTask['ev_stims'].loc[ref]]
+        prds = [constants.ev_stims.loc[ref]]
         evnts = None
         if ('cue' in ppars) and (ppars.cue is not None):
             evnts = [{'time': ppars.cue}]
@@ -157,10 +157,10 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
     """Plot stimulus response in matrix layout by target and delay length."""
 
     # Init params.
-    dsplit_prd_pars = u.CTask['tr_half_prds'].copy()
-    dcomb_prd_pars = u.CTask['tr_third_prds'].copy()
+    dsplit_prd_pars = constants.tr_half_prds.copy()
+    dcomb_prd_pars = constants.tr_third_prds.copy()
     targets = u.TrData['ToReport'].unique()
-    dlens = util.remove_dim_from_array(u.CTask['del_lens'])
+    dlens = util.remove_dim_from_array(constants.del_lens)
 
     # Init axes.
     nrow = len(targets) + (len(targets) > 1)
@@ -211,7 +211,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
             else:
                 prd_pars = dsplit_prd_pars.copy()
                 prd_pars = u.get_analysis_prds(prd_pars, from_trs)
-                S2_shift = u.CTask['stim_dur']['S1'] + dlen*ms
+                S2_shift = constants.stim_dur['S1'] + dlen*ms
                 prd_pars.lbl_shift['S2 half'] = S2_shift
                 if len(dlens) > 1:
                     tdiff = (dlen - dlens[-1]) * ms
@@ -348,7 +348,7 @@ def plot_DR_3x3(u, fig=None, sps=None):
     # Polar plot.
     putil.set_style('notebook', 'white')
     ax_polar = fig.add_subplot(gsp[4], polar=True)
-    for stim in u.CTask['stim_dur'].index:  # for each stimuli
+    for stim in constants.stim_dur.index:  # for each stimulus
         stim_resp = u.get_stim_resp_vals(stim, 'Dir')
         resp_stats = util.calc_stim_resp_stats(stim_resp)
         dirs, resp = np.array(resp_stats.index) * deg, resp_stats['mean']
@@ -360,7 +360,7 @@ def plot_DR_3x3(u, fig=None, sps=None):
     # Raster-rate plots.
     putil.set_style('notebook', 'ticks')
     rr_pos = [5, 2, 1, 0, 3, 6, 7, 8]  # Position of each direction.
-    rr_dir_plot_pos = pd.Series(u.CTask['all_dirs'], index=rr_pos)
+    rr_dir_plot_pos = pd.Series(constants.all_dirs, index=rr_pos)
 
     rate_axs = []
     for isp, d in rr_dir_plot_pos.iteritems():

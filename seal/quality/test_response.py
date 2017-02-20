@@ -13,7 +13,7 @@ from seal.plot import putil, pselectivity
 
 # Figure size constants
 subw = 7
-w_pad = 5
+w_pad = 15
 
 
 def DR_plot(UA, ftempl=None, match_scales=False):
@@ -100,23 +100,20 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
                               rect_height=0.96, w_pad=w_pad)
 
 
-def plot_response(proj_dir, plot_DR=True, plot_sel=True):
+def plot_response(fseal_combined, responseplot_dir,
+                  plot_DR=True, plot_sel=True):
     """Plot basic unit activity figures."""
 
     print('\nStarting plotting unit activity...')
     putil.inline_off()
 
     # Init folders.
-    data_dir = proj_dir + 'data/'
-    out_dir = proj_dir + 'results/basic_activity/'
-
-    ftempl_dr = out_dir + 'direction_response/{}.png'
-    ftempl_sel = out_dir + 'stimulus_selectivity/{}.png'
+    ftempl_dr = responseplot_dir + 'direction_response/{}.png'
+    ftempl_sel = responseplot_dir + 'stimulus_selectivity/{}.png'
 
     # Read in Units.
     print('  Reading in UnitArray...')
-    f_data = data_dir + 'all_recordings.data'
-    UA = util.read_objects(f_data, 'UnitArr')
+    UA = util.read_objects(fseal_combined, 'UnitArr')
     UA.clean_array(keep_excl=False)
 
     # Test stimulus response to all directions.

@@ -39,7 +39,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     fig = putil.figure(fig)
     if sps is None:
         sps = putil.gridspec(1, 1)[0]
-    ogsp = putil.embed_gsp(sps, 2, 1, height_ratios=[0.10, 1])
+    ogsp = putil.embed_gsp(sps, 2, 1, height_ratios=[0.02, 1])
 
     info_sps, qm_sps = ogsp[0], ogsp[1]
 
@@ -47,7 +47,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     info_ax = fig.add_subplot(info_sps)
     putil.hide_axes(info_ax)
     title = putil.get_unit_info_title(u)
-    putil.set_labels(ax=info_ax, title=title)
+    putil.set_labels(ax=info_ax, title=title, ytitle=0.80)
 
     # Create axes.
     gsp = putil.embed_gsp(qm_sps, 3, 2, wspace=0.3, hspace=0.4)
