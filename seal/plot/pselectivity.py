@@ -259,7 +259,7 @@ def plot_DR(u, sps, fig):
     if u.DS.empty:
         u.test_DS()
     stim = 'S1'
-    pref_anti_dirs = [u.pref_dir(stim), u.anti_pref_dir(stim)]
+    pref_anti_dirs = [u.pref_dir(stim, 'max'), u.anti_pref_dir(stim, 'max')]
     t1, t2 = u.DS.TW.loc[stim]
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
