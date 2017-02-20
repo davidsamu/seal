@@ -24,3 +24,17 @@ Y:\yesbackup\ElectrophysiologyData\Recordings\
         - RP\    (folder with response plots over trial time)
 
 For an example, see y:\yesbackup\ElectrophysiologyData\Recordings\202\MT Recordings\202_021116\
+
+
+# Subfolder naming
+
+These are the folders immediately below the monkey folder (see "subfolder" above). They group experiements into subcategories by monkey. Naming conventions of these folders are the following (all case sensitive!):
+
+- MT recordings must contains the string 'MT'
+- PFC recordings must contains the string 'PFC'
+- simultaneous recordings must contains the string 'Simultaneous'
+- inactivation experiments must contains the string 'Inactivation'
+- combined experiments must contains the string 'Combined'
+
+Please use existing subfolders for new recordings, and only create a new subfolder if the available ones do not match current recordings (e.g. starting a new type experiment or recording site for a give monkey).
+
