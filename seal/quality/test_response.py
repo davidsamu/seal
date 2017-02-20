@@ -11,6 +11,7 @@ from seal.util import util
 from seal.plot import putil, pselectivity
 
 
+
 # Figure size constants
 subw = 7
 w_pad = 50
@@ -65,7 +66,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
     putil.set_style('notebook', 'ticks')
 
     # For each unit over all tasks.
-    for uid in UA.uids()[:1]:
+    for uid in UA.uids():
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
