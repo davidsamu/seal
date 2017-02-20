@@ -125,7 +125,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
     # Add title.
     if title is not None:
-        axes_raster[0].set_title(title, x=xmid, y=1.1)
+        axes_raster[0].set_title(title, x=xmid, y=1.0)
 
     # Set common x label.
     if ('no_labels' not in kwargs) or (not kwargs['no_labels']):
@@ -154,7 +154,12 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
 
 def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
-    """Plot stimulus response in matrix layout by target and delay length."""
+    """
+    Plot stimulus response in matrix layout by target and delay length for
+    combined task.
+
+    This function is currently out of date, needs updating!
+    """
 
     # Init params.
     dsplit_prd_pars = constants.tr_half_prds.copy()
@@ -242,7 +247,7 @@ def plot_SR_matrix(u, param, vals=None, sps=None, fig=None):
 def plot_LR(u, sps, fig):
     """Plot location response plot."""
 
-    res = plot_SR_matrix(u, 'Loc', None, sps, fig)
+    res = plot_SR(u, 'Loc', title='Location selectivity', sps=sps, fig=fig)
 
     return res
 
@@ -259,14 +264,16 @@ def plot_DR(u, sps, fig):
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
 
-    res = plot_SR_matrix(u, 'Dir', pref_anti_dirs, sps, fig)
+    res = plot_SR(u, 'Dir', pref_anti_dirs, title='Direction selectivity',
+                  sps=sps, fig=fig)
 
     # Add event lines to interval used to test DS.
     # Slight hardcoding action going on below...
     # On first period plots of rate and auc axes (showing S1).
-    for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
-        putil.plot_events(evts, add_names=False, color='grey',
-                          alpha=0.5, ls='--', lw=1, ax=ax)
+    if u.SessParams.region != 'MT':
+        for ax in [res[i][0] for i in (1, 2) if res[i] not in (None, [])]:
+            putil.plot_events(evts, add_names=False, color='grey',
+                              alpha=0.5, ls='--', lw=1, ax=ax)
 
     return res
 
@@ -304,7 +311,7 @@ def plot_DSI(u, nrate=None, fig=None, sps=None, prd_pars=None,
 def plot_all_trials(u, sps, fig):
     """Plot task-relatedness plot."""
 
-    title = putil.get_unit_info_title(u)
+    title = putil.get_unit_info_title(u, fullname=False)
     res = plot_SR(u, sps=sps, fig=fig, title=title)
 
     return res
@@ -320,7 +327,7 @@ def plot_selectivity(u, fig=None, sps=None):
 
     # Init subplots.
     sps, fig = putil.sps_fig(sps, fig)
-    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.2, height_ratios=[1, 1, 1])
+    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.3, height_ratios=[1, 1, 1])
     tr_sps, lr_sps, dr_sps = gsp
 
     # Plot task-relatedness.

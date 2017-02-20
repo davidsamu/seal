@@ -130,7 +130,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
                 uid_str = util.format_uid(uid)
                 title = uid_str.replace('_', ' ')
                 ffig = ftempl.format(uid_str)
-                putil.save_fig(ffig, fig, title, rect_height=0.85, w_pad=15)
+                putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=15)
 
 
 def report_unit_exclusion_stats(UA, fname):

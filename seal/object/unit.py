@@ -494,7 +494,7 @@ class Unit:
             prds = (constants.tr_third_prds.copy() if is_combined
                     else constants.tr_half_prds.copy())
 
-        # Update cue plotting for combined task.
+        # Update cue plotting.
         if is_combined:
             to_report = self.TrData.ToReport.unique()
             if len(to_report) == 1:   # feature to be reported is constant
@@ -507,6 +507,10 @@ class Unit:
 
                 # Remove cue from rest of the periods.
                 prds.loc[~S1_prds, 'cue'] = None
+        else:
+            # Remove cue from all periods.
+            prds.cue = None
+            prds.loc['S1 half', 'max_len'] = 3000*ms
 
         # Add period duration (specific to unit).
         prds['dur'] = [self.pr_dur(prd, trs) for prd in prds.index]

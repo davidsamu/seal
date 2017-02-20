@@ -95,11 +95,11 @@ def get_unit_info_title(u, fullname=False):
     #info_lines += '{} ({})\n\n'.format(fvals['BS/NS'], fvals['mWfDur'])
 
     # Firing rate.
-    info_lines += '{}, {}, {}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
-                                          fvals['baseline'])
-
     # Facilitatory or suppressive?
-    #info_lines += '\n'.format()
+    info_lines += '{}, {}\n\n'.format(fvals['mFR'], fvals['baseline'])
+    #info_lines += '{}, {}, {}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
+    #                                      fvals['baseline'])
+
 
     return info_lines
 

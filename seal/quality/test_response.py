@@ -13,7 +13,7 @@ from seal.plot import putil, pselectivity
 
 # Figure size constants
 subw = 7
-w_pad = 15
+w_pad = 50
 
 
 def DR_plot(UA, ftempl=None, match_scales=False):
@@ -55,7 +55,7 @@ def DR_plot(UA, ftempl=None, match_scales=False):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_fig(fname, fig, title, rect_height=0.92, w_pad=w_pad)
+            putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=w_pad)
 
 
 def selectivity_summary(UA, ftempl=None, match_scales=False):
@@ -65,11 +65,11 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
     putil.set_style('notebook', 'ticks')
 
     # For each unit over all tasks.
-    for uid in UA.uids():
+    for uid in UA.uids()[:1]:
 
         # Init figure.
         fig, gsp, _ = putil.get_gs_subplots(nrow=1, ncol=len(UA.tasks()),
-                                            subw=16, subh=32)
+                                            subw=8, subh=16)
         ls_axs, ds_axs = [], []
 
         # Plot stimulus response summary plot of unit in each task.
@@ -96,8 +96,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=False):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             fname = ftempl.format(uid_str)
-            putil.save_figure(fname, fig, title,
-                              rect_height=0.96, w_pad=w_pad)
+            putil.save_fig(fname, fig, title, ytitle=1.00, w_pad=w_pad)
 
 
 def plot_response(fseal_combined, responseplot_dir,
