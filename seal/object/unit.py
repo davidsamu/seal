@@ -488,12 +488,14 @@ class Unit:
     def get_analysis_prds(self, prds=None, trs=None):
         """Get parameters of periods to analyse."""
 
+        is_combined = self.SessParams.combined
+
         if prds is None:
-            prds = (constants.tr_third_prds.copy() if self.SessParams.combined
+            prds = (constants.tr_third_prds.copy() if is_combined
                     else constants.tr_half_prds.copy())
 
-        # Update cue plotting.
-        if 'cue' in prds.columns:
+        # Update cue plotting for combined task.
+        if is_combined:
             to_report = self.TrData.ToReport.unique()
             if len(to_report) == 1:   # feature to be reported is constant
 
@@ -501,10 +503,10 @@ class Unit:
                 S1_prds = (prds.ref == 'S1 on')
                 cue_to_S1_on = constants.tr_evts.loc['fixate', 'shift']
                 cue_to_S1_on = cue_to_S1_on + 100*ms  # add a bit to avoid axis
-                prds[S1_prds, 'cue'] = cue_to_S1_on
+                prds.loc[S1_prds, 'cue'] = cue_to_S1_on
 
                 # Remove cue from rest of the periods.
-                prds[~S1_prds, 'cue'] = None
+                prds.loc[~S1_prds, 'cue'] = None
 
         # Add period duration (specific to unit).
         prds['dur'] = [self.pr_dur(prd, trs) for prd in prds.index]
