@@ -309,7 +309,7 @@ class UnitArray:
         if tasks is None:
             tasks = self.tasks()
 
-        for uid in self.get_uids_of_rec(rec):
+        for uid in self.uids([rec]):
             for task in tasks:
                 self.remove_unit(uid, task, False)
 
@@ -322,9 +322,8 @@ class UnitArray:
         if recs is None:
             recs = self.recordings()
 
-        for rec in recs:
-            for uid in self.get_uids_of_rec(rec):
-                self.remove_unit(uid, task, False)
+        for uid in self.uids(recs):
+            self.remove_unit(uid, task, False)
 
         if clean_array:
             self.clean_array()
