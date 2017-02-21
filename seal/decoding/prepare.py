@@ -11,19 +11,22 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from seal.plot import putil
-from seal.util import util
+from quantities import deg
+
+from seal.plot import putil, pplot
+from seal.util import util, constants, ua_query
+from seal.analysis import direction
 
 # Constants.
-min_n_units = 5           # minimum number of units to keep
-min_n_trs_per_unit = 10   # minimum number of trials per unit to keep
+min_n_units = 5           # minimum number of units to keep (0: off)
+min_n_trs_per_unit = 5    # minimum number of trials per unit to keep (0: off)
 
 fres = 'results/decoding/prepare/unit_trial_selection.data'
 
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
+def select_units_trials(UA, utids=None, ffig=None):
     """Select optimal set of units and trials for population decoding."""
 
     print('Selecting optimal set of units and trials for decoding...')
@@ -34,8 +37,7 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
     u_rt_grpby = utids.groupby(level=['rec', 'task'])
 
     # Unit info frame.
-    UInfo = pd.DataFrame(index=utids.index)
-    UInfo['keep unit'] = False
+    UInc = pd.Series(False, index=utids.index)
 
     # Included trials by unit.
     IncTrs = pd.Series([(UA.get_unit(utid[:3], utid[3]).inc_trials())
@@ -68,11 +70,10 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
         putil.set_labels(ax, xlab, ylab, title, ytitle)
 
     # Init plotting.
-    if do_plotting:
-        ytitle = 1.40
-        putil.set_style('notebook', 'whitegrid')
-        fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
-                                              subw=6, subh=4, create_axes=True)
+    ytitle = 1.40
+    putil.set_style('notebook', 'whitegrid')
+    fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
+                                          subw=6, subh=4, create_axes=True)
 
     for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
         print(rec, task)
@@ -86,12 +87,11 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
             IncTrsMat.loc[ch_idx].iloc[IncTrs[utid]] = 1
 
         # Plot included/excluded trials after preprocessing.
-        if do_plotting:
-            ax = axs[i_rt, 0]
-            ylab = '{} {}'.format(rec, task)
-            title = ('Included (green) and excluded (red) trials'
-                     if i_rt == 0 else None)
-            plot_inc_exc_trials(IncTrsMat, ax, title, ytitle, ylab=ylab)
+        ax = axs[i_rt, 0]
+        ylab = '{} {}'.format(rec, task)
+        title = ('Included (green) and excluded (red) trials'
+                 if i_rt == 0 else None)
+        plot_inc_exc_trials(IncTrsMat, ax, title, ytitle, ylab=ylab)
 
         # Calculate and plot overlap of trials across units.
         # How many trials will remain if we iteratively excluding units
@@ -138,36 +138,35 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
         tr_covs.iloc[-1] = (uinc[0], 0, 0, 0)
 
         # Plot covered trials against each units removed.
-        if do_plotting:
-            ax_trc = axs[i_rt, 1]
-            sns.tsplot(tr_covs['ntrs_cov'], marker='o', ms=4, color='b',
-                       ax=ax_trc)
-            title = ('Trials coverage during iterative unit removal'
-                     if i_rt == 0 else None)
-            xlab, ylab = 'current unit removed', '# trials covered'
-            putil.set_labels(ax_trc, xlab, ylab, title, ytitle)
-            ax_trc.xaxis.set_ticks(tr_covs.index)
-            x_ticklabs = ['none'] + ['{} - {}'.format(ch, ui)
-                                     for ch, ui in tr_covs.uid.loc[1:]]
-            ax_trc.set_xticklabels(x_ticklabs)
-            putil.rot_xtick_labels(ax_trc, 45)
-            ax_trc.grid(True)
+        ax_trc = axs[i_rt, 1]
+        sns.tsplot(tr_covs['ntrs_cov'], marker='o', ms=4, color='b',
+                   ax=ax_trc)
+        title = ('Trial coverage during iterative unit removal'
+                 if i_rt == 0 else None)
+        xlab, ylab = 'current unit removed', '# trials covered'
+        putil.set_labels(ax_trc, xlab, ylab, title, ytitle)
+        ax_trc.xaxis.set_ticks(tr_covs.index)
+        x_ticklabs = ['none'] + ['{} - {}'.format(ch, ui)
+                                 for ch, ui in tr_covs.uid.loc[1:]]
+        ax_trc.set_xticklabels(x_ticklabs)
+        putil.rot_xtick_labels(ax_trc, 45)
+        ax_trc.grid(True)
 
-            # Add # of remaining units to top.
-            ax_remu = ax_trc.twiny()
-            ax_remu.xaxis.set_ticks(tr_covs.index)
-            ax_remu.set_xticklabels(list(range(len(x_ticklabs)))[::-1])
-            ax_remu.set_xlabel('# units remaining')
-            ax_remu.grid(None)
+        # Add # of remaining units to top.
+        ax_remu = ax_trc.twiny()
+        ax_remu.xaxis.set_ticks(tr_covs.index)
+        ax_remu.set_xticklabels(list(range(len(x_ticklabs)))[::-1])
+        ax_remu.set_xlabel('# units remaining')
+        ax_remu.grid(None)
 
-            # Add heuristic index.
-            ax_heur = ax_trc.twinx()
-            sns.tsplot(tr_covs['trial x units'], linestyle='--', marker='o',
-                       ms=4, color='m',  ax=ax_heur)
-            putil.set_labels(ax_heur, ylab='remaining units x covered trials')
-            [tl.set_color('m') for tl in ax_heur.get_yticklabels()]
-            [tl.set_color('b') for tl in ax_trc.get_yticklabels()]
-            ax_heur.grid(None)
+        # Add heuristic index.
+        ax_heur = ax_trc.twinx()
+        sns.tsplot(tr_covs['trial x units'], linestyle='--', marker='o',
+                   ms=4, color='m',  ax=ax_heur)
+        putil.set_labels(ax_heur, ylab='remaining units x covered trials')
+        [tl.set_color('m') for tl in ax_heur.get_yticklabels()]
+        [tl.set_color('b') for tl in ax_trc.get_yticklabels()]
+        ax_heur.grid(None)
 
         # Decide on which units to exclude.
         min_n_trials = min_n_trs_per_unit * tr_covs['n_rem_u']
@@ -186,14 +185,13 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
 
             # Add to UnitInfo dataframe
             rt_utids = [(rec, ch, ui, task) for ch, ui in rem_uids]
-            UInfo.loc[rt_utids, 'keep unit'] = True
+            UInc[rt_utids] = True
 
         # Highlight selected point in middle plot.
-        if do_plotting:
-            sel_seg = [('selection', exc_uids.shape[0]-0.4,
-                        exc_uids.shape[0]+0.4)]
-            putil.plot_periods(sel_seg, ax=ax_trc, alpha=0.3)
-            [ax.set_xlim([-0.5, n_units+0.5]) for ax in (ax_trc, ax_remu)]
+        sel_seg = [('selection', exc_uids.shape[0]-0.4,
+                    exc_uids.shape[0]+0.4)]
+        putil.plot_periods(sel_seg, ax=ax_trc, alpha=0.3)
+        [ax.set_xlim([-0.5, n_units+0.5]) for ax in (ax_trc, ax_remu)]
 
         # Generate remaining trials dataframe.
         RemTrsMat = IncTrsMat.copy().astype(float)
@@ -207,14 +205,13 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
         RemTrsMat[IncTrsMat == False] = 0.0
 
         # Plot remaining trials.
-        if do_plotting:
-            ax = axs[i_rt, 2]
-            n_u_rem, n_u_exc = len(rem_uids), len(exc_uids)
-            title = ('# units remaining: {}, excluded: {}'.format(n_u_rem,
-                                                                  n_u_exc) +
-                     '\n# trials remaining: {}, excluded: {}'.format(n_tr_rem,
-                                                                     n_tr_exc))
-            plot_inc_exc_trials(RemTrsMat, ax, title=title, ylab='')
+        ax = axs[i_rt, 2]
+        n_u_rem, n_u_exc = len(rem_uids), len(exc_uids)
+        title = ('# units remaining: {}, excluded: {}'.format(n_u_rem,
+                                                              n_u_exc) +
+                 '\n# trials remaining: {}, excluded: {}'.format(n_tr_rem,
+                                                                 n_tr_exc))
+        plot_inc_exc_trials(RemTrsMat, ax, title=title, ylab='')
 
         # Add remaining units and trials to RecInfo.
         rt = (rec, task)
@@ -227,126 +224,103 @@ def select_units_trials(UA, utids=None, do_plotting=True, ffig=None):
     RecInfo['% remaining trials'] = 100 * RecInfo.ntrials / RecInfo.nalltrials
 
     # Save results.
-    results = {'RecInfo': RecInfo, 'UInfo': UInfo}
+    results = {'RecInfo': RecInfo, 'UInc': UInc}
     util.write_objects(results, fres)
 
     # Save plot.
-    if do_plotting:
-        if ffig is None:
-            ffig = os.path.splitext(fres)[0] + '.png'
-        title = 'Trial & unit selection prior decoding'
-        putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
+    if ffig is None:
+        ffig = os.path.splitext(fres)[0] + '.png'
+    title = 'Trial & unit selection prior decoding'
+    putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
 
-    return RecInfo, UInfo
+    return RecInfo, UInc
 
 
-## %% Direction selectivity analysis.
-#
-## Consistency of PD across units per recording.
-## Do units show consistent PD (maybe +- 45 degrees) on each session?
-#
-## Determine dominant preferred direction to decode.
-#
-## Init analysis.
-#UnitInfo_GrBy_Rec = UnitInfoDF.groupby(level='rec')
-#putil.set_style(seaborn_context, 'darkgrid', rc=rc_args)
-#fig, gsp, axs = putil.get_gs_subplots(nrow=len(UnitInfo_GrBy_Rec),
-#                                      ncol=len(tasks), subw=6, subh=6,
-#                                      ax_kwargs_list={'projection': 'polar'})
-#
-#xticks = util.deg2rad(constants.all_dirs + 360/8/2*deg)
-#
-#
-## TODO: re-design PDP selection by making the below simpler and better.
-#for i_rc, (rec, UInfoRec) in enumerate(UnitInfo_GrBy_Rec):
-#    for i_tk, (task, UITRec) in enumerate(UInfoRec.groupby(level='task')):
-#        ax = axs[i_rc, i_tk]
-#
-#        # Init.
-#        PD, DSI, uinc = UITRec['PD'], UITRec['DSI'], UITRec['keep unit']
-#
-#        # Determine direction to decode.
-#        incPDdeg, incDSI = np.array(PD[uinc]) * deg, np.array(DSI[uinc])
-#        # Calculate unidirectionality index (UD) for each split of units.
-#        grp_names = ('grp 1', 'grp 2')
-#        tlist = [grp_names, ('UD', 'DPD', 'DPDc', 'nunits', 'cntr_dir')]
-#        columns = pd.MultiIndex.from_product(tlist, names=['group', 'metric'])
-#        DPDGrpRes = pd.DataFrame(columns=columns, index=constants.all_dirs)
-#        for cntr_dir in constants.all_dirs:
-#            idx = [util.deg_diff(iPD, cntr_dir) < 90 for iPD in incPDdeg]
-#            idx1, idx2 = np.array(idx), np.logical_not(idx)
-#            for grp_name, (idx, offset) in zip(grp_names, [(idx1, 0*deg), (idx2, 180*deg)]):
-#                ds_grp = util.deg_w_mean(incPDdeg[idx], incDSI[idx], constants.all_dirs)
-#                res = list(ds_grp) + [sum(idx), util.deg_mod(cntr_dir+offset)]
-#                DPDGrpRes.loc[float(cntr_dir), grp_name] = res
-#
-#        # Calculate mean DPD (weighted by UD and # of units in each group).
-#        def split_quality(row):
-#
-#            DPDs, cntrDs = row.xs('DPD', level=1), row.xs('cntr_dir', level=1)
-#            UDs, nunits = row.xs('UD', level=1), row.xs('nunits', level=1)
-#
-#            # Flip anti-DPD to it add PDP (not cancel them out).
-#            DPDs[1], cntrDs[1] = [util.deg_mod(d+180*deg) for d in [DPDs[1],
-#                                                                    cntrDs[1]]]
-#
-#            # Exclude empty group, if any.
-#            non_empty_grps = np.where(nunits > 0)[0]
-#            UDs, nunits = UDs[non_empty_grps], nunits[non_empty_grps]
-#            DPDs, cntrDs = DPDs[non_empty_grps], cntrDs[non_empty_grps],
-#
-#            # Get circular mean UD across groups, weighted by
-#            # - number of units, and
-#            # - difference from central direction.
-#            wn_UDs = np.array(nunits*UDs, dtype=float)
-#            mUD, mPDP, _ = util.deg_w_mean(DPDs, wn_UDs)
-#
-#            # Scale (normalised) mean UD by mean of group UDs, weighted by
-#            # - number of units, and
-#            # - difference of each group's DPD from respective centre.
-#            cntr_diff_fac = [float((90*deg - util.deg_diff(DPD, cd)) / (90*deg))
-#                             for DPD, cd in zip(DPDs, cntrDs)]
-#            weights = cntr_diff_fac * nunits
-#            split_qual = np.mean(weights * UDs) * mUD
-#            split_qual = np.round(split_qual, 6)  # to prevent rounding errors
-#
-#            return split_qual
-#
-#        # Calculate mean Unidirectionality index (split quality) for each split.
-#        mUDs = DPDGrpRes.apply(split_quality, axis=1)
-#
-#        # Find split with maximal UD and higher number of units in 1st group.
-#        nunits = DPDGrpRes.loc[mUDs == np.max(mUDs), ('grp 1', 'nunits')]
-#        idx = nunits.sort_values(inplace=False).index[-1]
-#
-#        mUD, DPDc, DADc = mUDs[idx], idx * deg, util.deg_mod((idx+180)*deg)
-#        RecInfo.loc[(rec, task), ['DPD', 'DAD', 'UDI']] = DPDc, DADc, mUD
-#
-#        # Plot PD - DSI on polar plot.
-#        title = ('{} {}'.format(rec, task_names[task]) +
-#                 '\nMDDs: {}$^\circ$ $\Longleftrightarrow$ {}$^\circ$'.format(int(DPDc),
-#                                                             int(DADc)) +
-#                 '     UDI: {:.2f}'.format(mUD))
-#        plot.scatter(util.deg2rad(PD), DSI, uinc, ylim=[0, 1],
-#                     title=title, ytitle=1.10, c='b', ax=ax)
-#        ax.set_xticks(xticks, minor=True)
-#        ax.grid(b=True, axis='x', which='minor')
-#        ax.grid(b=False, axis='x', which='major')
-#        # Highlight dominant preferred & antipreferred direction.
-#        for D, c in [(DPDc, 'g'), (DADc, 'r')]:
-#            hlDs = [util.deg2rad(D+diff) for diff in (45*deg, 0*deg, -45*deg)]
-#            for hlD, alpha in [(hlDs, 0.1), ([hlDs[1]], 0.2)]:
-#                plot.bars(hlD, len(hlD)*[1], align='center', alpha=alpha,
-#                          color=c, ax=ax)
-#
-## Save plot.
-#title = ('Direction selectivity test prior decoding' +
-#         '\n\nMDDs: Maximally Discriminable Directions' +
-#         '\nUDI: UniDirectionality Index')
-#fname = 'results/decoding/preprocessing/DS_test.png'
-#plot.save_gsp_figure(fig, gsp, fname, title, rect_height=0.90,
-#                     w_pad=0, h_pad=4)
-#
+# %% Direction selectivity analysis.
+
+def PD_across_units(UA, UInc, utids=None, ffig=None):
+    """
+    Consistency/spread of PD across units per recording.
+    How much is the spread in the preferred directions across units?
+
+    Can be used to determine dominant preferred direction to decode.
+    """
+
+    # Init.
+    if utids is None:
+        utids = UA.utids()
+    u_rt_grpby = utids.groupby(level=['rec', 'task'])
+    tasks = utids.index.get_level_values('task').unique()
+    recs = utids.index.get_level_values('rec').unique()
+
+    # Get DS info frame.
+    DSInfo = ua_query.get_DSInfo_table(UA, utids)
+    DSInfo['include'] = UInc
+
+    # Init plotting.
+    putil.set_style('notebook', 'darkgrid')
+    fig, gsp, axs = putil.get_gs_subplots(nrow=len(recs), ncol=len(tasks),
+                                          subw=6, subh=6, create_axes=True,
+                                          ax_kws_list={'projection': 'polar'})
+    xticks = direction.deg2rad(constants.all_dirs + 360/8/2*deg)
+
+    for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
+
+        # Init.
+        print(rec, task)
+        ax = axs.flatten()[i_rt]
+        rtDSInfo = DSInfo.loc[rt_utids].copy()
+
+        # Flip all directions to 0-180 half to prevent cancellation of opposite
+        # directions.
+        PDflip = direction.deg_mod(util.dim_series_to_array(rtDSInfo.PD),
+                                   180*deg)
+
+        # Calculate population DSI and population PD.
+        PDSI, PPD = direction.polar_wmean(PDflip, np.array(rtDSInfo.DSI))
+        # Flip back directions if needed.
+        if sum(rtDSInfo.PD >= 180) > len(rtDSInfo.index):
+            PPD = direction.anti_dir(PPD)
+
+        # Coarse PPD and get anti-pref dir.
+        PPDc = direction.coarse_dir(PPD, constants.all_dirs)
+        PADc = direction.anti_dir(PPDc)
+
+        # Plot results.
+
+        # Plot PD - DSI on polar plot.
+        title = ('{} {}\n'.format(rec, task) +
+                 'PPDc = {}$^\circ$ - {}$^\circ$'.format(int(PPDc),
+                                                         int(PADc)) +
+                 ', PDSI = {:.2f}'.format(PDSI))
+        PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
+        pplot.scatter(PDrad, rtDSInfo.DSI, rtDSInfo.include, ylim=[0, 1],
+                      title=title, ytitle=1.10, c='darkblue', edgecolor='k',
+                      linewidth=1, s=80, alpha=0.8, zorder=2, ax=ax)
+
+        # Highlight PPD and PAD.
+        offsets = np.array([-45, 0, 45]) * deg
+        for D, c in [(PPDc, 'g'), (PADc, 'r')]:
+            hlDs = direction.deg2rad(np.array(D+offsets))
+            for hlD, alpha in [(hlDs, 0.2), ([hlDs[1]], 0.4)]:
+                pplot.bars(hlD, len(hlD)*[1], align='center', alpha=alpha,
+                           color=c, zorder=1, ax=ax)
+
+        # Format ticks.
+        ax.set_xticks(xticks, minor=True)
+        ax.grid(b=True, axis='x', which='minor')
+        ax.grid(b=False, axis='x', which='major')
+        putil.hide_tick_marks(ax)
+
+    # Save plot.
+    title = 'Population direction selectivity'
+    if ffig is None:
+        ffig = 'results/decoding/prepare/DS_test.png'
+    putil.save_fig(ffig, fig, title, ytitle=1.1, w_pad=10)
+
+    return DSInfo
+
+
 # %% Trial type distribution analysis.
 
 def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
@@ -423,145 +397,3 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
                      '_trial_type_distr.png')
 
         putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
-
-
-## %% Do decoding.
-#
-## %autoreload 2
-#
-#plot.set_seaborn_style_context(seaborn_style, seaborn_context, rc_args)
-#
-## Init decoding parameters.
-#feature_name = 'S1Dir'
-#ncv = 10
-#offsets = [-45*deg, 0*deg, 45*deg]
-#nrate = 'R200'
-#t1, t2 = None, 2*s
-#sep_err_trs = False
-#
-#plot_perf = True
-#plot_weights = False
-#
-#off_str = util.format_offsets(offsets)
-#print('\n\noffsets: ' + off_str)
-#print('\nncv: ' + str(ncv))
-#
-#if plot_perf:
-#    fig_perf, gsp_perf, axs_perf = plot.get_gs_subplots(nrow=len(recordings),
-#                                                        ncol=len(tasks),
-#                                                        subw=8, subh=6)
-#if plot_weights:
-#    fig_wght, gsp_wght, axs_wght = plot.get_gs_subplots(nrow=len(recordings),
-#                                                        ncol=len(tasks),
-#                                                        subw=8, subh=6)
-## Init recording, task and params.
-#for sep_err_trs in [False]:
-#    for nrate in ['R300']:
-#        for irec, rec in enumerate(recordings):
-#            print('\n'+rec)
-#            for itask, task in enumerate(tasks):
-#                print('    ' + task)
-#                recinfo = RecInfo.loc[(rec, task)]
-#
-#                # Init units and trials.
-#                uidxs = recinfo.units
-#                cuidx = [(rec, ic, iu) for ic, iu in uidxs]
-#                cov_trs = recinfo.trials
-#
-#                # Get target direction vector.
-#                TrParams = RecTrParams[(rec, task)]
-#                feature_vec = TrParams[feature_name]
-#                DPD, DAD = recinfo.DPD, recinfo.DAD
-#                # Add offsets.
-#                DPDs = [util.deg_mod(DPD + offset) for offset in offsets]
-#                DADs = [util.deg_mod(DAD + offset) for offset in offsets]
-#                # Classify trials.
-#                isDPD = pd.Series([d in DPDs for d in feature_vec], dtype=int)
-#                isDAD = pd.Series([d in DADs for d in feature_vec], dtype=int)
-#                # Check if any clash.
-#                if (isDPD & isDAD).any():
-#                    warnings.warn('Clashing instances of preferred vs anti classification!')
-#                # Create target vector and trial indices.
-#                target_vec = isDPD - isDAD
-#                dir_trs = target_vec != 0
-#
-#                # Combine covered and target direction trials.
-#                cov_dir_trs = cov_trs & dir_trs
-#                target_vec = target_vec[cov_dir_trs]
-#
-#                # Get 3D FR matrix: time x trial x unit.
-#                units = UnitArr.unit_list(tasks=[task], ch_unit_idxs=cuidx)
-#                # TODO: update Rates to DataFrame to simplify this.
-#                FRs = np.array([u.Rates[nrate].get_rates(cov_dir_trs, t1, t2) for u in units])
-#                tvec = np.array(units[0].Rates[nrate].get_times(t1, t2).rescale(ms),dtype=int)
-#                MIFR = pd.MultiIndex.from_product((uidxs, cov_dir_trs[cov_dir_trs].index),
-#                                                  names=('uidx', 'tridx'))
-#                FRdf = pd.DataFrame(FRs.reshape(-1, FRs.shape[2]), index=MIFR, columns=tvec)
-#
-#                corr_trs = TrParams.AnswCorr[cov_dir_trs] if sep_err_trs else None
-#
-#                # Run decoding.
-#                res = decoding.run_logreg_across_time(FRdf, target_vec, corr_trs, ncv)
-#                Perf, Weights, C, ntrg1, ntrg2 = res
-#
-#                # Plot decoding results.
-#                title = ('{} {}'.format(rec, task_names[task]) +
-#                 '\n# units: {}'.format(len(cuidx)) +
-#                 '     # trials: {} pref / {} anti'.format(ntrg1, ntrg2))
-#
-#                # Plot prediction accuracy over time.
-#                if plot_perf:
-#                    ax = axs_perf[irec, itask]
-#                    Perf_long = pd.melt(Perf.T, value_vars=list(Perf.index),
-#                                        value_name='acc', var_name='time')
-#                    Perf_long['icv'] = int(Perf_long.shape[0] / Perf.shape[1]) * list(Perf.columns)
-#                    sns.tsplot(Perf_long, time='time', value='acc', unit='icv', ax=ax)
-#                    # Add chance level line and stimulus segments.
-#                    plot.add_chance_level_line(ax=ax)
-#                    plot.plot_segments(constants.stim_prds, t_unit=None, ax=ax)
-#                    # Format plot.
-#                    plot.set_limits(ylim=[0, 1], ax=ax)
-#                    plot.set_labels(xlab=plot.t_lbl, ylab='decoding accuracy',
-#                                    title=title, ax=ax)
-#                    ax.legend(title=None, bbox_to_anchor=(1., 0),
-#                              loc='lower right', borderaxespad=0.)
-#
-#
-#                # TODO: debug this!
-#                # Plot unit weights over time.
-#                if plot_weights:
-#                    ax = axs_wght[irec, itask]
-#                    Weights_long = pd.melt(Weights.T, value_vars=list(Weights.index),
-#                                           value_name='weight', var_name='time')
-#                    Weights_long['cuidx'] = int(Weights_long.shape[0] / Weights.shape[1]) * list(Weights.columns)
-#                    sns.tsplot(Weights_long, time='time', value='weight', unit='idx',
-#                               condition='cuidx', ax=ax)
-#                    # Add chance level line and stimulus segments.
-#                    plot.add_chance_level_line(ylevel=0, ax=ax)
-#                    plot.plot_segments(constants.stim_prds, t_unit=None, ax=ax)
-#                    # Format plot.
-#                    plot.set_labels(xlab=plot.t_lbl, ylab='unit weight',
-#                                    title=title, ax=ax)
-#                    ax.legend(title=None, bbox_to_anchor=(1., 0),
-#                              loc='lower right', borderaxespad=0.)
-#
-#        # Save plots.
-#        fname_postfix = '{}_ncv_{}_noffs_{}_w{}_err.png'.format(nrate, ncv, len(offsets),
-#                                                                '' if sep_err_trs else 'o')
-#        title_postfix = ('\n\nDecoding preferred vs anti {} with offsets: {}'.format(feature_name, off_str) +
-#                         '\nFR: {}, error trials {}excluded'.format(nrate, '' if sep_err_trs else 'not ') +
-#                         '\nLogistic regression with {}-fold CV'.format(ncv))
-#
-#        # Performance.
-#        if plot_perf:
-#            title = 'Prediction accuracy' + title_postfix
-#            fname = 'results/decoding/LogRegress/prediction_accuracy/' + fname_postfix
-#            plot.save_gsp_figure(fig_perf, gsp_perf, fname, title,
-#                                 rect_height=0.88, w_pad=3, h_pad=3)
-#
-#        # Weights.
-#        if plot_weights:
-#            title = 'Unit weights' + title_postfix
-#            fname = 'results/decoding/LogRegress/unit_weights/' + fname_postfix
-#            plot.save_gsp_figure(fig_wght, gsp_wght, fname, title,
-#                                 rect_height=0.88, w_pad=3, h_pad=3)
