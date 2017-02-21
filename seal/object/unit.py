@@ -423,7 +423,8 @@ class Unit:
 
         elif nrate not in self._Rates:
             warnings.warn('Rate name: ' + str(nrate) + ' not found in unit.')
-            self.init_nrate()  # return default (or first available) rate name
+            # Return default (or first available) rate name.
+            nrate = self._Rates.index[0]
 
         return nrate
 
