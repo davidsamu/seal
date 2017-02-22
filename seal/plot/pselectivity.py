@@ -325,19 +325,37 @@ def plot_selectivity(u, fig=None, sps=None):
     if not u.to_plot():
         return
 
+    # Check which stimulus parameters were variable. Don't plot selectivity for
+    # variables that were kept constant.
+    stims = ('S1', 'S2')
+    # Location.
+    s1locs, s2locs = [u.TrData[(stim, 'Loc')].unique() for stim in stims]
+    plot_lr = False if (len(s1locs) == 1) and (len(s2locs) == 1) else True
+    # Direction.
+    s1dirs, s2dirs = [u.TrData[(stim, 'Dir')].unique() for stim in stims]
+    plot_dr = False if (len(s1dirs) == 1) and (len(s2dirs) == 1) else True
+
     # Init subplots.
+    nsps = 1 + plot_lr + plot_dr  # all trials + location sel + direction sel
     sps, fig = putil.sps_fig(sps, fig)
-    gsp = putil.embed_gsp(sps, 3, 1, hspace=0.3, height_ratios=[1, 1, 1])
-    tr_sps, lr_sps, dr_sps = gsp
+    gsp = putil.embed_gsp(sps, nsps, 1, hspace=0.3)
 
     # Plot task-relatedness.
-    plot_all_trials(u, tr_sps, fig)
+    plot_all_trials(u, gsp[0], fig)
+    igsp = 1
 
     # Plot location-specific activity.
-    _, lr_rate_axs, _ = plot_LR(u, lr_sps, fig)
+    if plot_lr:
+        _, lr_rate_axs, _ = plot_LR(u, gsp[1], fig)
+        igsp = igsp + 1
+    else:
+        lr_rate_axs = None
 
     # Plot direction-specific activity.
-    _, dr_rate_axs, _ = plot_DR(u, dr_sps, fig)
+    if plot_dr:
+        _, dr_rate_axs, _ = plot_DR(u, gsp[igsp], fig)
+    else:
+        dr_rate_axs = None
 
     return lr_rate_axs, dr_rate_axs
 

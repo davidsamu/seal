@@ -11,13 +11,12 @@ from seal.util import util
 from seal.plot import putil, pselectivity
 
 
-
 # Figure size constants
 subw = 7
 w_pad = 50
 
 
-def DR_plot(UA, ftempl=None, match_scales=False):
+def DR_plot(UA, ftempl=None, match_scales=True):
     """Plot responses to all 8 directions and polar plot in the center."""
 
     # Init plotting theme.
@@ -59,7 +58,7 @@ def DR_plot(UA, ftempl=None, match_scales=False):
             putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=w_pad)
 
 
-def selectivity_summary(UA, ftempl=None, match_scales=False):
+def selectivity_summary(UA, ftempl=None, match_scales=True):
     """Test unit responses within trails."""
 
     # Init plotting theme.
