@@ -8,10 +8,17 @@ Functions to plot raster and rate plots.
 
 import numpy as np
 
+from matplotlib.patches import Rectangle
+from matplotlib.collections import PatchCollection
+
 from quantities import ms
 
 from seal.util import util
 from seal.plot import putil
+
+
+# Spike marker size for raster plots.
+wsp, hsp = 1, .8  # vertical bar
 
 
 def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None, max_len=None):
@@ -116,7 +123,7 @@ def raster_rate(spk_list, rate_list, names=None, prds=None, evts=None,
     return fig, raster_axs, rate_ax
 
 
-def raster(spk_trains, t_unit=ms, prds=None, size=1.8, c='b', xlim=None,
+def raster(spk_trains, t_unit=ms, prds=None, c='b', xlim=None,
            title=None, xlab=None, ylab=None, ffig=None, ax=None):
     """Plot rasterplot."""
 
@@ -132,9 +139,17 @@ def raster(spk_trains, t_unit=ms, prds=None, size=1.8, c='b', xlim=None,
 
     # Plot raster.
     for i, spk_tr in enumerate(spk_trains):
-        x = spk_tr.rescale(t_unit)
+        x = np.array(spk_tr.rescale(t_unit))
         y = (i+1) * np.ones_like(x)
-        ax.scatter(x, y, c=c, s=size, edgecolor=c, marker='|')
+
+        # Spike markers are plotted in absolute size (figure coordinates).
+        # ax.scatter(x, y, c=c, s=1.8, edgecolor=c, marker='|')
+
+        # Spike markers are plotted in relate size (axis coordinates)
+        patches = [Rectangle((xi-wsp/2, yi-hsp/2), wsp, hsp)
+                   for xi, yi in zip(x, y)]
+        collection = PatchCollection(patches, facecolor=c, edgecolor=c)
+        ax.add_collection(collection)
 
     # Format plot.
     ylim = [0.5, len(spk_trains)+0.5] if len(spk_trains) else [0, 1]
