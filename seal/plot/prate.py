@@ -134,7 +134,7 @@ def raster(spk_trains, t_unit=ms, prds=None, size=1.8, c='b', xlim=None,
     for i, spk_tr in enumerate(spk_trains):
         x = spk_tr.rescale(t_unit)
         y = (i+1) * np.ones_like(x)
-        ax.scatter(x, y, c=c, s=size, edgecolor=c)
+        ax.scatter(x, y, c=c, s=size, edgecolor=c, marker='|')
 
     # Format plot.
     ylim = [0.5, len(spk_trains)+0.5] if len(spk_trains) else [0, 1]
