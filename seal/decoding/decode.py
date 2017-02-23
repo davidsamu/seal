@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
-from seal.util import util
+from seal.util import util, ua_query
 
 # For reproducable (deterministic) results.
 seed = None
@@ -32,7 +32,7 @@ def run_logreg(X, y, cv_obj=None, ncv=5, multi_class=None, solver=None, Cs=10):
     """
 
     # Remove missing values from data.
-    idx = np.logical_and(np.all(~np.isnan(X), 1), [iy is not None for iy in y])
+    idx = np.logical_and(np.all(~np.isnan(X), 1), ~np.isnan(y))
     X, y = X[idx], y[idx]
 
     # Init data params.
@@ -127,6 +127,75 @@ def run_logreg_across_time(rates, vfeat, corr_trs=None, ncv=5):
     Coefs = pd.concat(coef_ser, axis=1)
 
     return Scores, Coefs, C
+
+
+def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev, nrate,
+                    sep_err_trs, ncv):
+    """Run logistic regression analysis on population for time period."""
+
+    # Get target vector.
+    TrData = ua_query.get_trial_params(UA, rec, task)
+    vfeat = TrData.loc[trs].copy()[sfeat].squeeze()
+
+    # Get FR matrix.
+    rates = ua_query.get_rate_matrix(UA, rec, task, uids, prd,
+                                     ref_ev, nrate, trs)
+
+    # Separate correct trials from error trials, if requested.
+    corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
+
+    # Run decoding.
+    Scores, Coefs, C = run_logreg_across_time(rates, vfeat, corr_trs, ncv)
+
+    return Scores, Coefs, C, vfeat
+
+
+def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, sep_err_trs, ncv):
+    """Run population decoding on multiple periods across the trials."""
+
+    lScores, lCoefs, lC, lnclasses = [], [], [], []
+    stims = prd_pars.index
+    for stim in stims:
+        print('    ' + stim)
+
+        prd, ref_ev, sfeat = prd_pars.loc[stim, ['prd', 'ref_ev', 'feat']]
+
+        # Run decoding.
+        try:
+            res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev,
+                                  nrate, sep_err_trs, ncv)
+            Scores, Coefs, C, vfeat = res
+            lScores.append(Scores)
+            lCoefs.append(Coefs)
+            lC.append(C)
+            lnclasses.append(len(vfeat))
+        except:
+            print('Decoding {} - {} - {} failed'.format(rec, task,
+                                                        stim))
+            continue
+
+    # No successfully decoded stimulus period.
+    if not len(lScores):
+        print('No stimulus period decoding finished successfully.')
+        return
+
+    # Concatenate stimulus-specific results.
+    rem_all_nan_units, rem_any_nan_times = True, True
+    offsets = list(prd_pars.stim_start)
+    truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
+                     for stim in stims]
+
+    res = [util.concat_stim_prd_res(r, offsets, truncate_prds,
+                                    rem_all_nan_units, rem_any_nan_times)
+           for r in (lScores, lCoefs, lC)]
+    Scores, Coefs, C = res
+
+    # Prepare results.
+    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
+                'nunits': len(uids), 'ntrials': len(vfeat),
+                'nvals': lnclasses, 'prd_pars': prd_pars}
+
+    return res_dict
 
 
 # %% Utility functions for getting file names, and import / export data.

@@ -10,8 +10,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from seal.util import util
-
 
 def get_DSInfo_table(UA, utids=None):
     """Return data frame with direction selectivity information."""
