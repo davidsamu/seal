@@ -27,7 +27,6 @@ unitarray / unit
 
 permutation tests
 -----------------
-  - consider using Numba
   - identify p-value based on false positive rate during fixation
 
 
