@@ -30,11 +30,6 @@ permutation tests
   - identify p-value based on false positive rate during fixation
 
 
-spikes and rates
-----------------
-  - returning excluded trials should be made impossible in some way!
-
-
 unit
 ----
   - add RF coverage information

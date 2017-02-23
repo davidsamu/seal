@@ -25,8 +25,27 @@ verbose = True
 
 # %% Core decoding functions.
 
-def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, multi_class=None,
-               solver=None, Cs=None, class_weight='balanced'):
+def fit_LRCV(LRCV, X, y):
+    """
+    Fit cross-validated logistic regression model on data and return results.
+    """
+
+    LRCV.fit(X, y)
+
+    # Get results for best fit.
+    classes = LRCV.classes_
+    C = LRCV.C_[0]   # should be the same for all classes (as refit=True)
+
+    # Prediction score of each CV fold.
+    i_best = np.where(LRCV.Cs_ == C)[0][0]  # index of reg. giving best result
+    # Scores should be the same across different classes (multinomial case).
+    score = LRCV.scores_[list(LRCV.scores_.keys())[0]][:, i_best].squeeze()
+
+    return classes, C, score
+
+
+def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
+               multi_class=None, solver=None, class_weight='balanced'):
     """
     Run logistic regression with number of cross-validation folds (ncv) and
     internal regularization over a number of regularisation parameters (Cs).
@@ -72,44 +91,22 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, multi_class=None,
     if Cs is None:
         Cs = [1]   # no regularisation by default
 
+    # Create LogRegress solver.
+    LRCV = LogisticRegressionCV(solver=solver, Cs=Cs, cv=cv_obj,
+                                multi_class=multi_class, refit=True,
+                                class_weight=class_weight)
+
     # Fit logistic regression.
-    sc=[]
-    for i in range(10):
-        print(i)
-        LRCV = LogisticRegressionCV(solver=solver, Cs=Cs, cv=cv_obj,
-                                    multi_class=multi_class, refit=True,
-                                    class_weight=class_weight)
-        LRCV.fit(X, y)
-
-        # Get results for best fit.
-        classes = [list(LRCV.scores_.keys())[0]] if binary else LRCV.classes_
-        C = LRCV.C_[0]   # should be the same for all classes (as refit=True)
-
-        # Prediction score of each CV fold.
-        i_best = np.where(LRCV.Cs_ == C)[0][0]  # index of reg. giving best result
-        # Scores should be the same across different classes (multinomial case).
-        score = LRCV.scores_[classes[0]][:, i_best].squeeze()
-
-        sc.append(score)
-    np.array(sc).mean()
+    classes, C, score = fit_LRCV(LRCV, X, y)
 
     # Coefficients (weights) of features by predictors.
     coef = LRCV.coef_
 
     # Run decoding on rate matrix with trials shuffled within units.
-    pshfl_score = []
-    for i in range(n_pshfl):
+    score_shfld = np.array([fit_LRCV(LRCV, pop_shfl(X, y), y)[2]
+                            for i in range(n_pshfl)])
 
-        Xpshfld = pop_shfl(X, y)
-        # TODO: move this to separate function along with above?
-        LRCV.fit(Xpshfld, y)
-        # Prediction score of each CV fold.
-        classes = [list(LRCV.scores_.keys())[0]] if binary else LRCV.classes_
-        i_best = np.where(LRCV.Cs_ == LRCV.C_[0])[0][0]
-        pss = LRCV.scores_[classes[0]][:, i_best].squeeze()
-        pshfl_score.append(pss.mean())
-
-    return score, coef, C, classes, pshfl_score
+    return score, coef, C, classes, score_shfld
 
 
 def pop_shfl(X, y):
@@ -129,7 +126,8 @@ def pop_shfl(X, y):
 
 # %% Wrappers to run decoding over time and different stimulus periods.
 
-def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None, ncv=5):
+def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None,
+                           ncv=5, Cs=10):
     """Run logistic regression analysis across trial time."""
 
     # Correct and error trials and targets.
@@ -151,10 +149,10 @@ def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None, ncv=5):
     for t, rt in rates.items():
         rtmat = rt.unstack().T
         corr_rates, err_rates = [rtmat.loc[trs] for trs in [corr_trs, err_trs]]
-        LRparams.append((corr_rates, corr_feat, n_pshfl, None, ncv))
+        LRparams.append((corr_rates, corr_feat, n_pshfl, None, ncv, Cs))
         uids.append(rtmat.columns)
 
-    Scores, Coefs, C, Classes, PshflScore = zip(*util.run_in_pool(run_logreg,
+    Scores, Coefs, C, Classes, ShfldScore = zip(*util.run_in_pool(run_logreg,
                                                                   LRparams))
 
     # Put results into series and dataframes.
@@ -169,14 +167,17 @@ def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None, ncv=5):
                 for i, t in enumerate(tvec)}
     Coefs = pd.concat(coef_ser, axis=1)
     # Population shuffled score.
-    pd.DataFrame.from_records(PshflScore, index=tvec).T
-    PshflScore
+    if n_pshfl:
+        ShfldScore = np.array(ShfldScore).reshape(-1, n_pshfl*ncv)
+        ShfldScore = pd.DataFrame.from_records(ShfldScore, index=tvec).T
+    else:
+        ShfldScore = None
 
-    return Scores, Coefs, C, PshflScore
+    return Scores, Coefs, C, ShfldScore
 
 
 def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev, nrate,
-                    n_pshfl, sep_err_trs, ncv):
+                    n_pshfl, sep_err_trs, ncv, Cs):
     """Run logistic regression analysis on population for time period."""
 
     # Get target vector.
@@ -191,17 +192,16 @@ def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev, nrate,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
-    Scores, Coefs, C = run_logreg_across_time(rates, vfeat, n_pshfl,
-                                              corr_trs, ncv)
+    res = run_logreg_across_time(rates, vfeat, n_pshfl, corr_trs, ncv, Cs)
 
-    return Scores, Coefs, C, vfeat
+    return res
 
 
 def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
-                sep_err_trs, ncv):
+                sep_err_trs, ncv, Cs):
     """Run population decoding on multiple periods across the trials."""
 
-    lScores, lCoefs, lC, lnclasses = [], [], [], []
+    lScores, lCoefs, lC, lShfldScores = [], [], [], []
     stims = prd_pars.index
     for stim in stims:
         print('    ' + stim)
@@ -211,15 +211,14 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         # Run decoding.
         try:
             res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev,
-                                  nrate, n_pshfl, sep_err_trs, ncv)
-            Scores, Coefs, C, vfeat = res
+                                  nrate, n_pshfl, sep_err_trs, ncv, Cs)
+            Scores, Coefs, C, ShfldScores = res
             lScores.append(Scores)
             lCoefs.append(Coefs)
             lC.append(C)
-            lnclasses.append(len(vfeat))
+            lShfldScores.append(ShfldScores)
         except:
-            print('Decoding {} - {} - {} failed'.format(rec, task,
-                                                        stim))
+            print('Decoding {} - {} - {} failed'.format(rec, task, stim))
             continue
 
     # No successfully decoded stimulus period.
@@ -235,13 +234,12 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
     res = [util.concat_stim_prd_res(r, offsets, truncate_prds,
                                     rem_all_nan_units, rem_any_nan_times)
-           for r in (lScores, lCoefs, lC)]
-    Scores, Coefs, C = res
+           for r in (lScores, lCoefs, lC, lShfldScores)]
+    Scores, Coefs, C, ShfldScores = res
 
     # Prepare results.
-    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
-                'nunits': len(uids), 'ntrials': len(vfeat),
-                'nvals': lnclasses, 'prd_pars': prd_pars}
+    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C, 'nunits': len(uids),
+                'ntrials': len(trs), 'prd_pars': prd_pars}
 
     return res_dict
 
