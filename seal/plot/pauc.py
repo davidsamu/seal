@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Functions to area under the curve (AUC) values over time.
+Functions to plot area under the curve (AUC) values over time.
 
 @author: David Samu
 """

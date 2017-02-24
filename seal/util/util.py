@@ -574,7 +574,7 @@ def init_stim_prds(stims, feat, tr_prds, prds=None, ref_ev=None):
     return pars
 
 
-def concat_stim_prd_res(res_list, offsets=None, truncate_prds=None,
+def concat_stim_prd_res(res_list, tshifts=None, truncate_prds=None,
                         remove_all_nan_units=True, remove_any_nan_times=True):
     """Concatenate stimulus period results."""
 
@@ -586,9 +586,9 @@ def concat_stim_prd_res(res_list, offsets=None, truncate_prds=None,
         res_list = [pd.DataFrame(res).T for res in res_list]
 
     # Offset time points (columns).
-    if offsets is not None and len(offsets):
-        for i, offset in enumerate(offsets):
-            res_list[i].columns = res_list[i].columns + offset
+    if tshifts is not None and len(tshifts):
+        for i, tshift in enumerate(tshifts):
+            res_list[i].columns = res_list[i].columns + tshift
 
     # Truncate to provided time period.
     if truncate_prds is not None and len(truncate_prds):
