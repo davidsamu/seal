@@ -91,10 +91,10 @@ def kernel_set(kpars):
 
 # %% Predefined example kernel sets.
 
-R100_kernel = kernel_set([('R100', 10*ms)])
-G20_kernel = kernel_set([('G20', 10*ms)])
-RG_kernels = kernel_set([('G20', 10*ms), ('R100', 10*ms)])
-R2G2_kernels = kernel_set([('G20', 10*ms), ('G40', 10*ms),
-                           ('R100', 10*ms), ('R200', 10*ms)])
-shrtR_kernels = kernel_set([('R50', 10*ms), ('R75', 10*ms), ('R100', 10*ms)])
-lngR_kernels = kernel_set([('R100', 10*ms), ('R200', 10*ms), ('R500', 10*ms)])
+R100_kernel = kernel_set([('R100', kstep)])
+G20_kernel = kernel_set([('G20', kstep)])
+RG_kernels = kernel_set([('G20', kstep), ('R100', kstep)])
+R2G2_kernels = kernel_set([('G20', kstep), ('G40', kstep),
+                           ('R100', kstep), ('R200', kstep)])
+shrtR_kernels = kernel_set([('R50', kstep), ('R75', kstep), ('R100', kstep)])
+lngR_kernels = kernel_set([('R100', kstep), ('R200', kstep), ('R500', kstep)])
