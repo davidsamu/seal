@@ -10,6 +10,10 @@ import warnings
 import numpy as np
 import pandas as pd
 
+from seal.util import kernels
+
+
+# %% Query methods.
 
 def get_DSInfo_table(UA, utids=None):
     """Return data frame with direction selectivity information."""
@@ -18,13 +22,12 @@ def get_DSInfo_table(UA, utids=None):
     if utids is None:
         utids = UA.utids()
 
+    # Test direction selectivity.
+    test_DS(UA)
+
     DSInfo = []
     for utid in utids:
         u = UA.get_unit(utid[:3], utid[3])
-
-        # Test DS if it has not been tested yet.
-        if not len(u.DS):
-            u.test_DS()
 
         # Get DS info.
         PD = u.DS.PD.cPD[('S1', 'max')]
@@ -101,3 +104,19 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None):
     Spikes = pd.concat(spike_dict, axis=1).T
 
     return Spikes
+
+
+# %% Manipulation methods.
+
+def add_rate(UA, name):
+    """Add rate to units in UnitArray."""
+
+    kernel, step = kernels.kernel_set([(name, kernels.kstep)]).loc[name]
+    [u.add_rate(name, kernel, step) for u in UA.iter_thru()
+     if name not in u._Rates]
+
+
+def test_DS(UA):
+    """Test DS if it has not been tested yet."""
+
+    [u.test_DS() for u in UA.iter_thru() if not len(u.DS)]
