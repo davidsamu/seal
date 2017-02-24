@@ -554,13 +554,18 @@ def add_quant_col(df, col, colname):
 
 # %% Functions to init and handle analysis of multiple stimulus periods.
 
-def init_stim_prds(stims, feat, tr_prds, prds=None, ref_ev=None):
+def init_stim_prds(stims, feat, cond, zscore, tr_prds, prds=None, ref_ev=None):
     """Initialize stimulus periods to be analyzed."""
 
     pars = pd.DataFrame(index=stims)
+
+    # Stimulus feature parameters.
     pars['feat'] = [(stim, feat) if feat in constants.stim_feats else feat
                     for stim in stims]
+    pars['cond'] = [cond for stim in stims]
+    pars['zscore'] = zscore
 
+    # Time period parameters.
     pars['prd'] = [stim + ' half' for stim in stims] if prds is None else prds
     pars['ref_ev'] = ([stim + ' on' for stim in stims]
                       if ref_ev is None else ref_ev)
