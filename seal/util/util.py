@@ -579,7 +579,11 @@ def concat_stim_prd_res(res_list, tshifts=None, truncate_prds=None,
     """Concatenate stimulus period results."""
 
     # Make a copy of input data.
-    res_list = [res.copy() for res in res_list]
+    res_list = [res.copy() for res in res_list if res is not None]
+
+    # Is there any data to concatenate?
+    if not len(res_list):
+        return
 
     # Convert Series to DataFrame.
     if isinstance(res_list[0], pd.Series):

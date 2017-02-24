@@ -15,6 +15,12 @@ from seal.plot import putil
 from seal.util import util, constants
 
 
+tlab = 'Time since S1 onset (ms)'
+ylab_scr = 'decoding accuracy'
+tlim = [-1000, 3500]
+ylim_scr = [0, 1]
+
+
 def plot_scores(Scores, ax=None, time='time', value='score', unit='fold',
                 color='b'):
     """Plot decoding scores over time as time series."""
@@ -30,15 +36,15 @@ def plot_scores(Scores, ax=None, time='time', value='score', unit='fold',
 
 
 def plot_decoding_res(ax, Scores, ShfldScores, nvals=None, prds=None,
-                      xlim=None, ylim=[0, 1], xlab='time',
-                      ylab='decoding accuracy', title='', ytitle=1.04):
+                      xlim=None, ylim=ylim_scr, xlab=tlab,
+                      ylab=ylab_scr, title='', ytitle=1.04):
     """Plot decoding accuracy results."""
 
     # Plot scores.
     plot_scores(Scores, ax, color='b')
 
     # Plot shuffled scores.
-    if not ShfldScores.isnull().all().all():
+    if (ShfldScores is not None) and not ShfldScores.isnull().all().all():
         plot_scores(ShfldScores, ax, color='g')
 
         # Add legend.
@@ -63,7 +69,7 @@ def plot_decoding_res(ax, Scores, ShfldScores, nvals=None, prds=None,
     putil.set_labels(ax, xlab, ylab, title, ytitle)
 
 
-def plot_weights(ax, Coefs, prds=None, xlim=None, xlab='time',
+def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
                  ylab='unit coefficient', title='', ytitle=1.04):
     """Plot decoding weights."""
 
@@ -151,16 +157,13 @@ def plot_scores_weights(recs, tasks, stims, feat, res_dir, nrate,
                                                         nunits, ntrials)
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
                     for stim in prd_pars.index]
-            xlab = putil.t_lbl.format('S1 onset')
-            xlim = [-1000, 3500]
-            ylim = [0, 1]
 
             # Plot decoding accuracy.
             plot_decoding_res(ax_scr, Scores, ShfldScores, nvals,
-                              prds, xlim, ylim, xlab, title=title)
+                              prds, tlim, ylim_scr, tlab, title=title)
 
             # Plot unit weights over time.
-            plot_weights(ax_wgt, Coefs, prds, xlim, xlab, title=title)
+            plot_weights(ax_wgt, Coefs, prds, tlim, tlab, title=title)
 
     # Match axes across decoding plots.
     # [putil.sync_axes(axs_scr[:, itask], sync_y=True)
@@ -208,6 +211,7 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, res_dir, nrate,
     fig_scr, _, axs_scr = ret
 
     dict_lScores = {}
+    print('\nPlotting multi-recording results...')
     for itask, task in enumerate(tasks):
         print('    ' + task)
         for irec, rec in enumerate(recs):
@@ -248,26 +252,28 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, res_dir, nrate,
         ytitle = 1.0
         prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
                 for stim in prd_pars.index]
-        xlab = putil.t_lbl.format('S1 onset')
-        xlim = [-1000, 3500]
-        ylim = [0, 1]
 
         # Plot time series.
         ax_scr = axs_scr[0, itask]
         palette = sns.color_palette('muted')
         sns.tsplot(all_lScores, time='time', value='score', unit='fold',
                    condition='rec', color=palette, ax=ax_scr)
-        # Add chance level line and stimulus periods.
-        for nval in nvals:  # This should plot the same line at the moment.
-            chance_lvl = 1.0 / nval
+
+        # Add chance level line.
+        # This currently plots all nvals combined across stimulus period!
+        if nvals is not None:
+            chance_lvl = 1.0 / nvals
             putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
-        putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
-        putil.plot_periods(prds, ax=ax_scr)
+
+        # Add stimulus periods.
+        if prds is not None:
+            putil.plot_periods(prds, ax=ax_scr)
+
         # Set axis limits.
-        putil.set_limits(ax_scr, xlim, ylim)
+        putil.set_limits(ax_scr, tlim, ylim_scr)
+
         # Format plot.
-        ylab = 'decoding accuracy'
-        putil.set_labels(ax_scr, xlab, ylab, title, ytitle)
+        putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
     # Save plots.
     title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
