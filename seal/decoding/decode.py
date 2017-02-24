@@ -53,7 +53,7 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
 
     # Remove missing values from data.
     idx = np.logical_and(np.all(~np.isnan(X), 1), [yi is not None for yi in y])
-    X, y = X[idx], y[idx]
+    X, y = np.array(X[idx]), np.array(y[idx])
 
     # Init data params.
     classes, vcounts = np.unique(y, return_counts=True)
@@ -64,18 +64,19 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
     score = np.nan * np.zeros(ncv)
     coef = np.nan * np.zeros((nclasses, nfeatures))
     C = np.nan
+    score_shfld = np.nan * np.zeros((n_pshfl, ncv))
 
     # Check that there's at least two classes.
     if nclasses < 2:
         if verbose:
             warnings.warn('Number of different values in y is less then 2!')
-        return score, coef, C, classes
+        return score, coef, C, classes, score_shfld
 
     # Check that we have enough trials to split into folds during CV.
     if np.any(vcounts < ncv):
         if verbose:
             warnings.warn('Not enough trials to split into folds during CV')
-        return score, coef, C, classes
+        return score, coef, C, classes, score_shfld
 
     # Init LogRegCV parameters.
     binary = (nclasses == 2)
@@ -113,9 +114,11 @@ def pop_shfl(X, y):
     """Return X predictors shuffled within columns for each y level."""
 
     ncols = X.shape[1]
-    Xc = np.array(X).copy()
+    Xc = X.copy()
+
     # For trials corresponding to given y value.
-    for v, idxs in y.index.groupby(y).items():
+    for v in np.unique(y):
+        idxs = np.where(y == v)[0]
         # For each column (predictor) independently.
         for ifeat in range(ncols):
             # Shuffle trials of predictor (feature).
@@ -141,7 +144,7 @@ def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None,
     if (vcounts < ncv).any():
         if verbose:
             warnings.warn('Not enough trials to do decoding with CV')
-        return None, None, None, None, None
+        return
 
     # Run logistic regression at each time point.
     LRparams = []
@@ -151,7 +154,6 @@ def run_logreg_across_time(rates, vfeat, n_pshfl=0, corr_trs=None,
         corr_rates, err_rates = [rtmat.loc[trs] for trs in [corr_trs, err_trs]]
         LRparams.append((corr_rates, corr_feat, n_pshfl, None, ncv, Cs))
         uids.append(rtmat.columns)
-
     Scores, Coefs, C, Classes, ShfldScore = zip(*util.run_in_pool(run_logreg,
                                                                   LRparams))
 
@@ -209,17 +211,17 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         prd, ref_ev, sfeat = prd_pars.loc[stim, ['prd', 'ref_ev', 'feat']]
 
         # Run decoding.
-        try:
-            res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev,
-                                  nrate, n_pshfl, sep_err_trs, ncv, Cs)
-            Scores, Coefs, C, ShfldScores = res
-            lScores.append(Scores)
-            lCoefs.append(Coefs)
-            lC.append(C)
-            lShfldScores.append(ShfldScores)
-        except:
-            print('Decoding {} - {} - {} failed'.format(rec, task, stim))
-            continue
+#        try:
+        res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, prd, ref_ev,
+                              nrate, n_pshfl, sep_err_trs, ncv, Cs)
+        Scores, Coefs, C, ShfldScores = res
+        lScores.append(Scores)
+        lCoefs.append(Coefs)
+        lC.append(C)
+        lShfldScores.append(ShfldScores)
+#        except:
+#            print('Decoding {} - {} - {} failed'.format(rec, task, stim))
+#            continue
 
     # No successfully decoded stimulus period.
     if not len(lScores):
@@ -228,17 +230,18 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
     # Concatenate stimulus-specific results.
     rem_all_nan_units, rem_any_nan_times = True, True
-    offsets = list(prd_pars.stim_start)
+    tshifts = list(prd_pars.stim_start)
     truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
                      for stim in stims]
 
-    res = [util.concat_stim_prd_res(r, offsets, truncate_prds,
+    res = [util.concat_stim_prd_res(r, tshifts, truncate_prds,
                                     rem_all_nan_units, rem_any_nan_times)
            for r in (lScores, lCoefs, lC, lShfldScores)]
     Scores, Coefs, C, ShfldScores = res
 
     # Prepare results.
-    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C, 'nunits': len(uids),
+    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
+                'ShfldScores': ShfldScores, 'nunits': len(uids),
                 'ntrials': len(trs), 'prd_pars': prd_pars}
 
     return res_dict
@@ -251,7 +254,7 @@ def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs):
 
     feat_str = util.format_to_fname(str(feat))
     ncv_str = 'ncv_{}'.format(ncv)
-    pshfl_str = 'np_shfl_{}'.format(n_pshfl)
+    pshfl_str = 'npshfl_{}'.format(n_pshfl)
     err_str = 'w{}_err'.format('o' if sep_err_trs else '')
     fres = '{}{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate,
                                           ncv_str, pshfl_str, err_str)
@@ -275,7 +278,7 @@ def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs):
     err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
     pshfl_str = '# population shuffles: {}'.format(n_pshfl)
     title = ('Decoding {}\n'.format(feat_str) + cv_str +
-             'FR kernel: {}, {}, {}\n'.format(nrate, err_str, pshfl_str))
+             '\nFR kernel: {}, {}, {}\n'.format(nrate, err_str, pshfl_str))
 
     return title
 
