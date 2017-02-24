@@ -96,8 +96,8 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
     putil.hide_legend(ax)
 
 
-def plot_scores_weights(recs, tasks, stims, feat, res_dir, nrate,
-                        ncv, n_pshfl, sep_err_trs):
+def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
+                        nrate, ncv, n_pshfl, sep_err_trs):
     """
     Plot prediction scores and model weights for given recording and analysis.
     """
@@ -106,7 +106,8 @@ def plot_scores_weights(recs, tasks, stims, feat, res_dir, nrate,
     putil.set_style('notebook', 'ticks')
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, constants.fixed_tr_prds)
+    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+                                   constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
                             sep_err_trs)
     rt_res = util.read_objects(fres, 'rt_res')
@@ -151,6 +152,8 @@ def plot_scores_weights(recs, tasks, stims, feat, res_dir, nrate,
             ntrials = res['ntrials']
             # prd_pars = res['prd_pars']
             nvals = len(Coefs.index.get_level_values(1).unique())
+            if nvals == 1:  # binary case
+                nvals = 2
 
             # Plot decoding results.
             title = '{} {}, {} units, {} trials'.format(rec, task,
@@ -188,8 +191,8 @@ def plot_scores_weights(recs, tasks, stims, feat, res_dir, nrate,
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_score_weight_multi_rec(recs, tasks, stims, feat, res_dir, nrate,
-                                ncv, n_pshfl, sep_err_trs):
+def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
+                                res_dir, nrate, ncv, n_pshfl, sep_err_trs):
     """
     Plot prediction scores and model weights of analysis for multiple
     recordings.
@@ -199,7 +202,8 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, res_dir, nrate,
     putil.set_style('notebook', 'ticks')
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, constants.fixed_tr_prds)
+    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+                                   constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
                             sep_err_trs)
     rt_res = util.read_objects(fres, 'rt_res')
@@ -231,6 +235,8 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, res_dir, nrate,
             # ntrials = res['ntrials']
             # prd_pars = res['prd_pars']
             nvals = len(Coefs.index.get_level_values(1).unique())
+            if nvals == 1:  # binary case
+                nvals = 2
 
             # Plot accuracy over time.
             # Unstack dataframe with results.

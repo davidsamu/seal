@@ -154,6 +154,14 @@ def zscore_by_cond(X, vcond):
     return Xc
 
 
+def separate_by_cond(X, vcond):
+    """Separate rate values by condition levels."""
+
+    Xsep = [X.loc[idxs, :] for v, idxs in X.index.groupby(vcond).items()]
+
+    return Xsep
+
+
 # %% Wrappers to run decoding over time and different stimulus periods.
 
 def run_logreg_across_time(rates, vfeat, vcond=None, zscore=False, n_pshfl=0,
