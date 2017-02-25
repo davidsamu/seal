@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from seal.util import kernels
+from seal.object import unitarray
 
 
 # %% Query methods.
@@ -102,6 +103,7 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None):
                                                             ref_ts)
                   for u in UA.iter_thru([task], uids)}
     Spikes = pd.concat(spike_dict, axis=1).T
+    Spikes.index.set_names(unitarray.utid_names, inplace=True)
 
     return Spikes
 

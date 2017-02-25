@@ -190,6 +190,14 @@ fixed_tr_prds = [('whole trial', (-1000*ms, 3500*ms)),  # ***
 fixed_tr_prds = pd.DataFrame.from_items(fixed_tr_prds,
                                         ['start', 'stop'], 'index')
 
+classic_tr_prds = [('fixation', ('S1 on',)),
+                   ('S1', ('S1 on',)),
+                   ('delay', ('S1 on',)),
+                   ('S2', ('S2 on',)),
+                   ('post-S2', ('S2 on',))]
+classic_tr_prds = pd.DataFrame.from_items(classic_tr_prds,
+                                          ['ref_ev'], 'index')
+
 
 # %% Constants related to firing rate estimation.
 

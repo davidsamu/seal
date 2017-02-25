@@ -678,6 +678,15 @@ def embed_gsp(outer_gsp, nrow, ncol, **kwargs):
     return sub_gsp
 
 
+def sps_add_axes(fig, sps, nrow, ncol, **kwargs):
+    """Add axes to SubplotSpec."""
+
+    gsp = embed_gsp(sps, nrow, ncol)
+    axes = [fig.add_subplot(sub_gsp, **kwargs) for sub_gsp in gsp]
+
+    return axes
+
+
 # %% Functions to save figure.
 
 def save_fig(ffig, fig=None, title=None, ytitle=0.98, fs_title='xx-large',
