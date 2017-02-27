@@ -77,7 +77,7 @@ def get_unit_info_title(u, fullname=False):
              ('mWfDur', 'Wf dur: {:.0f} $\mu$s'),
              ('Fac/Sup', '{}'),
              ('mFR', 'mean rate: {:.1f} sp/s'),
-             ('baseline', 'baseline: {:.1f} sp/s')]
+             ('baseline', 'baseline rate: {:.1f} sp/s')]
     fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
              for meas, f in fpars]
     fvals = util.series_from_tuple_list(fvals)
@@ -105,7 +105,7 @@ def get_unit_info_title(u, fullname=False):
 
     # Firing rate.
     # Facilitatory or suppressive?
-    info_lines += '{}, {}\n\n'.format(fvals['mFR'], fvals['baseline'])
+    info_lines += '{}\n\n'.format(fvals['baseline'])
     #info_lines += '{}, {}, {}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
     #                                      fvals['baseline'])
 
@@ -691,7 +691,7 @@ def sps_add_axes(fig, sps, nrow, ncol, **kwargs):
 
 def save_fig(ffig, fig=None, title=None, ytitle=0.98, fs_title='xx-large',
              rect_height=None, border=0.03, pad=1.0, h_pad=None, w_pad=None,
-             dpi=150, bbox_extra_artists=None, close=True, **kwargs):
+             dpi=300, bbox_extra_artists=None, close=True, **kwargs):
     """Save composite (GridSpec) figure to file."""
 
     # Init figure and folder to save figure into.

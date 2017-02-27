@@ -349,13 +349,13 @@ def plot_selectivity(u, fig=None, sps=None):
         _, lr_rate_axs, _ = plot_LR(u, gsp[1], fig)
         igsp = igsp + 1
     else:
-        lr_rate_axs = None
+        lr_rate_axs = []
 
     # Plot direction-specific activity.
     if plot_dr:
         _, dr_rate_axs, _ = plot_DR(u, gsp[igsp], fig)
     else:
-        dr_rate_axs = None
+        dr_rate_axs = []
 
     return lr_rate_axs, dr_rate_axs
 

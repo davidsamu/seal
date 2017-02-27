@@ -153,7 +153,7 @@ def format_to_fname(s):
 def join(str_list):
     """Join list of strings as file path."""
 
-    path = os.join(str_list)
+    path = os.path.join(*str_list)
     return path
 
 
