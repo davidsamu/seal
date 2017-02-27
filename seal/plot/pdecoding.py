@@ -21,8 +21,8 @@ tlim = [-1000, 3500]
 ylim_scr = [0, 1]
 
 
-def plot_scores(Scores, ax=None, time='time', value='score', unit='fold',
-                color='b'):
+def plot_score_set(Scores, ax=None, time='time', value='score', unit='fold',
+                   color='b'):
     """Plot decoding scores over time as time series."""
 
     # Prepare data
@@ -32,24 +32,25 @@ def plot_scores(Scores, ax=None, time='time', value='score', unit='fold',
     lScores.index = np.arange(len(lScores.index))
 
     # Plot as time series.
-    sns.tsplot(lScores, time=time, value=value, unit=unit, color=color, ax=ax)
+    sns.tsplot(lScores, time=time, value=value,
+               unit=unit, color=color, ax=ax)
 
 
-def plot_decoding_res(ax, Scores, ShfldScores, nvals=None, prds=None,
-                      xlim=None, ylim=ylim_scr, xlab=tlab,
-                      ylab=ylab_scr, title='', ytitle=1.04):
+def plot_scores(ax, Scores, ShfldScores, nvals=None, prds=None, col='b',
+                shflcol='g', xlim=None, ylim=ylim_scr, xlab=tlab,
+                ylab=ylab_scr, title='', ytitle=1.04):
     """Plot decoding accuracy results."""
 
     # Plot scores.
-    plot_scores(Scores, ax, color='b')
+    plot_score_set(Scores, ax, color=col)
 
     # Plot shuffled scores.
     if (ShfldScores is not None) and not ShfldScores.isnull().all().all():
-        plot_scores(ShfldScores, ax, color='g')
+        plot_score_set(ShfldScores, ax, color=shflcol)
 
         # Add legend.
-        lgn_patches = [putil.get_artist('synchronous', 'b'),
-                       putil.get_artist('pseudo-population', 'g')]
+        lgn_patches = [putil.get_artist('synchronous', col),
+                       putil.get_artist('pseudo-population', shflcol)]
         putil.set_legend(ax, handles=lgn_patches)
 
     # Add chance level line.
@@ -109,7 +110,7 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs)
+                            sep_err_trs, cond)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figures.
@@ -135,35 +136,44 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
             ax_wgt = axs_wgt[irec, itask]
 
             # Check if any result exists for rec-task combination.
-            if (rec, task) not in rt_res.keys():
-                print('{} - {} not found in results, skipping.'.format(rec,
-                                                                       task))
+            if (((rec, task) not in rt_res.keys()) or
+               (not len(rt_res[(rec, task)].keys()))):
+                print('No result found for {} - {}.'.format(rec, task))
+
                 ax_scr.axis('off')
                 ax_wgt.axis('off')
                 continue
 
             # Init data.
             res = rt_res[(rec, task)]
-            Scores = res['Scores']
-            Coefs = res['Coefs']
-            # C = res['C']
-            ShfldScores = res['ShfldScores']
-            nunits = res['nunits']
-            ntrials = res['ntrials']
-            # prd_pars = res['prd_pars']
-            nvals = len(Coefs.index.get_level_values(1).unique())
-            if nvals == 1:  # binary case
-                nvals = 2
+            cols = sns.color_palette('hls', len(res.keys()))
 
-            # Plot decoding results.
-            title = '{} {}, {} units, {} trials'.format(rec, task,
-                                                        nunits, ntrials)
+            for v, col in zip(res.keys(), cols):
+                vres = res[v]
+                Scores = vres['Scores']
+                Coefs = vres['Coefs']
+                # C = vres['C']
+                ShfldScores = vres['ShfldScores']
+                nunits = vres['nunits']
+                # ntrials = vres['ntrials']
+                # prd_pars = vres['prd_pars']
+                nvals = len(Coefs.index.get_level_values(1).unique())
+                if nvals == 1:  # binary case
+                    nvals = 2
+
+                # Plot decoding accuracy.
+                plot_scores(ax_scr, Scores, ShfldScores, col=col)
+
+            # Add labels.
+            title = '{} {}, {} units'.format(rec, task, nunits)
+            putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle=1.04)
+
+            # Add chance level line and stimulus periods.
+            chance_lvl = 1.0 / nvals
+            putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
                     for stim in prd_pars.index]
-
-            # Plot decoding accuracy.
-            plot_decoding_res(ax_scr, Scores, ShfldScores, nvals,
-                              prds, tlim, ylim_scr, tlab, title=title)
+            putil.plot_periods(prds, ax=ax_scr)
 
             # Plot unit weights over time.
             plot_weights(ax_wgt, Coefs, prds, tlim, tlab, title=title)
@@ -173,24 +183,25 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     #  for itask in range(axs_scr.shape[1])]
 
     # Save plots.
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
+    title = decode.fig_title(res_dir, feat, nrate, ncv,
+                             n_pshfl, sep_err_trs, cond)
     fs_title = 'large'
     ytitle = 1.05
     w_pad, h_pad = 3, 3
 
     # Performance.
     ffig = decode.fig_fname(res_dir + 'score_', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs)
+                            sep_err_trs, cond)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
     ffig = decode.fig_fname(res_dir + 'weight_', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs)
+                            sep_err_trs, cond)
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
-
+# TODO: update this
 def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
                                 res_dir, nrate, ncv, n_pshfl, sep_err_trs):
     """
@@ -205,10 +216,10 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
     prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs)
+                            sep_err_trs, cond)
     rt_res = util.read_objects(fres, 'rt_res')
 
-    # Create figures.
+    # Create figure.
     # For prediction scores.
     ret = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
                                 subw=8, subh=6, create_axes=True)
@@ -221,8 +232,9 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
         for irec, rec in enumerate(recs):
 
             # Check if results exist for rec-task combination.
-            if (rec, task) not in rt_res.keys():
-                print('{} - {} not found, skipping.'.format(rec, task))
+            if (((rec, task) not in rt_res.keys()) or
+               (not len(rt_res[(rec, task)].keys()))):
+                print('No result found for {} - {}.'.format(rec, task))
                 continue
 
             # Init data.
@@ -281,13 +293,11 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
         # Format plot.
         putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
-    # Save plots.
+    # Save figure.
     title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
     fs_title = 'large'
     ytitle = 1.10
     w_pad, h_pad = 3, 3
-
-    # Performance.
     ffig = decode.fig_fname(res_dir + 'all_scores_', feat, nrate, ncv, n_pshfl,
                             sep_err_trs)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,

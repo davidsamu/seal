@@ -116,7 +116,7 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     return roc_res
 
 
-def run_unit_ROC_over_time(u, prd, ref, trs, nrate, n_perm, verbose):
+def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, n_perm, verbose):
     """Run ROC analysis of unit over time. Suitable for parallelization."""
 
     # Report progress.
@@ -128,8 +128,8 @@ def run_unit_ROC_over_time(u, prd, ref, trs, nrate, n_perm, verbose):
     ref_ts = u.ev_times(ref)
 
     # Calculate AROC on rates.
-    rates1, rates2 = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts)
-                      for tr in trs]
+    rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts)
+                      for trs in trs_list]
     aroc_res = run_ROC_over_time(rates1, rates2, n_perm)
 
     return aroc_res
@@ -157,9 +157,9 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
 
 # %% Meta-functions to run and plot AROC over a different trial periods.
 
-def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings, n_perm, nrate,
-              fres, verbose=True, rem_all_nan_units=True,
-              rem_any_nan_times=True):
+def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings,
+              n_perm, nrate, fres, verbose=True,
+              rem_all_nan_units=True, rem_any_nan_times=True):
     """Calculate and plot AROC over time between specified sets of trials."""
 
     aroc_list, pval_list = [], []

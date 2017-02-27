@@ -150,6 +150,15 @@ def format_to_fname(s):
     return fname
 
 
+def format_feat_name(feat, to_fname=False):
+    """Format feature name to string."""
+
+    feat_str = ', '.join(feat) if is_iterable(feat) else feat
+    if to_fname:
+        feat_str = format_to_fname(feat_str)
+    return feat_str
+
+
 def join(str_list):
     """Join list of strings as file path."""
 

@@ -52,7 +52,8 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
     """
 
     # Remove missing values from data.
-    idx = np.logical_and(np.all(~np.isnan(X), 1), [yi is not None for yi in y])
+    idx = np.logical_and(np.all(~np.isnan(X), 1),
+                         [yi is not None for yi in y])
     X, y = np.array(X[idx]), np.array(y[idx])
 
     # Init data params.
@@ -294,44 +295,48 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
 # %% Utility functions for getting file names, and import / export data.
 
-def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs):
+def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
     """Return full path to decoding result with given parameters."""
 
     feat_str = util.format_to_fname(str(feat))
     ncv_str = 'ncv_{}'.format(ncv)
     pshfl_str = 'npshfl_{}'.format(n_pshfl)
     err_str = 'w{}_err'.format('o' if sep_err_trs else '')
-    fres = '{}{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate,
-                                          ncv_str, pshfl_str, err_str)
+    cond_str = ('by_'+util.format_feat_name(cond, True)
+                if cond is not None else 'uncond')
+    fres = '{}{}_{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate, ncv_str,
+                                             pshfl_str, err_str, cond_str)
     return fres
 
 
-def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, ext='png'):
+def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+              ext='png'):
     """Return full path to decoding result with given parameters."""
 
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
+    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond)
     ffig = os.path.splitext(fres)[0] + '.' + ext
-
     return ffig
 
 
-def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs):
+def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
     """Return title for decoding result figure with given parameters."""
 
     feat_str = util.format_to_fname(str(feat))
     cv_str = 'Logistic regression with {}-fold CV'.format(ncv)
     err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
     pshfl_str = '# population shuffles: {}'.format(n_pshfl)
+    cond_str = ('' if cond is None else
+                'conditioned by ' + util.format_feat_name(cond, True))
     title = ('Decoding {}\n'.format(feat_str) + cv_str +
-             '\nFR kernel: {}, {}, {}\n'.format(nrate, err_str, pshfl_str))
-
+             '\nFR kernel: {}, {}, {}, {}\n'.format(nrate, err_str,
+                                                    pshfl_str, cond_str))
     return title
 
 
-def load_res(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs):
+def load_res(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
     """Load decoding results."""
 
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
+    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond)
     dec_res = util.read_objects(fres, ['Scores', 'Coefs', 'C'])
 
     return dec_res
