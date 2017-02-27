@@ -150,6 +150,13 @@ def format_to_fname(s):
     return fname
 
 
+def join(str_list):
+    """Join list of strings as file path."""
+
+    path = os.join(str_list)
+    return path
+
+
 def date_to_str(datetime):
     """Convert and return datetime object to string."""
 

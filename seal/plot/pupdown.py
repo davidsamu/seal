@@ -14,7 +14,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
 
 from seal.plot import putil, pplot
-from seal.util import constants
+from seal.util import constants, util
 
 
 # Plotting params.
@@ -88,7 +88,8 @@ def plot_up_down_raster(Spikes, task, rec, itrs):
     putil.set_spines(ax, True, False, False, False)
 
     # Save figure.
-    ffig = 'results/UpDown/UpDown_dynamics_{}_{}.pdf'.format(rec, task)
+    fname = 'UpDown_dynamics_{}_{}.pdf'.format(rec, task)
+    ffig = util.join(['results', 'UpDown', fname])
     putil.save_fig(ffig, fig, dpi=600)
 
 
@@ -158,6 +159,7 @@ def plot_spike_count_results(bspk_cnts, rec, task, prds, binsize):
 
     # Save figure.
     title = '{} {}, binsize: {} ms'.format(rec, task, int(binsize))
-    ffig = ('results/UpDown/UpDown_spk_cnt_hist_' +
-            '{}_{}_bin_{}.png'.format(rec, task, int(binsize)))
+    fname = 'UpDown_spk_cnt_hist_{}_{}_bin_{}.png'.format(rec, task,
+                                                          int(binsize))
+    ffig = util.join(['results', 'UpDown', fname])
     putil.save_fig(ffig, fig, title, ytitle=1.1)

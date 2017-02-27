@@ -157,7 +157,7 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
     """Run quality control (SNR, rate drift, ISI, etc) on each recording."""
 
     # Data directory with all recordings to be processed in subfolders.
-    rec_data_dir = data_dir + 'recordings/'
+    rec_data_dir = data_dir + 'recordings'
 
     # Init combined UnitArray object.
     combUA = unitarray.UnitArray(proj_name, task_order)
@@ -173,18 +173,17 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
         # Report progress.
         print('  ' + recording)
 
-        # Init folders.
-        rec_dir = rec_data_dir + recording + '/'
-        seal_dir = rec_dir + 'SealCells/'
-        qc_dir = rec_dir + 'quality_control/'
+        # Init folder.
+        rec_dir = util.join([rec_data_dir, recording])
+        qc_dir = util.join([rec_dir, 'quality_control'])
 
         # Read in Units.
-        f_data = seal_dir + recording + '.data'
+        f_data = util.join([rec_dir, 'SealCells', recording+'.data'])
         UA = util.read_objects(f_data, 'UnitArr')
 
         # Test unit quality, save result figures, add stats to units and
         # exclude low quality trials and units.
-        ftempl = qc_dir + 'quality_metrics/{}.png'
+        ftempl = util.join([qc_dir, 'QC_plots', '{}.png'])
         quality_test(UA, ftempl, plot_qm, fselection)
 
         # Report unit exclusion stats.
@@ -193,7 +192,7 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
         # Test stability of recording session across tasks.
         if plot_stab:
             print('  Plotting recording stability...')
-            fname = qc_dir + 'recording_stability.png'
+            fname = util.join([qc_dir, 'recording_stability.png'])
             test_stability.rec_stability_test(UA, fname)
 
         # Add to combined UA.
@@ -204,18 +203,18 @@ def quality_control(data_dir, proj_name, task_order, plot_qm=True,
 
     # Save Units with quality metrics added.
     print('\nExporting combined UnitArray...')
-    fname = data_dir + '/all_recordings.data'
+    fname = util.join([data_dir, 'all_recordings.data'])
     util.write_objects({'UnitArr': combUA}, fname)
 
     # Export unit and trial selection results.
     if fselection is None:
         print('Exporting automatic unit and trial selection results...')
-        fname = data_dir + '/unit_trial_selection.xlsx'
+        fname = util.joint([data_dir, 'unit_trial_selection.xlsx'])
         export.export_unit_trial_selection(combUA, fname)
 
     # Export unit list.
     print('Exporting combined unit list...')
-    export.export_unit_list(combUA, data_dir + '/unit_list.xlsx')
+    export.export_unit_list(combUA, util.join([data_dir, 'unit_list.xlsx']))
 
     # Re-enable inline plotting
     putil.inline_on()

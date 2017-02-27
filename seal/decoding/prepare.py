@@ -21,7 +21,8 @@ from seal.analysis import direction
 min_n_units = 5           # minimum number of units to keep (0: off)
 min_n_trs_per_unit = 5    # minimum number of trials per unit to keep (0: off)
 
-fres = 'results/decoding/prepare/unit_trial_selection.data'
+fres = util.join(['results', 'decoding', 'prepare',
+                  'unit_trial_selection.data'])
 
 
 # %% Unit and trial selection.
@@ -315,7 +316,7 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
     # Save plot.
     title = 'Population direction selectivity'
     if ffig is None:
-        ffig = 'results/decoding/prepare/DS_test.png'
+        ffig = util.join(['results', 'decoding', 'prepare', 'DS_test.png'])
     putil.save_fig(ffig, fig, title, ytitle=1.1, w_pad=10)
 
     return DSInfo
@@ -393,7 +394,7 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
     if save_plot:
         title = 'Trial type distribution'
         if fname is None:
-            fname = ('results/decoding/prepare/' + par_str +
-                     '_trial_type_distr.png')
+            fname = util.join(['results', 'decoding', 'prepare',
+                               par_str + '_trial_type_distr.png'])
 
         putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)

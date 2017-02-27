@@ -219,9 +219,10 @@ def aroc_res_fname(res_dir, nrate, n_perm, offsets):
     """Return full path to AROC result with given parameters."""
 
     offset_str = '_'.join([str(int(d)) for d in offsets])
-    fres = '{}res/{}_nperm_{}_offs_{}.data'.format(res_dir, nrate,
-                                                   n_perm, offset_str)
-    return fres
+    fname = '{}_nperm_{}_offs_{}.data'.format(nrate, n_perm, offset_str)
+    fpath = util.join([res_dir+'res', fname])
+
+    return fpath
 
 
 def aroc_fig_fname(res_dir, prefix, offsets, cmap, sort_prd=None):
@@ -230,8 +231,9 @@ def aroc_fig_fname(res_dir, prefix, offsets, cmap, sort_prd=None):
     sort_prd_str = ('sorted_by_' + util.format_to_fname(sort_prd)
                     if sort_prd is not None else 'unsorted')
     ostr = 'offset_' + '_'.join([str(int(d)) for d in offsets])
-    ffig = '{}heatmap/{}/{}/AROC_{}_{}.png'.format(res_dir, ostr, cmap,
-                                                   prefix, sort_prd_str)
+    fname = 'AROC_{}_{}.png'.format(prefix, sort_prd_str)
+    ffig = util.join([res_dir+'heatmap', ostr, cmap, fname])
+
     return ffig
 
 
@@ -254,7 +256,8 @@ def aroc_table_fname(res_dir, monkey, task, nrate, n_perm, offsets,
     ftable = ('{}_nperm_{}_offs_{}'.format(nrate, n_perm, ostr) +
               '_prd_{}_min_len_{}_pth_{}'.format(sort_prd, int(min_len), pth) +
               '_vth_hi_{}_vth_lo_{}'.format(vth_hi, vth_lo))
-    ftable = res_dir + 'tables/' + util.format_to_fname(ftable) + '.xlsx'
+    ftable = util.join([res_dir+'tables',
+                        util.format_to_fname(ftable)+'.xlsx'])
     return ftable
 
 

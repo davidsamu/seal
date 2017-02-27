@@ -7,6 +7,8 @@ for different sets of trials or trial periods.
 @author: David Samu
 """
 
+import os
+
 from seal.util import util
 from seal.plot import putil, pselectivity
 
@@ -99,7 +101,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=True):
             putil.save_fig(fname, fig, title, ytitle=1.00, w_pad=w_pad)
 
 
-def plot_response(fseal_combined, responseplot_dir,
+def plot_response(fseal_combined, resp_plot_dir,
                   plot_DR=True, plot_sel=True):
     """Plot basic unit activity figures."""
 
@@ -107,8 +109,8 @@ def plot_response(fseal_combined, responseplot_dir,
     putil.inline_off()
 
     # Init folders.
-    ftempl_dr = responseplot_dir + 'direction_response/{}.png'
-    ftempl_sel = responseplot_dir + 'stimulus_selectivity/{}.png'
+    ftempl_dr = os.path.join(resp_plot_dir, 'direction_response', '{}.png')
+    ftempl_sel = os.path.join(resp_plot_dir, 'stimulus_selectivity', '{}.png')
 
     # Read in Units.
     print('  Reading in UnitArray...')
