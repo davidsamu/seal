@@ -35,6 +35,6 @@
 - Select sorted file (output of above section) and press 'Split' button in toolbar.
 - Select ‘Split into Multiple PLX Files’, then ‘All Channels’, then ‘By Frames’.
 - Set output folder and file name in next window.
-  - Folder should be: ..\Split\Merged (see [folder structure conventions](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Data%20folder%20structure%20conventions.md))
+  - Folder should be: ..\Sorted (see [folder structure conventions](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Data%20folder%20structure%20conventions.md))
   - Accept suggested file name without any change.
 - Click 'Finish'.
