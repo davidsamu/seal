@@ -13,8 +13,6 @@ from seal.plot import putil, pselectivity
 
 # Figure size constants
 subw = 7
-w_pad = 50
-
 
 def DR_plot(UA, ftempl=None, match_scales=True):
     """Plot responses to all 8 directions and polar plot in the center."""
@@ -54,8 +52,8 @@ def DR_plot(UA, ftempl=None, match_scales=True):
         if ftempl is not None:
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
-            fname = ftempl.format(uid_str)
-            putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=w_pad)
+            ffig = ftempl.format(uid_str)
+            putil.save_fig(ffig, fig, title, ytitle=1.05)
 
 
 def selectivity_summary(UA, ftempl=None, match_scales=True):
@@ -95,8 +93,8 @@ def selectivity_summary(UA, ftempl=None, match_scales=True):
         if ftempl is not None:
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
-            fname = ftempl.format(uid_str)
-            putil.save_fig(fname, fig, title, ytitle=1.00, w_pad=w_pad)
+            ffig = ftempl.format(uid_str)
+            putil.save_fig(ffig, fig, title, ytitle=1.00)
 
 
 def plot_response(f_sealcombined, resp_plot_dir,
