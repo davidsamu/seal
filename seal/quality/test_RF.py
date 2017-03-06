@@ -8,6 +8,7 @@ Functions related to receptive field cleanness and coverage.
 import warnings
 
 import numpy as np
+import scipy as sp
 import pandas as pd
 
 
@@ -56,32 +57,42 @@ def get_RF_mapping_results(recs, best_rec=True):
     return RFres
 
 
+# %% Exclude units with low RF coverage.
 
+def exclude_uncovered_units(UA):
+    """Exclude units from UnitArray with low RF coverage."""
 
+    # Get RF mapping results.
+    RFres = get_RF_mapping_results(UA.recordings())
 
+    # For each unit (channel) test distance of each stimulus location
+    # from RF center.
+    nstart = len(UA.utids())
+    for u in UA.iter_thru():
 
+        # Get results of unit.
+        rec, ch, idx = u.get_uid()
+        uidx = (RFres.recording == rec) & (RFres.channel == ch)
+        rfres = RFres.loc[uidx].squeeze()
+        x, y, FWHM, R2 = rfres[['cntr_x', 'cntr_y', 'FWHM', 'R2']]
 
+        # Get stimulus center locations.
+        stims = ('S1', 'S2')
+        s1locs, s2locs = [list(u.TrData[(stim, 'Loc')].unique())
+                          for stim in stims]
 
+        # Calculate distance of RF center from each stimulus.
+        dists = np.array([sp.spatial.distance.euclidean([x, y], stimloc)
+                          for stimloc in s1locs + s2locs])
 
+        # Exclude unit if it has a strong RF away from all stimulus presented
+        # and has low DS.
+        if R2 > 0.5 and np.all(dists > FWHM) and u.DS.DSI.mDS.max() < 0.3:
+            u.set_excluded(True)
 
+    # Report some stats on unit exclusion.
+    nexc = nstart - len(UA.utids())
+    pexc = int(100*nexc/nstart)
+    print('Excluded {}/{} ({}%) of all units'.format(nexc, nstart, pexc))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return UA

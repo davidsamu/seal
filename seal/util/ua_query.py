@@ -131,6 +131,17 @@ def add_rate(UA, name):
      if name not in u._Rates]
 
 
+def test_DS_frecs(frecs):
+    """Test DS of list of recordings."""
+
+    print('Testing DS...')
+    for frec in frecs:
+        print(frec)
+        UA = util.read_objects(frec, 'UnitArr')
+        test_DS(UA)
+        util.write_objects({'UnitArr': UA}, frec)
+
+
 def test_DS(UA):
     """Test DS if it has not been tested yet."""
 
