@@ -14,6 +14,7 @@ from seal.plot import putil, pselectivity
 # Figure size constants
 subw = 7
 
+
 def DR_plot(UA, ftempl=None, match_scales=True):
     """Plot responses to all 8 directions and polar plot in the center."""
 

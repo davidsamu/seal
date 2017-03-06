@@ -10,8 +10,21 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from seal.util import kernels
+from seal.util import kernels, util
 from seal.object import unitarray
+
+
+# %% Init methods.
+
+def create_UA_from_recs(frecs, ua_name='UA'):
+    """Create combined UnitArray from multiple recordings."""
+
+    UA = unitarray.UnitArray(ua_name)
+    for frec in frecs:
+        rUA = util.read_objects(frec, 'UnitArr')
+        UA.add_recording(rUA)
+
+    return UA
 
 
 # %% Query methods.
