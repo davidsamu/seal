@@ -40,8 +40,11 @@ def get_DSInfo_table(UA, utids=None):
     test_DS(UA)
 
     DSInfo = []
-    for utid in utids:
-        u = UA.get_unit(utid[:3], utid[3])
+    for u in UA.iter_thru():
+
+        utid = tuple(u.get_utid())
+        if utid not in utids:
+            continue
 
         # Get DS info.
         PD = u.DS.PD.cPD[('S1', 'max')]
@@ -95,7 +98,7 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None):
 
 
 def get_rate_matrix(UA, rec, task, uids, prd, ref_ev, nrate, trs=None):
-    """Return rate matrix across ."""
+    """Return rate matrix across units and periods."""
 
     t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs)
     rates = {u.Name: u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts)
@@ -119,6 +122,22 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None):
     Spikes.index.set_names(unitarray.utid_names, inplace=True)
 
     return Spikes
+
+
+def get_prd_mean_rates(UA, tasks, prd, nrate, max_len=None):
+    """Return mean rates per unit during period in DataFrame."""
+
+    mrates = {}
+    for u in UA.iter_thru(tasks):
+        t1s, t2s = u.pr_times(prd, concat=False)
+        trs = u.inc_trials()
+        mrates[u.Name] = u._Rates[nrate].get_rates(trs, t1s, t2s, t1s).mean()
+    rates = pd.concat(mrates, axis=1).T
+
+    if max_len is not None:
+        rates = rates.loc[:, rates.columns <= max_len]
+
+    return rates
 
 
 # %% Manipulation methods.
