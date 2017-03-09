@@ -71,7 +71,7 @@ def exclude_uncovered_units(UA):
     for u in UA.iter_thru():
 
         # Get results of unit.
-        rec, ch, idx = u.get_uid()
+        rec, ch, idx, task = u.get_utid()
         uidx = (RFres.recording == rec) & (RFres.channel == ch)
         rfres = RFres.loc[uidx].squeeze()
         x, y, FWHM, R2 = rfres[['cntr_x', 'cntr_y', 'FWHM', 'R2']]
@@ -85,9 +85,12 @@ def exclude_uncovered_units(UA):
         dists = np.array([sp.spatial.distance.euclidean([x, y], stimloc)
                           for stimloc in s1locs + s2locs])
 
-        # Exclude unit if it has a strong RF away from all stimulus presented
-        # and has low DS.
-        if R2 > 0.5 and np.all(dists > FWHM) and u.DS.DSI.mDS.max() < 0.3:
+        # Exclude unit if
+        # 1) it has a strong RF away from all stimulus presented, and
+        # 2) it has low DS during task and
+        # 3) task is not Remote task
+        if (R2 > 0.5 and np.all(dists > FWHM) and u.DS.DSI.mDS.max() < 0.3 and
+           'Rem' not in task):
             u.set_excluded(True)
 
     # Report some stats on unit exclusion.

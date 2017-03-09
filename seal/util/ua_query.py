@@ -29,7 +29,7 @@ def create_UA_from_recs(frecs, ua_name='UA'):
 
 # %% Query methods.
 
-def get_DSInfo_table(UA, utids=None):
+def get_DSInfo_table(UA, utids=None, stim='S1'):
     """Return data frame with direction selectivity information."""
 
     # Init.
@@ -47,8 +47,8 @@ def get_DSInfo_table(UA, utids=None):
             continue
 
         # Get DS info.
-        PD = u.DS.PD.cPD[('S1', 'max')]
-        DSI = u.DS.DSI.mDS.S1
+        PD = u.DS.PD.cPD[(stim, 'max')]
+        DSI = u.DS.DSI.mDS[stim]
 
         DSInfo.append((utid, (PD, DSI)))
 
@@ -165,3 +165,31 @@ def test_DS(UA):
     """Test DS if it has not been tested yet."""
 
     [u.test_DS() for u in UA.iter_thru() if not len(u.DS)]
+
+
+def exclude_low_DS(UA, dsi_th=0.3, stims=None):
+    """Exclude units with low DS."""
+
+    if stims is None:
+        stims = ['S1', 'S2']
+    nstart = len(UA.utids())
+
+    # Get DS results.
+    DSs = {stim: get_DSInfo_table(UA, None, stim) for stim in stims}
+    DSs = pd.concat(DSs, axis=1)
+
+    # Threshold DSI across stimuli.
+    th_dsi = [DSs[(stim, 'DSI')] > dsi_th for stim in stims]
+    to_inc = pd.concat(th_dsi, axis=1).any(1)
+
+    # Exclude below threshold DSI units.
+    for u in UA.iter_thru():
+        to_exclude = not to_inc[tuple(u.get_utid())]
+        u.set_excluded(to_exclude)
+
+    # Report exclusion stats.
+    nexc = nstart - len(UA.utids())
+    pexc = int(100*nexc/nstart)
+    print('Excluded {}/{} ({}%) of all units'.format(nexc, nstart, pexc))
+
+    return UA

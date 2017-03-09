@@ -185,15 +185,13 @@ def format_pvalue(pval, max_digit=4):
         pstr = 'p < 0.001'
     elif pval < 0.01 and max_digit >= 3:
         pstr = 'p = {:.3f}'.format(pval)
-    elif pval < 0.10:
-        pstr = 'p = {:.2f}'.format(pval)
     else:
-        pstr = 'p > 0.10'
+        pstr = 'p = {:.2f}'.format(pval)
 
     return pstr
 
 
-def star_pvalue(pval, n_max_stars=4):
+def star_pvalue(pval, n_max_stars=4, equal=''):
     """Format a p-value into a number of *** stars."""
 
     if pval < 10**-4 and n_max_stars >= 4:
@@ -205,7 +203,7 @@ def star_pvalue(pval, n_max_stars=4):
     elif pval < 0.05:
         pstr = '*'
     else:
-        pstr = '='
+        pstr = equal
 
     return pstr
 
