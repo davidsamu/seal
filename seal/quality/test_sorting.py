@@ -32,11 +32,11 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 ISI_TH = 1.0*ms               # ISI violation threshold
 MAX_DRIFT_PCT = 200           # maximum tolerable drift percentage (max/min FR)
 MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
-MIN_TASK_RELATED_DUR = 50*ms  # minimum window length of task related activity
+MIN_TASK_RELATED_DUR = 100*ms  # minimum window length of task related activity
 
 # Constants related to unit exclusion.
 min_SNR = 1.0           # min. SNR
-min_FR = 1.0            # min. firing rate (sp/s)
+min_FR = 5.0            # min. firing rate (sp/s)
 max_ISIvr = 1.0         # max. ISI violation ratio (%)
 min_n_trs = 20          # min. number of trials (in case monkey quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
@@ -280,7 +280,7 @@ def calc_baseline_rate(u):
     return base_rate
 
 
-def test_task_relatedness(u, p=0.01, test='wilcoxon'):
+def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
     """Test if unit has task related activity."""
 
     # Init.
@@ -292,17 +292,19 @@ def test_task_relatedness(u, p=0.01, test='wilcoxon'):
     baseline = util.remove_dim_from_series(u.get_prd_rates('baseline'))
 
     # Init periods and trials sets to test.
-    prds_trs = [('S1', [('S1', 'early delay', 'late delay'), ('Dir', 'Loc')]),
-                ('S2', [('S2', 'post-S2'), ('Dir', 'Loc')])]
+    feats = ('Dir', 'Loc')
+    prds_trs = [('S1', [('S1', 'early delay', 'late delay'), feats]),
+                ('S2', [('S2', 'post-S2'), feats])]
     prds_trs = pd.DataFrame.from_items(prds_trs, orient='index',
                                        columns=['prds', 'trpars'])
 
     # Go through each stimulus, period and trial parameter to be tested.
     sign_prds = []
+    mean_rates = []
     for stim, (prds, trpars) in prds_trs.iterrows():
 
         for prd in prds:
-            t1s, t2s = u.pr_times(prd, add_latency=True, concat=False)
+            t1s, t2s = u.pr_times(prd, add_latency=False, concat=False)
 
             for par in trpars:
                 ptrs = u.trials_by_param((stim, par))
@@ -317,22 +319,34 @@ def test_task_relatedness(u, p=0.01, test='wilcoxon'):
                     base_rates = pd.DataFrame(base_rates, index=trbs.index,
                                               columns=rates.columns)
 
-                    # Run test at each time sample across period.
+                    # Run test at each time point across period
+                    # and return significant periods with minimum length.
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore')
                         sprds = stats.sign_periods(rates, base_rates, p, test,
                                                    MIN_TASK_RELATED_DUR)
-                    sign_prds.append(((stim, prd, par, pval), sprds))
+                    sign_prds.append(((stim, prd, par, str(pval)), sprds))
+
+                    # Mean rate.
+                    mrate = rates.mean().mean()
+                    mean_rates.append(((stim, prd, par, str(pval)), mrate))
+
+    # Format results.
+    names = ['stim', 'prd', 'par', 'vpar']
+    sign_prds, mean_rates = [util.series_from_tuple_list(res, names)
+                             for res in (sign_prds, mean_rates)]
 
     # Save results to unit.
-    u.TaskRelPrds = util.series_from_tuple_list(sign_prds)
-    u.TaskRelPrds.pval = p
-    u.TaskRelPrds.test = test
+    u.PrdParTests = pd.concat([mean_rates, sign_prds], axis=1,
+                              keys=['mean_rates', 'sign_prds'])
+    u.PrdParTests.pval = p
+    u.PrdParTests.test = test
 
     # Is there any task- (stimulus-parameter-) related period?
-    is_task_related = u.sign_prds.map(len).any()
+    has_min_rate = (u.PrdParTests.mean_rates > min_FR).any()
+    is_task_related = u.PrdParTests.sign_prds.map(len).any()
 
-    return is_task_related
+    return has_min_rate, is_task_related
 
 
 # %% Calculate quality metrics, and find trials and units to be excluded.
@@ -390,22 +404,22 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     # SNR.
     snr = calc_snr(waveforms[spk_inc])
 
-    # Firing rate.
-    mean_rate = np.sum(spk_inc) / float(t2_inc-t1_inc)
-
     # ISI statistics.
     ISIvr, true_spikes = isi_stats(np.array(spk_times[spk_inc])*s)
     isolation = is_isolated(snr, true_spikes)
 
+    # Minimum firing rate and task-related activity.
+    has_min_rate, is_task_related = test_task_relatedness(u)
+
     # Add quality metrics to unit.
     u.QualityMetrics['SNR'] = snr
     u.QualityMetrics['mWfDur'] = u.SpikeParams.duration[spk_inc].mean()
-    u.QualityMetrics['mFR'] = mean_rate
     u.QualityMetrics['ISIvr'] = ISIvr
     u.QualityMetrics['TrueSpikes'] = true_spikes
     u.QualityMetrics['isolation'] = isolation
     u.QualityMetrics['baseline'] = calc_baseline_rate(u)
-    u.QualityMetrics['TaskRelated'] = test_task_relatedness(u)
+    u.QualityMetrics['has_min_rate'] = has_min_rate
+    u.QualityMetrics['task_related'] = is_task_related
 
     # Run unit exclusion test.
     if include is None:
@@ -431,9 +445,6 @@ def test_rejection(u):
     # Extremely low waveform consistency (SNR).
     test_passed['SNR'] = qm['SNR'] > min_SNR
 
-    # Extremely low unit activity (FR).
-    test_passed['FR'] = qm['mFR'] > min_FR
-
     # Extremely high ISI violation ratio (ISIvr).
     test_passed['ISI'] = qm['ISIvr'] < max_ISIvr
 
@@ -444,8 +455,11 @@ def test_rejection(u):
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_ratio
 
+    # Extremely low unit activity (FR).
+    test_passed['has_min_rate'] = qm['has_min_rate']
+
     # Not task-related.
-    test_passed['TaskRelated'] = qm['TaskRelated']
+    test_passed['task_related'] = qm['task_related']
 
     # Include unit if all criteria met.
     include = test_passed.all()

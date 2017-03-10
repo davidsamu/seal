@@ -388,14 +388,20 @@ def find_nearest(arr, v):
     return nearest
 
 
-def series_from_tuple_list(tuple_list):
+def series_from_tuple_list(tuple_list, mi_names=None):
     """Create Pandas series from list of (name, value) tuples."""
 
     if not len(tuple_list):
         return pd.Series()
 
+    # Create Series from list of tuples.
     sp_names, sp_vals = zip(*tuple_list)
     series = pd.Series(sp_vals, index=sp_names)
+
+    # Format index to MultiIndex.
+    if mi_names is not None:
+        series.index = pd.MultiIndex.from_tuples(series.index,
+                                                 names=mi_names)
 
     return series
 
