@@ -19,16 +19,17 @@ Included/excluded trials can later be modified manually by editing the unit sele
 
 ## Unit rejection
 
-The goal is to remove units that do not show elementary properties to be meaningfully analysed. This is mostly the result of low quality recording, e.g. strong drifts in firing rate or inseparable, noisy multi-unit activity.
+The goal is to remove units that do not show elementary properties necessary for analysis. This is mostly the result of issues with recording or spike sorting, e.g. strong drifts in firing rate, inseparable, noisy multi-unit activity or unaccaptably low firing rate.
 
-The metrics referred below are calculated for the duration of the entire task, but excluding the trials rejected above. Temporal changes in some of them are checked and taken into account during trial rejection above.
+The metrics below are calculated after excluding the strongly drifting trials (see above).
 
 Any unit that does not pass any of the below criteria is excluded:
 
 1. Waveform consistency: SNR > 1.
-2. Unit activity: Firing rate > 1 spikes / second.
-3. ISI violation ratio: ISI v.r. < 1%.
-4. Total number of trials: total # trials > 20 (in case monkey quit at beginning of recording)
-5. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
+2. ISI violation ratio: ISI v.r. < 1%.
+3. Total number of trials: total # trials > 20 (in case monkey quit at beginning of recording)
+4. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
+5. Sufficient activity: Mean firing rate > 5 sp/s for at least one direction during any part of the trial (S1, delay, S2 or post-S2).
+6. Task-related activity: There exists a minimum 100 ms period in any part of the trial (S1, delay, S2 or post-S2), when the firing rate for any of the different direction or location values of current or preceding stimulus is significantly different from baseline activity (between -700ms and -300ms during fixation). [Mann-Whitney (aka unpaired Wilcoxon) test with p < 0.001.]
 
 The specific threshold values for each criterion can be changed in the "Constants" section on the top of seal/quality/test_sorting.py.
