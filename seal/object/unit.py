@@ -38,6 +38,7 @@ class Unit:
         self._Rates = pd.Series()
         self.QualityMetrics = pd.Series()
         self.DS = pd.Series()
+        self.TaskRelPrds = pd.Series()
 
         # Default unit params.
         self.UnitParams['empty'] = True

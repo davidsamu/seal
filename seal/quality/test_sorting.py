@@ -30,7 +30,7 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0*ms               # ISI violation threshold
-MAX_DRIFT_PCT = 200         # maximum tolerable drift percentage (max/min FR)
+MAX_DRIFT_PCT = 200           # maximum tolerable drift percentage (max/min FR)
 MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
 MIN_TASK_RELATED_DUR = 50*ms  # minimum window length of task related activity
 
@@ -280,43 +280,57 @@ def calc_baseline_rate(u):
     return base_rate
 
 
-def test_task_relatedness(u):
+def test_task_relatedness(u, p=0.01, test='wilcoxon'):
     """Test if unit has task related activity."""
 
     # Init.
-    prds_to_test = ['S1', 'early delay', 'late delay', 'S2', 'post-S2']
-    baseline = util.remove_dim_from_series(u.get_prd_rates('baseline'))
     nrate = u.init_nrate()
-    trs = u.inc_trials()
-    test = 'wilcoxon'
-    p = 0.05
-
-    if not len(trs):
+    if not len(u.inc_trials()):
         return False
 
-    # Go through each period to be tested
-    is_task_related = False
-    for prd in prds_to_test:
+    # Get baseline rate per trial.
+    baseline = util.remove_dim_from_series(u.get_prd_rates('baseline'))
 
-        # Get rates during period.
-        t1s, t2s = u.pr_times(prd, add_latency=True, concat=False)
-        prd_rates = u._Rates[nrate].get_rates(trs, t1s, t2s)
+    # Init periods and trials sets to test.
+    prds_trs = [('S1', [('S1', 'early delay', 'late delay'), ('Dir', 'Loc')]),
+                ('S2', [('S2', 'post-S2'), ('Dir', 'Loc')])]
+    prds_trs = pd.DataFrame.from_items(prds_trs, orient='index',
+                                       columns=['prds', 'trpars'])
 
-        # Create baseline rate data matrix.
-        base_rates = np.tile(baseline, (len(prd_rates.columns), 1)).T
-        base_rates = pd.DataFrame(base_rates, index=baseline.index,
-                                  columns=prd_rates.columns)
+    # Go through each stimulus, period and trial parameter to be tested.
+    sign_prds = []
+    for stim, (prds, trpars) in prds_trs.iterrows():
 
-        # Run test at each time sample across period.
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            sign_prds = stats.sign_periods(prd_rates, base_rates, p, test,
-                                           min_len=MIN_TASK_RELATED_DUR)
+        for prd in prds:
+            t1s, t2s = u.pr_times(prd, add_latency=True, concat=False)
 
-        # Check if there's any long-enough significant period.
-        if len(sign_prds):
-            is_task_related = True
-            break
+            for par in trpars:
+                ptrs = u.trials_by_param((stim, par))
+
+                for pval, trs in ptrs.iteritems():
+                    # Get rates during period on trials with given param value.
+                    rates = u._Rates[nrate].get_rates(trs, t1s, t2s)
+
+                    # Create baseline rate data matrix.
+                    trbs = baseline[trs]
+                    base_rates = np.tile(trbs, (len(rates.columns), 1)).T
+                    base_rates = pd.DataFrame(base_rates, index=trbs.index,
+                                              columns=rates.columns)
+
+                    # Run test at each time sample across period.
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')
+                        sprds = stats.sign_periods(rates, base_rates, p, test,
+                                                   MIN_TASK_RELATED_DUR)
+                    sign_prds.append(((stim, prd, par, pval), sprds))
+
+    # Save results to unit.
+    u.TaskRelPrds = util.series_from_tuple_list(sign_prds)
+    u.TaskRelPrds.pval = p
+    u.TaskRelPrds.test = test
+
+    # Is there any task- (stimulus-parameter-) related period?
+    is_task_related = u.sign_prds.map(len).any()
 
     return is_task_related
 
@@ -398,7 +412,7 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
         include = test_rejection(u)
     u.set_excluded(not include)
 
-    # Return all results.
+    # Return all results (for plotting).
     res = {'tbin_vmid': tbin_vmid, 'rate_t': rate_t,
            't1_inc': t1_inc, 't2_inc': t2_inc, 'prd_inc': prd_inc,
            'tr_inc': tr_inc, 'spk_inc': spk_inc}
@@ -430,8 +444,8 @@ def test_rejection(u):
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
     test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_ratio
 
-    # Not task-related. Criterion to be used later!
-    # test_passed['TaskRelated'] = qm['TaskRelated']
+    # Not task-related.
+    test_passed['TaskRelated'] = qm['TaskRelated']
 
     # Include unit if all criteria met.
     include = test_passed.all()

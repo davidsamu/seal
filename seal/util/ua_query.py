@@ -125,7 +125,7 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None):
 
 
 def get_prd_mean_rates(UA, tasks, prd, nrate, max_len=None):
-    """Return mean rates per unit during period in DataFrame."""
+    """Return mean rates per unit at each time during period in DataFrame."""
 
     mrates = {}
     for u in UA.iter_thru(tasks):
