@@ -30,6 +30,6 @@ Any unit that does not pass any of the below criteria is excluded:
 3. Total number of trials: total # trials > 20 (in case monkey quit at beginning of recording)
 4. Number of remaining trials: # trials (after trial rejection) > 50% of total # of trials.
 5. Sufficient activity: Mean firing rate > 5 sp/s for at least one direction during any part of the trial (S1, delay, S2 or post-S2).
-6. Task-related activity: There exists a minimum 50ms period in any part of the trial (S1, delay, S2 or post-S2), when the firing rate for any of the different direction or location values of current or preceding stimulus is significantly different from baseline activity (between -700ms and -300ms during fixation). [Mann-Whitney (aka unpaired Wilcoxon) test with p < 0.001.]
+6. Task-related activity: There exists a minimum 100 ms period in any part of the trial (S1, delay, S2 or post-S2), when the firing rate for any of the different direction or location values of current or preceding stimulus is significantly different from baseline activity (between -700ms and -300ms during fixation). [Mann-Whitney (aka unpaired Wilcoxon) test with p < 0.001.]
 
 The specific threshold values for each criterion can be changed in the "Constants" section on the top of seal/quality/test_sorting.py.
