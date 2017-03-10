@@ -119,9 +119,8 @@ class Rate:
 
         # Set default trials.
         if trs is None:
-            print('No trial set has been passed. Returning None.')
-            return None
-            #trs = np.arange(len(self.rates))
+            print('No trial set has been passed. Returning all trials.')
+            trs = np.arange(len(self.rates))
 
         # Select times corresponding to selected trials.
         t1s, t2s = t1s[trs], t2s[trs]

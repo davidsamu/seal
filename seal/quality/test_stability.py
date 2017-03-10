@@ -39,6 +39,9 @@ def get_cross_task_stability_data(UA):
             if u.is_empty() or u.is_excluded():
                 continue
 
+            if u.DS.empty:
+                u.test_DS()
+
             # Get unit params of interest.
             base_rate = u.get_baseline()
             pref_dir = u.pref_dir(stim, 'max')

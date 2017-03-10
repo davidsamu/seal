@@ -68,9 +68,8 @@ class Spikes:
         """Set trials to all trials if not specified."""
 
         if trs is None:
-            print('No trial set has been passed. Returning None.')
-            return None
-            # trs = np.arange(self.n_trials())
+            print('No trial set has been passed. Returning all trials.')
+            trs = np.arange(self.n_trials())
         return trs
 
     def n_trials(self):

@@ -24,7 +24,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     waveforms = np.array(u.Waveforms)
     wavetime = u.Waveforms.columns * us
     spk_times = np.array(u.SpikeParams['time'], dtype=float)
-    mean_rate = u.QualityMetrics['mFR']
+    base_rate = u.QualityMetrics['baseline']
 
     # Minimum and maximum gain.
     gmin = u.SessParams['minV']
@@ -166,7 +166,7 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
                     markersize=3, markeredgecolor=col)
 
     # Firing rate over session time.
-    title = 'Firing rate: {:.1f} spike/s'.format(mean_rate)
+    title = 'Baseline rate: {:.1f} spike/s'.format(float(base_rate))
     xlab, ylab = (ses_t_lab, putil.FR_lbl) if add_lbls else (None, None)
     ylim = [0, 1.25*np.max(rate_t.magnitude)]
     plot_periods(rate_t, 'b', ax_rate)
