@@ -56,7 +56,6 @@ Simply tests across all trials whether unit's activity deviates from baseline ac
 ### Receptive field coverage
 
 Receptive fields of each channel are mapped at the beginning of the experiments.
-  - TODO: add this information to preprocessing.
 
 
 ### Direction selectivity
