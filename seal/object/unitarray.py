@@ -34,6 +34,7 @@ class UnitArray:
         # Init instance.
         self.Name = name
         self.Units = pd.DataFrame(columns=task_order)
+        self.StabilityTest = pd.DataFrame()
 
     # %% Utility methods.
 
@@ -105,6 +106,12 @@ class UnitArray:
         """Return unit of given task and uid."""
 
         u = self.Units.loc[[uid], task][0]
+        return u
+
+    def get_unit_by_utid(self, utid):
+        """Return unit of given task and uid."""
+
+        u = self.Units.loc[[utid[:3]], utid[3]][0]
         return u
 
     def get_unit_by_name(self, uname):

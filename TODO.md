@@ -6,9 +6,7 @@ preprocessing pipeline
 ----------------------
   - try automatic sorting: http://simonster.github.io/SpikeSortingSoftware/
   - improve waveform duration estimation (e.g. by smoothing spline fit?)
-  - task-responsiveness test should be done on trial groups sorted by stimulus feature and on all trials combined
   - latency calculation: timing and direction (by method of Zaksas 2006), per direction/location and to all combined
-  - separate QC metrics based on recording location, e.g. base rate
 
 
 analyses to add from DD scripts
@@ -34,13 +32,6 @@ unit
 ----
   - add RF coverage information
   - add type information: suppressive?, broad spiking? motor? etc
-  - test task-relatedness by stimulus type
-
-
-plot
-----
-  - update colors and other theme elements after upgrading to matplotlib 2.0
-
 
 
 decoding

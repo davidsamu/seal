@@ -55,6 +55,7 @@ def quality_control(rec_name, rec_data_dir, qc_dir, comb_data_dir,
     test_units.report_unit_exclusion_stats(UA, fname)
 
     # Test stability of recording session across tasks.
+    test_stability.get_cross_task_stability_data(UA)
     if plot_stab:
         fname = qc_dir + rec_name + '_recording_stability.png'
         test_stability.rec_stability_test(UA, fname)
