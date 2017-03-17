@@ -16,7 +16,7 @@ from quantities import s, ms, us, deg, Hz
 from seal.util import util, constants
 from seal.object.rate import Rate
 from seal.object.spikes import Spikes
-from seal.analysis import direction
+from seal.analysis import direction, stats
 
 
 class Unit:
@@ -748,23 +748,19 @@ class Unit:
         ltncy, wndw_len = constants.nphy_cons.loc[self.get_region()]
 
         # Find maximal stimulus response across all directions combined.
-        # WARNING: This assumes DS id maximal at time of maximum response!
+        # WARNING: This assumes DS is maximal at time of maximum response!
         nrate, trs = self.init_nrate(), self.inc_trials()
         t1s, t2s = self.pr_times(stim, add_latency=False, concat=False)
         rates = self._Rates[nrate].get_rates(trs, t1s, t2s, t1s)
-        tmax = rates.mean().argmax()
 
         # Get period around tmax (but within full time window of stimulus).
+        tmax = rates.mean().argmax()
         tvec = rates.columns
-        wndw_len = float(wndw_len)
-        left_overflow = max(tvec.min() - (tmax - wndw_len/2), 0)
-        right_overflow = max((tmax + wndw_len/2) - tvec.max(), 0)
-        tstart = max(tmax - wndw_len/2 - right_overflow, tvec.min()) * ms
-        tend = min(tmax + wndw_len/2 + left_overflow, tvec.max()) * ms
-        TW = pd.Series([tstart, tend], index=['tstart', 'tend'])
+        TW = stats.prd_in_window(tmax, tvec.min(), tvec.max(), wndw_len, ms)
 
         # Get direction response values and stats.
-        stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+tstart, t1s+tend)
+        stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+TW.tstart,
+                                            t1s+TW.tend)
         resp_stats = util.calc_stim_resp_stats(stim_resp, constants.all_dirs)
 
         # Convert each result to Numpy array.

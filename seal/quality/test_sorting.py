@@ -281,7 +281,7 @@ def calc_baseline_rate(u):
 
 
 def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
-    """Test if unit has task related activity."""
+    """Test if unit has any task related activity."""
 
     # Init.
     nrate = u.init_nrate()
@@ -319,8 +319,8 @@ def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
                     base_rates = pd.DataFrame(base_rates, index=trbs.index,
                                               columns=rates.columns)
 
-                    # Run test at each time point across period
-                    # and return significant periods with minimum length.
+                    # Run test at each time point across period and
+                    # return significant periods with minimum length.
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore')
                         sprds = stats.sign_periods(rates, base_rates, p, test,

@@ -157,3 +157,31 @@ def sign_periods(ts1, ts2, pval, test, min_len=None, **kwargs):
     sign_periods = periods(tsign, min_len)
 
     return sign_periods
+
+
+def prd_in_window(t, tmin, tmax, tlen, tdim=None):
+    """
+    Return limits of time period of given length centered around t
+    within window.
+    """
+
+    # Init.
+    tlen = float(tlen)
+    half_len = tlen/2
+
+    # Extend of overflow of specified time window on each side.
+    left_overflow = max(tmin - (t - half_len), 0)
+    right_overflow = max((t + half_len) - tmax, 0)
+
+    # End points.
+    tstart = max(t - half_len - right_overflow, tmin)
+    tend = min(t + half_len + left_overflow, tmax)
+
+    # Add temporal dimension (ms, s, etc).
+    if tdim is not None:
+        tstart = tstart * tdim
+        tend = tend * tdim
+
+    TW = pd.Series([tstart, tend], index=['tstart', 'tend'])
+
+    return TW
