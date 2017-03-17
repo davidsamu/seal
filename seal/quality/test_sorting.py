@@ -32,11 +32,16 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 ISI_TH = 1.0*ms               # ISI violation threshold
 MAX_DRIFT_PCT = 200           # maximum tolerable drift percentage (max/min FR)
 MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
-MIN_TASK_RELATED_DUR = 100*ms  # minimum window length of task related activity
+
+# Quality control thresholds per brain region.
+# Minimum window length and firing rate of task related activity.
+QC_THs = pd.DataFrame.from_items([('MT', [300*ms, 20]),
+                                  ('PFC', [100*ms, 10]),
+                                  ('MT/PFC', [100*ms, 10])], orient='index',
+                                 columns=['wndw_len', 'minFR'])
 
 # Constants related to unit exclusion.
 min_SNR = 1.0           # min. SNR
-min_FR = 5.0            # min. firing rate (sp/s)
 max_ISIvr = 1.0         # max. ISI violation ratio (%)
 min_n_trs = 20          # min. number of trials (in case monkey quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
@@ -280,11 +285,12 @@ def calc_baseline_rate(u):
     return base_rate
 
 
-def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
+def test_task_relatedness(u, p_th=0.01):
     """Test if unit has any task related activity."""
 
     # Init.
     nrate = u.init_nrate()
+    wndw_len, minFR = QC_THs.loc[u.get_region()]
     if not len(u.inc_trials()):
         return False
 
@@ -292,15 +298,15 @@ def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
     baseline = util.remove_dim_from_series(u.get_prd_rates('baseline'))
 
     # Init periods and trials sets to test.
-    feats = ('Dir', 'Loc')
+    feats = ('Dir',)  # ('Dir', 'Loc')
     prds_trs = [('S1', [('S1', 'early delay', 'late delay'), feats]),
                 ('S2', [('S2', 'post-S2'), feats])]
     prds_trs = pd.DataFrame.from_items(prds_trs, orient='index',
                                        columns=['prds', 'trpars'])
 
     # Go through each stimulus, period and trial parameter to be tested.
-    sign_prds = []
-    mean_rates = []
+    pval = []
+    mean_rate = []
     for stim, (prds, trpars) in prds_trs.iterrows():
 
         for prd in prds:
@@ -309,42 +315,45 @@ def test_task_relatedness(u, test='mann_whitney_u', p=0.001):
             for par in trpars:
                 ptrs = u.trials_by_param((stim, par))
 
-                for pval, trs in ptrs.iteritems():
+                for vpar, trs in ptrs.iteritems():
+
                     # Get rates during period on trials with given param value.
                     rates = u._Rates[nrate].get_rates(trs, t1s, t2s)
+                    bs_rates = baseline[trs]
 
-                    # Create baseline rate data matrix.
-                    trbs = baseline[trs]
-                    base_rates = np.tile(trbs, (len(rates.columns), 1)).T
-                    base_rates = pd.DataFrame(base_rates, index=trbs.index,
-                                              columns=rates.columns)
+                    # Get sub-period around time with maximal rate.
+                    tmax = rates.mean().argmax()
+                    tmin, tmax = rates.columns.min(), rates.columns.max()
+                    tstart, tend = stats.prd_in_window(tmax, tmin, tmax,
+                                                       wndw_len, ms)
+                    tidx = (rates.columns >= tstart) & (rates.columns <= tend)
 
-                    # Run test at each time point across period and
-                    # return significant periods with minimum length.
-                    with warnings.catch_warnings():
-                        warnings.simplefilter('ignore')
-                        sprds = stats.sign_periods(rates, base_rates, p, test,
-                                                   MIN_TASK_RELATED_DUR)
-                    sign_prds.append(((stim, prd, par, str(pval)), sprds))
+                    # Test difference from baseline rate.
+                    wnd_rates = rates.loc[:, tidx].mean(1)
+                    stat, p = stats.mann_whithney_u_test(wnd_rates, bs_rates)
+                    pval.append(((stim, prd, par, str(vpar)), p))
 
                     # Mean rate.
                     mrate = rates.mean().mean()
-                    mean_rates.append(((stim, prd, par, str(pval)), mrate))
+                    mean_rate.append(((stim, prd, par, str(vpar)), mrate))
 
     # Format results.
     names = ['stim', 'prd', 'par', 'vpar']
-    sign_prds, mean_rates = [util.series_from_tuple_list(res, names)
-                             for res in (sign_prds, mean_rates)]
+    pval, mean_rate = [util.series_from_tuple_list(res, names)
+                       for res in (pval, mean_rate)]
 
     # Save results to unit.
-    u.PrdParTests = pd.concat([mean_rates, sign_prds], axis=1,
-                              keys=['mean_rates', 'sign_prds'])
-    u.PrdParTests.pval = p
-    u.PrdParTests.test = test
+    u.PrdParTests = pd.concat([mean_rate, pval], axis=1,
+                              keys=['mean_rate', 'pval'])
+    u.PrdParTests['sign'] = u.PrdParTests['pval'] < p_th
+
+    # Save test parameters.
+    u.PrdParTests.test = 'mann_whithney_u_test'
+    u.PrdParTests.p_th = p_th
 
     # Is there any task- (stimulus-parameter-) related period?
-    has_min_rate = (u.PrdParTests.mean_rates > min_FR).any()
-    is_task_related = u.PrdParTests.sign_prds.map(len).any()
+    has_min_rate = (u.PrdParTests.mean_rate > minFR).any()
+    is_task_related = u.PrdParTests.sign.any()
 
     return has_min_rate, is_task_related
 
