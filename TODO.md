@@ -18,11 +18,6 @@ analyses to add from DD scripts
   - comparison effect
 
 
-unitarray / unit
-----------------
-  - add test and register whether units are matched across tasks
-
-
 permutation tests
 -----------------
   - identify p-value based on false positive rate during fixation
@@ -30,7 +25,6 @@ permutation tests
 
 unit
 ----
-  - add RF coverage information
   - add type information: suppressive?, broad spiking? motor? etc
 
 
