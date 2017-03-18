@@ -199,6 +199,8 @@ classic_tr_prds = [('fixation', ('S1 on',)),
 classic_tr_prds = pd.DataFrame.from_items(classic_tr_prds,
                                           ['ref_ev'], 'index')
 
+fixed_tr_len = 4500*ms
+
 
 # %% Constants related to firing rate estimation.
 

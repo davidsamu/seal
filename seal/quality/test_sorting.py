@@ -16,7 +16,7 @@ from quantities import s, ms
 import elephant
 
 from seal.analysis import stats
-from seal.util import util
+from seal.util import util, constants
 
 
 # %% Constants.
@@ -61,16 +61,16 @@ def get_start_stop_times(spk_times, tr_starts, tr_stops):
 def has_signal_difted(r1, r2):
     """Test whether firing rate difference out of tolerable range."""
 
-    # Max tolerable drift:
-    # at 2 sp/s: 300%
-    # at 50 sp/s: 150%
+    # Params to set max tolerable drift.
+    rlow, dlow = 0.5, 400  # at 0.5 sp/s: 500%
+    rhigh, dhigh = 50, 150  # at 50 sp/s: 150%
     # with logarithmic transition.
-    mr = np.min([np.max([np.mean([r1, r2]), np.log(2)]), 50])
-    rr = (np.log(mr)-np.log(2)) / (np.log(50)-np.log(2))
-    max_ratio = (300-150) * rr + 150
+    mr = np.min([np.max([np.mean([r1, r2]), rlow]), dlow])
+    rr = (np.log(mr)-np.log(rlow)) / (np.log(rhigh)-np.log(rlow))
+    max_ratio = (dlow-dhigh) * rr + dhigh
 
     rmin, rmax = np.min([r1, r2]), np.max([r1, r2])
-    has_drifted = (rmax / rmin > max_ratio/100)
+    has_drifted = (rmax/rmin) > (max_ratio/100)
 
     return has_drifted
 
@@ -196,12 +196,21 @@ def test_drift(u):
                               tr_time_idx=True)
     bs_stats = pd.DataFrame(index=range(int(len(bs_rate)/NTRIALS)))
     itrs = [list(range(i*NTRIALS, i*NTRIALS+NTRIALS)) for i in bs_stats.index]
-    itrs[-1] = list(range(itrs[-1][0], trs[-1]))  # add modulo trials
+    itrs[-1] = list(range(itrs[-1][0], trs[-1]+1))  # add modulo trials
+    tr_len = float(constants.fixed_tr_len.rescale(s))
+
     bs_stats['trials'] = itrs
     bs_stats['tstart'] = [bs_rate.index[idx[0]] for idx in itrs]
     bs_stats['tmean'] = [np.mean(bs_rate.index[idx]) for idx in itrs]
-    bs_stats['tstop'] = [bs_rate.index[idx[-1]] for idx in itrs]
+    bs_stats['tstop'] = [bs_rate.index[idx[-1]]+tr_len for idx in itrs]
     bs_stats['rate'] = [np.mean(bs_rate.iloc[idx]) for idx in itrs]
+
+    # Adjust start and end times of session.
+    spk_times = u.SpikeParams['time']
+    t_start, t_stop = get_start_stop_times(spk_times, bs_rate.index,
+                                           bs_rate.index+tr_len)
+    bs_stats.loc[0,'tstart'] = t_start
+    bs_stats.loc[bs_stats.index[-1],'tstop'] = t_stop
 
     # Find period within acceptable drift range for each bin.
     res = []
@@ -235,7 +244,7 @@ def test_drift(u):
                                      stab_prd_res.istop)
     tstart, tstop = stab_prd_res[['tstart', 'tstop']]
     tr_inc = ((bs_rate.index >= tstart) & (bs_rate.index <= tstop))
-    spk_inc = util.indices_in_window(u.SpikeParams['time'], tstart, tstop)
+    spk_inc = util.indices_in_window(spk_times, tstart, tstop)
 
     return bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc
 
