@@ -196,6 +196,7 @@ def test_drift(u):
                               tr_time_idx=True)
     bs_stats = pd.DataFrame(index=range(int(len(bs_rate)/NTRIALS)))
     itrs = [list(range(i*NTRIALS, i*NTRIALS+NTRIALS)) for i in bs_stats.index]
+    itrs[-1] = list(range(itrs[-1][0], trs[-1]))  # add modulo trials
     bs_stats['trials'] = itrs
     bs_stats['tstart'] = [bs_rate.index[idx[0]] for idx in itrs]
     bs_stats['tmean'] = [np.mean(bs_rate.index[idx]) for idx in itrs]
