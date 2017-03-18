@@ -29,8 +29,8 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0*ms      # ISI violation threshold
-NTRIALS = 20         # (minimum) number of trials to average for
-                     # detecting signal/activity drifts
+NTR_STEPS = 5        # number of trials to step by when detecting signal drift
+NTR_WINDOW = 20      # number of trials to average when detecting signal drift
 
 # Quality control thresholds per brain region.
 # Minimum window length and firing rate of task related activity.
@@ -192,13 +192,22 @@ def test_drift(u):
 
     # Baseline rate averaged over every n consecutive trials.
     trs = list(u.TrData.index)
+    tr_len = float(constants.fixed_tr_len.rescale(s))
     bs_rate = u.get_prd_rates('fixation', trs=trs, add_latency=False,
                               tr_time_idx=True)
-    bs_stats = pd.DataFrame(index=range(int(len(bs_rate)/NTRIALS)))
-    itrs = [list(range(i*NTRIALS, i*NTRIALS+NTRIALS)) for i in bs_stats.index]
-    itrs[-1] = list(range(itrs[-1][0], trs[-1]+1))  # add modulo trials
-    tr_len = float(constants.fixed_tr_len.rescale(s))
 
+    # Get trial indices to average over.
+    itrs = []
+    for i in range(int(len(bs_rate) / NTR_STEPS)):
+        cntr = i * NTR_STEPS
+        hl = int(NTR_WINDOW / 2)
+        idxs = list(range(cntr-hl, cntr+hl))
+        if min(idxs) >= 0 and max(idxs) <= max(trs):
+            itrs.append(idxs)
+    itrs[-1] = list(range(itrs[-1][0], trs[-1]+1))  # add modulo trials
+
+    # Get baseline activity stats in each window.
+    bs_stats = pd.DataFrame()
     bs_stats['trials'] = itrs
     bs_stats['tstart'] = [bs_rate.index[idx[0]] for idx in itrs]
     bs_stats['tmean'] = [np.mean(bs_rate.index[idx]) for idx in itrs]
