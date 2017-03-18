@@ -62,12 +62,12 @@ def has_signal_difted(r1, r2):
     """Test whether firing rate difference out of tolerable range."""
 
     # Params to set max tolerable drift.
-    rlow, dlow = 0.5, 400  # at 0.5 sp/s: 500%
-    rhigh, dhigh = 50, 150  # at 50 sp/s: 150%
-    # with logarithmic transition.
+    rlow, dlow = 0.1, 1000   # at 0.5 sp/s: 500%
+    rhigh, dhigh = 50, 125   # at 50 sp/s: 150%
+    # With exponential decay between them.
     mr = np.min([np.max([np.mean([r1, r2]), rlow]), dlow])
     rr = (np.log(mr)-np.log(rlow)) / (np.log(rhigh)-np.log(rlow))
-    max_ratio = (dlow-dhigh) * rr + dhigh
+    max_ratio = (dlow-dhigh) * (1-rr)**1.5 + dhigh
 
     rmin, rmax = np.min([r1, r2]), np.max([r1, r2])
     has_drifted = (rmax/rmin) > (max_ratio/100)
