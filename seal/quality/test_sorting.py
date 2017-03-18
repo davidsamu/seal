@@ -29,7 +29,7 @@ WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
 ISI_TH = 1.0*ms      # ISI violation threshold
-NTRIALS = 5          # (minimum) number of trials to average for
+NTRIALS = 20         # (minimum) number of trials to average for
                      # detecting signal/activity drifts
 
 # Quality control thresholds per brain region.
@@ -42,7 +42,7 @@ QC_THs = pd.DataFrame.from_items([('MT', [300*ms, 20]),
 # Constants related to unit exclusion.
 min_SNR = 1.0           # min. SNR
 max_ISIvr = 1.0         # max. ISI violation ratio (%)
-min_n_trs = 20          # min. number of trials (in case monkey quit)
+min_n_trs = 50          # min. number of trials (in case monkey quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
 
