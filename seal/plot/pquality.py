@@ -12,11 +12,12 @@ from quantities import us
 
 from seal.plot import putil, pplot, pwaveform
 from seal.quality import test_sorting
+from seal.util import util
 
 
 # %% Plot quality metrics.
 
-def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
+def plot_qm(u, bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc,
             add_lbls=False, ftempl=None, fig=None, sps=None):
     """Plot quality metrics related figures."""
 
@@ -151,25 +152,29 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
 
     # %% Firing rate.
 
+    tmean = np.array(bs_stats['tmean'])
+    rmean = util.remove_dim_from_series(bs_stats['rate'])
+    prd_tstart, prd_tstop = stab_prd_res['tstart'], stab_prd_res['tstop']
+
     # Color segments depending on whether they are included / excluded.
     def plot_periods(v, color, ax):
         # Plot line segments.
         for i in range(len(prd_inc[:-1])):
             col = color if prd_inc[i] and prd_inc[i+1] else 'grey'
-            x, y = [(tbin_vmid[i], tbin_vmid[i+1]), (v[i], v[i+1])]
+            x, y = [(tmean[i], tmean[i+1]), (v[i], v[i+1])]
             ax.plot(x, y, color=col)
         # Plot line points.
         for i in range(len(prd_inc)):
             col = color if prd_inc[i] else 'grey'
-            x, y = [tbin_vmid[i], v[i]]
+            x, y = [tmean[i], v[i]]
             ax.plot(x, y, color=col, marker='o',
                     markersize=3, markeredgecolor=col)
 
     # Firing rate over session time.
     title = 'Baseline rate: {:.1f} spike/s'.format(float(base_rate))
     xlab, ylab = (ses_t_lab, putil.FR_lbl) if add_lbls else (None, None)
-    ylim = [0, 1.25*np.max(rate_t.magnitude)]
-    plot_periods(rate_t, 'b', ax_rate)
+    ylim = [0, 1.25*np.max(rmean)]
+    plot_periods(rmean, 'b', ax_rate)
     pplot.lines([], [], c='b', xlim=ses_t_lim, ylim=ylim, title=title,
                 xlab=xlab, ylab=ylab, ax=ax_rate)
 
@@ -180,10 +185,10 @@ def plot_qm(u, tbin_vmid, rate_t, t1_inc, t2_inc, prd_inc, tr_inc, spk_inc,
     # Excluded periods.
     excl_prds = []
     tstart, tstop = ses_t_lim
-    if tstart != t1_inc:
-        excl_prds.append(('beg', tstart, t1_inc))
-    if tstop != t2_inc:
-        excl_prds.append(('end', t2_inc, tstop))
+    if tstart != prd_tstart:
+        excl_prds.append(('beg', tstart, prd_tstart))
+    if tstop != prd_tstop:
+        excl_prds.append(('end', prd_tstop, tstop))
     putil.plot_periods(excl_prds, ymax=0.92, ax=ax_rate)
 
     # %% Post-formatting.

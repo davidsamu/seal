@@ -7,7 +7,6 @@ Functions to calculate quality metrics of units  after spike sorting
 @author: David Samu
 """
 
-import warnings
 
 import numpy as np
 import scipy as sp
@@ -29,9 +28,9 @@ CENSORED_PRD_LEN = 0.675*ms    # length of censored period
 WF_T_START = 9                 # start index of spikes (aligned by Plexon)
 
 # Constants related to quality metrics calculation.
-ISI_TH = 1.0*ms               # ISI violation threshold
-MAX_DRIFT_PCT = 200           # maximum tolerable drift percentage (max/min FR)
-MIN_BIN_LEN = 120*s           # (minimum) window length for firing binned stats
+ISI_TH = 1.0*ms      # ISI violation threshold
+NTRIALS = 5          # (minimum) number of trials to average for
+                     # detecting signal/activity drifts
 
 # Quality control thresholds per brain region.
 # Minimum window length and firing rate of task related activity.
@@ -47,7 +46,7 @@ min_n_trs = 20          # min. number of trials (in case monkey quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
 
-# %% Utility functions.
+# %% Core methods.
 
 def get_start_stop_times(spk_times, tr_starts, tr_stops):
     """Return start and stop times of recording."""
@@ -59,25 +58,22 @@ def get_start_stop_times(spk_times, tr_starts, tr_stops):
     return t_start, t_stop
 
 
-def time_bin_data(spk_times, waveforms, tr_starts, tr_stops):
-    """Return time binned data for statistics over session time."""
+def has_signal_difted(r1, r2):
+    """Test whether firing rate difference out of tolerable range."""
 
-    t_start, t_stop = get_start_stop_times(spk_times, tr_starts, tr_stops)
+    # Max tolerable drift:
+    # at 2 sp/s: 300%
+    # at 50 sp/s: 150%
+    # with logarithmic transition.
+    mr = np.min([np.max([np.mean([r1, r2]), np.log(2)]), 50])
+    rr = (np.log(mr)-np.log(2)) / (np.log(50)-np.log(2))
+    max_ratio = (300-150) * rr + 150
 
-    # Time bins and binned waveforms and spike times.
-    nbins = max(int(np.floor((t_stop - t_start) / MIN_BIN_LEN)), 1)
-    tbin_lims = util.quantity_linspace(t_start, t_stop, nbins+1, s)
-    tbins = [(tbin_lims[i], tbin_lims[i+1]) for i in range(len(tbin_lims)-1)]
-    tbin_vmid = np.array([np.mean([t1, t2]) for t1, t2 in tbins])*s
-    spk_idx_binned = [util.indices_in_window(spk_times, float(t1), float(t2))
-                      for t1, t2 in tbins]
-    wf_binned = [waveforms[spk_idx] for spk_idx in spk_idx_binned]
-    spk_times_binned = [spk_times[spk_idx] for spk_idx in spk_idx_binned]
+    rmin, rmax = np.min([r1, r2]), np.max([r1, r2])
+    has_drifted = (rmax / rmin > max_ratio/100)
 
-    return tbins, tbin_vmid, wf_binned, spk_times_binned
+    return has_drifted
 
-
-# %% Core methods.
 
 def calc_waveform_stats(waveforms):
     """Calculate waveform duration and amplitude."""
@@ -122,7 +118,7 @@ def calc_waveform_stats(waveforms):
         # Calculate waveform duration, amplitude and # of valid samples.
         dur = xfit[imax] - xfit[imin] if imin < imax else np.nan
         amp = yfit[imax] - yfit[imin] if imin < imax else np.nan
-        truncated = len(x) == len(xv)
+        truncated = (len(x) != len(xv))
         nvalid = len(xv)
 
         return dur, amp, truncated, nvalid
@@ -191,80 +187,56 @@ def calc_snr(waveforms):
     return snr
 
 
-def test_drift(t, v, tbins, tr_starts, spk_times):
-    """Test drift (gradual, or more instantaneous jump or drop) in variable."""
+def test_drift(u):
+    """Test drift (gradual or abrupt) in baseline activity of unit."""
 
-    # Number of trials from beginning of session
-    # until start and end of each period.
-    tr_starts_arr = util.list_to_quantity(tr_starts)
-    n_tr_prd_start = [np.sum(tr_starts_arr < t1) for t1, t2 in tbins]
-    n_tr_prd_end = [np.sum(tr_starts_arr < t2) for t1, t2 in tbins]
+    # Baseline rate averaged over every n consecutive trials.
+    trs = list(u.TrData.index)
+    bs_rate = u.get_prd_rates('fixation', trs=trs, add_latency=False,
+                              tr_time_idx=True)
+    bs_stats = pd.DataFrame(index=range(int(len(bs_rate)/NTRIALS)))
+    itrs = [list(range(i*NTRIALS, i*NTRIALS+NTRIALS)) for i in bs_stats.index]
+    bs_stats['trials'] = itrs
+    bs_stats['tstart'] = [bs_rate.index[idx[0]] for idx in itrs]
+    bs_stats['tmean'] = [np.mean(bs_rate.index[idx]) for idx in itrs]
+    bs_stats['tstop'] = [bs_rate.index[idx[-1]] for idx in itrs]
+    bs_stats['rate'] = [np.mean(bs_rate.iloc[idx]) for idx in itrs]
 
-    # Find period within acceptible drift range for each bin.
-    cols = ['prd_start_i', 'prd_end_i', 'n_prd',
-            't_start', 't_end', 't_len',
-            'tr_start_i', 'tr_end_i', 'n_tr']
-    prd_res = pd.DataFrame(index=range(len(v)), columns=cols)
-    for i, v1 in enumerate(v):
-        vmin, vmax = v1, v1
-        for j, v2 in enumerate(v[i:]):
+    # Find period within acceptable drift range for each bin.
+    res = []
+    for i in bs_stats.index:
+        rmin = rmax = bs_stats.loc[i, 'rate']
+        for j in bs_stats.index[(i+1):]:
+            r = bs_stats.loc[j, 'rate']
             # Update extreme values.
-            vmin = min(vmin, v2)
-            vmax = max(vmax, v2)
+            rmin = min(rmin, r)
+            rmax = max(rmax, r)
             # If difference becomes unacceptable, terminate period.
-            if vmax > MAX_DRIFT_PCT/100*v2 or v2 > MAX_DRIFT_PCT/100*vmin:
+            if has_signal_difted(rmin, rmax):
                 j -= 1
                 break
-        end_i = i + j
-        prd_res.prd_start_i[i] = i
-        prd_res.prd_end_i[i] = end_i
-        prd_res.n_prd[i] = j + 1
-        prd_res.t_start[i] = tbins[i][0]
-        prd_res.t_end[i] = tbins[end_i][1]
-        prd_res.t_len[i] = tbins[end_i][1] - tbins[i][0]
-        prd_res.tr_start_i[i] = n_tr_prd_start[i]
-        prd_res.tr_end_i[i] = n_tr_prd_end[end_i]
-        prd_res.n_tr[i] = n_tr_prd_end[end_i] - n_tr_prd_start[i]
+        # Collect results.
+        tstart = bs_stats.loc[i, 'tstart']
+        tstop = bs_stats.loc[j, 'tstop']
+        first_tr = bs_stats.loc[i, 'trials'][0]
+        last_tr = bs_stats.loc[j, 'trials'][-1]
+        ntrs = last_tr - first_tr + 1
+        res.append([i, j, tstart, tstop, first_tr, last_tr, ntrs])
+    cols = ['istart', 'istop', 'tstart', 'tstop',
+            'first_tr', 'last_tr', 'ntrs']
+    prd_res = pd.DataFrame.from_records(res, columns=cols)
 
-    # Find bin with longest period.
-    idx = prd_res.n_tr.argmax()
-    # Indices of longest period.
-    prd1 = prd_res.prd_start_i[idx]
-    prd2 = prd_res.prd_end_i[idx]
-    # Times of longest period.
-    t1_inc = prd_res.t_start[idx]
-    t2_inc = prd_res.t_end[idx]
-    # Trial indices within longest period.
-    first_tr = prd_res.tr_start_i[idx]
-    last_tr = prd_res.tr_end_i[idx]
+    # Get params of longest stable period.
+    stab_prd_res = prd_res.loc[prd_res.ntrs.argmax()]
 
     # Return included trials and spikes.
-    prd_inc = util.indices_in_window(np.arange(len(tbins)), prd1, prd2)
-    tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
-    spk_inc = util.indices_in_window(spk_times, float(t1_inc), float(t2_inc))
+    prd_inc = util.indices_in_window(bs_stats.index, stab_prd_res.istart,
+                                     stab_prd_res.istop)
+    tstart, tstop = stab_prd_res[['tstart', 'tstop']]
+    tr_inc = ((bs_rate.index >= tstart) & (bs_rate.index <= tstop))
+    spk_inc = util.indices_in_window(u.SpikeParams['time'], tstart, tstop)
 
-    return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
-
-
-def set_inc_trials(first_tr, last_tr, tr_starts, tr_stops, spk_times,
-                   tbin_vmid):
-    """Set included trials by values provided."""
-
-    # Included trial range.
-    tr_inc = (tr_starts.index >= first_tr) & (tr_starts.index < last_tr)
-
-    # Start and stop times of included period.
-    tstart, tstop = get_start_stop_times(spk_times, tr_starts, tr_stops)
-    t1_inc = tstart if first_tr == 0 else tr_starts[first_tr]
-    t2_inc = tstop if last_tr == len(tr_starts) else tr_starts[last_tr]
-
-    # Included time periods.
-    prd_inc = (tbin_vmid >= t1_inc) & (tbin_vmid <= t2_inc)
-
-    # Included spikes.
-    spk_inc = util.indices_in_window(spk_times, t1_inc, t2_inc)
-
-    return t1_inc, t2_inc, prd_inc, tr_inc, spk_inc
+    return bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc
 
 
 def is_isolated(snr, true_spikes):
@@ -369,7 +341,8 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     - electrode drift, or
     - change in the state of the neuron.
 
-    Optionally, user can provide whether to include unit and selected trials.
+    Optionally, user can provide trials to be selected and whether to include
+    unit.
     """
 
     if u.is_empty():
@@ -389,24 +362,15 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     u.SessParams['minV'] = min(minV, VMIN)
     u.SessParams['maxV'] = max(maxV, VMAX)
 
-    tr_starts, tr_stops = u.TrData.TrialStart, u.TrData.TrialStop
-
-    # Time binned statistics.
-    tbinned_stats = time_bin_data(spk_times, waveforms, tr_starts, tr_stops)
-    tbins, tbin_vmid, wf_binned, spk_times_binned = tbinned_stats
-
-    rate_t = np.array([spkt.size/(t2-t1).rescale(s)
-                       for spkt, (t1, t2) in zip(spk_times_binned, tbins)]) / s
-
     # Trial exclusion.
-    if (first_tr is not None) and (last_tr is not None):
+    # TODO: implement manual trial selection.
+    # if (first_tr is not None) and (last_tr is not None):
         # Use passed parameters.
-        res = set_inc_trials(first_tr, last_tr, tr_starts, tr_stops,
-                             spk_times, tbin_vmid)
-    else:
-        # Test drifts and reject trials if necessary.
-        res = test_drift(tbin_vmid, rate_t, tbins, tr_starts, spk_times)
-    t1_inc, t2_inc, prd_inc, tr_inc, spk_inc = res
+        # res = set_inc_trials(u, first_tr, last_tr)
+    # else:  # Automatic trial selection.
+
+    # Test drifts and reject trials if necessary.
+    bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc = test_drift(u)
 
     u.update_included_trials(tr_inc)
 
@@ -436,9 +400,9 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     u.set_excluded(not include)
 
     # Return all results (for plotting).
-    res = {'tbin_vmid': tbin_vmid, 'rate_t': rate_t,
-           't1_inc': t1_inc, 't2_inc': t2_inc, 'prd_inc': prd_inc,
-           'tr_inc': tr_inc, 'spk_inc': spk_inc}
+    res = {'bs_stats': bs_stats, 'stab_prd_res': stab_prd_res,
+           'prd_inc': prd_inc, 'tr_inc': tr_inc, 'spk_inc': spk_inc}
+
     return res
 
 
