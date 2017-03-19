@@ -65,12 +65,12 @@ def has_signal_difted(r1, r2):
     rlow, dlow = 0.1, 1000   # at 0.5 sp/s: 500%
     rhigh, dhigh = 50, 125   # at 50 sp/s: 150%
     # With exponential decay between them.
-    mr = np.min([np.max([np.mean([r1, r2]), rlow]), dlow])
+    mr = np.min([np.max([np.mean([r1, r2]), rlow]), rhigh])
     rr = (np.log(mr)-np.log(rlow)) / (np.log(rhigh)-np.log(rlow))
     max_ratio = (dlow-dhigh) * (1-rr)**1.5 + dhigh
 
     rmin, rmax = np.min([r1, r2]), np.max([r1, r2])
-    has_drifted = (rmax/rmin) > (max_ratio/100)
+    has_drifted = (rmax/np.max(rmin,rlow)) > (max_ratio/100)
 
     return has_drifted
 
