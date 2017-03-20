@@ -70,7 +70,7 @@ def has_signal_difted(r1, r2):
     max_ratio = (dlow-dhigh) * (1-rr)**1.5 + dhigh
 
     rmin, rmax = np.min([r1, r2]), np.max([r1, r2])
-    has_drifted = (rmax/np.max(rmin,rlow)) > (max_ratio/100)
+    has_drifted = (rmax/np.max([rmin,rlow])) > (max_ratio/100)
 
     return has_drifted
 
