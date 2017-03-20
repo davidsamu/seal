@@ -296,7 +296,7 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
 # %% Utility functions for getting file names, and import / export data.
 
-def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
               n_most_DS):
     """Return full path to decoding result with given parameters."""
 
@@ -304,27 +304,27 @@ def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
     ncv_str = 'ncv_{}'.format(ncv)
     pshfl_str = 'npshfl_{}'.format(n_pshfl)
     err_str = 'w{}_err'.format('o' if sep_err_trs else '')
-    cond_str = ('by_'+util.format_feat_name(cond, True)
-                if cond is not None else 'uncond')
+    cond_str = ('_zscored_by_'+util.format_feat_name(zscore_by, True)
+                if zscore_by is not None else '')
     nDS_str = ('top_{}_units'.format(n_most_DS)
                if n_most_DS != 0 else 'all_units')
-    fres = '{}{}/{}_{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate,
-                                                ncv_str, pshfl_str, err_str,
-                                                cond_str, nDS_str)
+    fres = '{}{}{}/{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, cond_str,
+                                               nrate, ncv_str, pshfl_str,
+                                               err_str, nDS_str)
     return fres
 
 
-def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond, n_most_DS,
-              ext='png'):
+def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
+              n_most_DS, ext='png'):
     """Return full path to decoding result with given parameters."""
 
     fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl,
-                     sep_err_trs, cond, n_most_DS)
+                     sep_err_trs, zscore_by, n_most_DS)
     ffig = os.path.splitext(fres)[0] + '.' + ext
     return ffig
 
 
-def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
               n_most_DS):
     """Return title for decoding result figure with given parameters."""
 
@@ -332,8 +332,8 @@ def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
     cv_str = 'Logistic regression with {}-fold CV'.format(ncv)
     err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
     pshfl_str = '# population shuffles: {}'.format(n_pshfl)
-    cond_str = ('' if cond is None else
-                'conditioned by ' + util.format_feat_name(cond, True))
+    cond_str = ('' if zscore_by is None else
+                'z-scored by ' + util.format_feat_name(zscore_by, True))
     nDS_str = ('using {} most DS units'.format(n_most_DS)
                if n_most_DS != 0 else 'all units')
     title = ('Decoding {}\n'.format(feat_str) + cv_str +

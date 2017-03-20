@@ -97,7 +97,7 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
     putil.hide_legend(ax)
 
 
-def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
+def plot_scores_weights(recs, tasks, stims, feat, sep_by, zscore_by, res_dir,
                         nrate, ncv, n_pshfl, sep_err_trs, n_most_DS):
     """
     Plot prediction scores and model weights for given recording and analysis.
@@ -107,10 +107,10 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     putil.set_style('notebook', 'ticks')
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond, n_most_DS)
+                            sep_err_trs, zscore_by, n_most_DS)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figures.
@@ -184,25 +184,25 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
 
     # Save plots.
     title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
-                             sep_err_trs, cond, n_most_DS)
+                             sep_err_trs, zscore_by, n_most_DS)
     fs_title = 'large'
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     # Performance.
     ffig = decode.fig_fname(res_dir, feat, 'score_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, cond, n_most_DS)
+                            sep_err_trs, zscore_by, n_most_DS)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
     ffig = decode.fig_fname(res_dir, feat, 'weight_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, cond, n_most_DS)
+                            sep_err_trs, zscore_by, n_most_DS)
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
+def plot_score_weight_multi_rec(recs, tasks, stims, feat, sep_by, zscore_by,
                                 res_dir, nrate, ncv, n_pshfl,
                                 sep_err_trs, n_most_DS):
     """
@@ -214,10 +214,10 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
     putil.set_style('notebook', 'ticks')
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond, n_most_DS)
+                            sep_err_trs, zscore_by, n_most_DS)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figure.
@@ -296,17 +296,17 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
 
     # Save figure.
     title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
-                             sep_err_trs, cond, n_most_DS)
+                             sep_err_trs, zscore_by, n_most_DS)
     fs_title = 'large'
     ytitle = 1.12
     w_pad, h_pad = 3, 3
     ffig = decode.fig_fname(res_dir, feat, 'all_scores_' + nrate,
-                            ncv, n_pshfl, sep_err_trs, cond, n_most_DS)
+                            ncv, n_pshfl, sep_err_trs, zscore_by, n_most_DS)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_scores_across_nunits(recs, tasks, stims, feat, cond, zscore,
+def plot_scores_across_nunits(recs, tasks, stims, feat, sep_by, zscore_by,
                               res_dir, nrate, ncv, n_pshfl, sep_err_trs,
                               list_n_most_DS):
     """
@@ -315,14 +315,14 @@ def plot_scores_across_nunits(recs, tasks, stims, feat, cond, zscore,
 
     # Init.
     putil.set_style('notebook', 'ticks')
-    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
                                    constants.fixed_tr_prds)
 
     # Load all restuls to plot.
     dict_rt_res = {}
     for n_most_DS in list_n_most_DS:
         fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                                sep_err_trs, cond, n_most_DS)
+                                sep_err_trs, zscore_by, n_most_DS)
         rt_res = util.read_objects(fres, 'rt_res')
         dict_rt_res[n_most_DS] = rt_res
 
@@ -407,13 +407,14 @@ def plot_scores_across_nunits(recs, tasks, stims, feat, cond, zscore,
 
     # Save plots.
     list_n_most_DS_str = [str(i) if i != 0 else 'all' for i in list_n_most_DS]
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
-                             sep_err_trs, cond, ', '.join(list_n_most_DS_str))
+    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,  sep_err_trs,
+                             zscore_by, ', '.join(list_n_most_DS_str))
     fs_title = 'large'
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     ffig = decode.fig_fname(res_dir, feat,  'score_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, cond, '_'.join(list_n_most_DS_str))
+                            sep_err_trs, zscore_by,
+                            '_'.join(list_n_most_DS_str))
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
