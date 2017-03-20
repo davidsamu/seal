@@ -141,15 +141,14 @@ def pop_shfl(X, y):
     return Xc
 
 
-def zscore_by_cond(X, vcond):
-    """Z-score rate values by condition levels."""
+def zscore_by_cond(X, vzscore_by):
+    """Z-score rate values by condition levels within each unit."""
 
     Xc = X.copy()
-    for v, idxs in X.index.groupby(vcond).items():
+    for v, idxs in X.index.groupby(vzscore_by).items():
         vX = Xc.loc[idxs, :]
-        uvX = vX.unstack()  # z-scoring across all units (not per unit)!
-        mean = uvX.mean()
-        std = uvX.std(ddof=0)
+        mean = vX.mean()
+        std = vX.std(ddof=0)
         Xc.loc[idxs, :] = (vX - mean)/std
 
     return Xc
@@ -165,8 +164,8 @@ def separate_by_cond(X, vcond):
 
 # %% Wrappers to run decoding over time and different stimulus periods.
 
-def run_logreg_across_time(rates, vfeat, vcond=None, zscore=False, n_pshfl=0,
-                           corr_trs=None, ncv=5, Cs=10):
+def run_logreg_across_time(rates, vfeat, vzscore_by=None,
+                           n_pshfl=0, corr_trs=None, ncv=5, Cs=10):
     """Run logistic regression analysis across trial time."""
 
     # Correct and error trials and targets.
@@ -188,8 +187,8 @@ def run_logreg_across_time(rates, vfeat, vcond=None, zscore=False, n_pshfl=0,
     for t, rt in rates.items():
 
         rtmat = rt.unstack().T  # get rates and format to (trial x unit) matrix
-        if (vcond is not None) and zscore:
-            rtmat = zscore_by_cond(rtmat, vcond)  # z-score by condition level
+        if vzscore_by is not None:  # z-score by condition level
+            rtmat = zscore_by_cond(rtmat, vzscore_by)
 
         corr_rates, err_rates = [rtmat.loc[trs] for trs in [corr_trs, err_trs]]
         LRparams.append((corr_rates, corr_feat, n_pshfl, None, ncv, Cs))
@@ -220,14 +219,17 @@ def run_logreg_across_time(rates, vfeat, vcond=None, zscore=False, n_pshfl=0,
     return Scores, Coefs, C, ShfldScore
 
 
-def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, cond, zscore, prd,
+def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
                     ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs):
     """Run logistic regression analysis on population for time period."""
 
     # Get target vector.
     TrData = ua_query.get_trial_params(UA, rec, task)
     vfeat = TrData.loc[trs].copy()[sfeat].squeeze()
-    vcond = None if cond is None else TrData.loc[trs].copy()[cond].squeeze()
+
+    # Init levels of separation and z-scoring condition.
+    vzscore_by = (None if zscore_by in (None, np.nan) else
+                  TrData.loc[trs].copy()[zscore_by].squeeze())
 
     # Get FR matrix.
     rates = ua_query.get_rate_matrix(UA, rec, task, uids, prd,
@@ -237,7 +239,7 @@ def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, cond, zscore, prd,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
-    res = run_logreg_across_time(rates, vfeat, vcond, zscore,
+    res = run_logreg_across_time(rates, vfeat, vzscore_by,
                                  n_pshfl, corr_trs, ncv, Cs)
 
     return res
@@ -252,14 +254,13 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
     for stim in stims:
         print('    ' + stim)
 
-        pars = ['prd', 'ref_ev', 'feat', 'cond', 'zscore']
-        prd, ref_ev, sfeat, cond, zscore = prd_pars.loc[stim, pars]
+        pars = ['prd', 'ref_ev', 'feat', 'cond_by', 'zscore_by']
+        prd, ref_ev, sfeat, sep_by, zscore_by = prd_pars.loc[stim, pars]
 
         # Run decoding.
 #        try:
-        res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat,
-                              cond, zscore, prd, ref_ev, nrate,
-                              n_pshfl, sep_err_trs, ncv, Cs)
+        res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
+                              ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs)
         Scores, Coefs, C, ShfldScores = res
         lScores.append(Scores)
         lCoefs.append(Coefs)

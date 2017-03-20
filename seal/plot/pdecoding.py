@@ -190,13 +190,13 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     w_pad, h_pad = 3, 3
 
     # Performance.
-    ffig = decode.fig_fname(res_dir + 'score_', feat, nrate, ncv, n_pshfl,
+    ffig = decode.fig_fname(res_dir, feat, 'score_' + nrate, ncv, n_pshfl,
                             sep_err_trs, cond, n_most_DS)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
-    ffig = decode.fig_fname(res_dir + 'weight_', feat, nrate, ncv, n_pshfl,
+    ffig = decode.fig_fname(res_dir, feat, 'weight_' + nrate, ncv, n_pshfl,
                             sep_err_trs, cond, n_most_DS)
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
@@ -300,7 +300,7 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
     fs_title = 'large'
     ytitle = 1.12
     w_pad, h_pad = 3, 3
-    ffig = decode.fig_fname(res_dir + 'all_scores_', feat, nrate,
+    ffig = decode.fig_fname(res_dir, feat, 'all_scores_' + nrate,
                             ncv, n_pshfl, sep_err_trs, cond, n_most_DS)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
@@ -413,7 +413,7 @@ def plot_scores_across_nunits(recs, tasks, stims, feat, cond, zscore,
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
-    ffig = decode.fig_fname(res_dir + 'score_', feat, nrate, ncv, n_pshfl,
+    ffig = decode.fig_fname(res_dir, feat,  'score_' + nrate, ncv, n_pshfl,
                             sep_err_trs, cond, '_'.join(list_n_most_DS_str))
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
