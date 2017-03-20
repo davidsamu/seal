@@ -645,8 +645,8 @@ def concat_stim_prd_res(res_list, tshifts=None, truncate_prds=None,
     res = res.loc[:, ~res.columns.duplicated()]
 
     # Convert single row DataFrame to Series.
-    if len(res.index) == 1:
-        res = res.T.squeeze()
+    # if len(res.index) == 1:
+    #    res = res.T.squeeze()
 
     return res
 

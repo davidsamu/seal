@@ -322,23 +322,6 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
     return DSInfo
 
 
-def select_n_most_DS_units(UA, utids, n):
-    """Return uids of n most direction selective units."""
-
-    # Init.
-    if utids is None:
-        utids = list(UA.utids())
-
-    if n == 0:
-        return utids
-
-    # Get DS results and select utids of n most DS units.
-    DStable = ua_query.get_DSInfo_table(UA, utids=utids, stim='S1')
-    n_utids = DStable.sort_values('DSI', ascending=False).iloc[:n].index
-
-    return n_utids
-
-
 # %% Trial type distribution analysis.
 
 def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),

@@ -98,7 +98,7 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
 
 
 def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
-                        nrate, ncv, n_pshfl, sep_err_trs):
+                        nrate, ncv, n_pshfl, sep_err_trs, n_most_DS):
     """
     Plot prediction scores and model weights for given recording and analysis.
     """
@@ -110,7 +110,7 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond)
+                            sep_err_trs, cond, n_most_DS)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figures.
@@ -183,27 +183,28 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     #  for itask in range(axs_scr.shape[1])]
 
     # Save plots.
-    title = decode.fig_title(res_dir, feat, nrate, ncv,
-                             n_pshfl, sep_err_trs, cond)
+    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
+                             sep_err_trs, cond, n_most_DS)
     fs_title = 'large'
-    ytitle = 1.05
+    ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     # Performance.
     ffig = decode.fig_fname(res_dir + 'score_', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond)
+                            sep_err_trs, cond, n_most_DS)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
     ffig = decode.fig_fname(res_dir + 'weight_', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond)
+                            sep_err_trs, cond, n_most_DS)
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
 
 def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
-                                res_dir, nrate, ncv, n_pshfl, sep_err_trs):
+                                res_dir, nrate, ncv, n_pshfl,
+                                sep_err_trs, n_most_DS):
     """
     Plot prediction scores and model weights of analysis for multiple
     recordings.
@@ -216,7 +217,7 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
     prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
                                    constants.fixed_tr_prds)
     fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, cond)
+                            sep_err_trs, cond, n_most_DS)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figure.
@@ -225,10 +226,10 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
                                 subw=8, subh=6, create_axes=True)
     fig_scr, _, axs_scr = ret
 
-    dict_lScores = {}
     print('\nPlotting multi-recording results...')
     for itask, task in enumerate(tasks):
         print('    ' + task)
+        dict_lScores = {}
         for irec, rec in enumerate(recs):
 
             # Check if results exist for rec-task combination.
@@ -277,7 +278,8 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
                    condition='rec', color=palette, ax=ax_scr)
 
         # Add chance level line.
-        # This currently plots all nvals combined across stimulus period!
+        # This currently plots a chance level line for every nvals,
+        # combined across stimulus period!
         if nvals is not None:
             chance_lvl = 1.0 / nvals
             putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
@@ -293,12 +295,125 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
         putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
     # Save figure.
-    title = decode.fig_title(res_dir, feat, nrate, ncv,
-                             n_pshfl, sep_err_trs, cond)
+    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
+                             sep_err_trs, cond, n_most_DS)
     fs_title = 'large'
-    ytitle = 1.10
+    ytitle = 1.12
     w_pad, h_pad = 3, 3
     ffig = decode.fig_fname(res_dir + 'all_scores_', feat, nrate,
-                            ncv, n_pshfl, sep_err_trs, cond)
+                            ncv, n_pshfl, sep_err_trs, cond, n_most_DS)
+    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
+                   w_pad=w_pad, h_pad=h_pad)
+
+
+def plot_scores_across_nunits(recs, tasks, stims, feat, cond, zscore,
+                              res_dir, nrate, ncv, n_pshfl, sep_err_trs,
+                              list_n_most_DS):
+    """
+    Plot prediction score results across different number of units included.
+    """
+
+    # Init.
+    putil.set_style('notebook', 'ticks')
+    prd_pars = util.init_stim_prds(stims, feat, cond, zscore,
+                                   constants.fixed_tr_prds)
+
+    # Load all restuls to plot.
+    dict_rt_res = {}
+    for n_most_DS in list_n_most_DS:
+        fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
+                                sep_err_trs, cond, n_most_DS)
+        rt_res = util.read_objects(fres, 'rt_res')
+        dict_rt_res[n_most_DS] = rt_res
+
+    # Create figures.
+    fig_scr, _, axs_scr = putil.get_gs_subplots(nrow=len(recs),
+                                                ncol=len(tasks),
+                                                subw=8, subh=6,
+                                                create_axes=True)
+    # Do plotting per recording and task.
+    for irec, rec in enumerate(recs):
+        print('\n' + rec)
+        for itask, task in enumerate(tasks):
+            print('    ' + task)
+
+            # Init data.
+            dict_lScores = {}
+            cols = sns.color_palette('hls', len(dict_rt_res.keys()))
+            for (n_most_DS, rt_res), col in zip(dict_rt_res.items(), cols):
+
+                # Check if results exist for rec-task combination.
+                if (((rec, task) not in rt_res.keys()) or
+                    (not len(rt_res[(rec, task)].keys()))):
+                    continue
+
+                res = rt_res[(rec, task)]
+                for v, col in zip(res.keys(), cols):
+                    vres = res[v]
+                    Scores = vres['Scores']
+                    Coefs = vres['Coefs']
+
+                    nvals = len(Coefs.index.get_level_values(1).unique())
+                    if nvals == 1:  # binary case
+                        nvals = 2
+
+                    # Unstack dataframe with results.
+                    lScores = pd.DataFrame(Scores.unstack(), columns=['score'])
+                    lScores['time'] = lScores.index.get_level_values(0)
+                    lScores['fold'] = lScores.index.get_level_values(1)
+                    lScores.index = np.arange(len(lScores.index))
+
+                    nunits = vres['nunits']
+                    dict_lScores[(nunits, v)] = lScores
+
+            # Concatenate accuracy scores from every recording.
+            all_lScores = pd.concat(dict_lScores)
+            all_lScores['n_most_DS'] = all_lScores.index.get_level_values(0)
+            all_lScores.index = np.arange(len(all_lScores.index))
+
+            # Plot decoding results.
+            nnunits = len(all_lScores['n_most_DS'].unique())
+            title = '{} {}, {} sets of units'.format(rec, task, nnunits)
+            ytitle = 1.0
+            prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
+                    for stim in prd_pars.index]
+
+            # Plot time series.
+            ax_scr = axs_scr[irec, itask]
+            palette = sns.color_palette('muted')
+            sns.tsplot(all_lScores, time='time', value='score', unit='fold',
+                       condition='n_most_DS', color=palette, ax=ax_scr)
+
+            # Add chance level line.
+            # This currently plots a chance level line for every nvals,
+            # combined across stimulus period!
+            if nvals is not None:
+                chance_lvl = 1.0 / nvals
+                putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
+
+            # Add stimulus periods.
+            if prds is not None:
+                putil.plot_periods(prds, ax=ax_scr)
+
+            # Set axis limits.
+            putil.set_limits(ax_scr, tlim, ylim_scr)
+
+            # Format plot.
+            putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
+
+    # Match axes across decoding plots.
+    # [putil.sync_axes(axs_scr[:, itask], sync_y=True)
+    #  for itask in range(axs_scr.shape[1])]
+
+    # Save plots.
+    list_n_most_DS_str = [str(i) if i != 0 else 'all' for i in list_n_most_DS]
+    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
+                             sep_err_trs, cond, ', '.join(list_n_most_DS_str))
+    fs_title = 'large'
+    ytitle = 1.08
+    w_pad, h_pad = 3, 3
+
+    ffig = decode.fig_fname(res_dir + 'score_', feat, nrate, ncv, n_pshfl,
+                            sep_err_trs, cond, '_'.join(list_n_most_DS_str))
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)

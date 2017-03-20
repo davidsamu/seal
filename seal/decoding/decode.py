@@ -295,7 +295,8 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
 # %% Utility functions for getting file names, and import / export data.
 
-def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
+def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+              n_most_DS):
     """Return full path to decoding result with given parameters."""
 
     feat_str = util.format_to_fname(str(feat))
@@ -304,21 +305,26 @@ def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
     err_str = 'w{}_err'.format('o' if sep_err_trs else '')
     cond_str = ('by_'+util.format_feat_name(cond, True)
                 if cond is not None else 'uncond')
-    fres = '{}{}_{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate, ncv_str,
-                                             pshfl_str, err_str, cond_str)
+    nDS_str = ('top_{}_units'.format(n_most_DS)
+               if n_most_DS != 0 else 'all_units')
+    fres = '{}{}/{}_{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, nrate,
+                                                ncv_str, pshfl_str, err_str,
+                                                cond_str, nDS_str)
     return fres
 
 
-def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond, n_most_DS,
               ext='png'):
     """Return full path to decoding result with given parameters."""
 
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond)
+    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl,
+                     sep_err_trs, cond, n_most_DS)
     ffig = os.path.splitext(fres)[0] + '.' + ext
     return ffig
 
 
-def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
+def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond,
+              n_most_DS):
     """Return title for decoding result figure with given parameters."""
 
     feat_str = util.format_to_fname(str(feat))
@@ -327,16 +333,19 @@ def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
     pshfl_str = '# population shuffles: {}'.format(n_pshfl)
     cond_str = ('' if cond is None else
                 'conditioned by ' + util.format_feat_name(cond, True))
+    nDS_str = ('using {} most DS units'.format(n_most_DS)
+               if n_most_DS != 0 else 'all units')
     title = ('Decoding {}\n'.format(feat_str) + cv_str +
-             '\nFR kernel: {}, {}, {}, {}\n'.format(nrate, err_str,
-                                                    pshfl_str, cond_str))
+             '\nFR kernel: {}, {}'.format(nrate, err_str) +
+             '\n{}, {}, {}'.format(pshfl_str, nDS_str, cond_str))
     return title
 
 
-def load_res(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond):
+def load_res(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond, nDS_str):
     """Load decoding results."""
 
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond)
+    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl,
+                     sep_err_trs, cond, nDS_str)
     dec_res = util.read_objects(fres, ['Scores', 'Coefs', 'C'])
 
     return dec_res

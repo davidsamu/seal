@@ -58,6 +58,26 @@ def get_DSInfo_table(UA, utids=None, stim='S1'):
     return DSInfo
 
 
+def select_n_most_DS_units(UA, utids, n):
+    """
+    Return uids of n most direction selective units.
+    Set n=0 to return all units (i.e. no selection by DS).
+    """
+
+    # Init.
+    if utids is None:
+        utids = list(UA.utids())
+
+    if n == 0:
+        return utids
+
+    # Get DS results and select utids of n most DS units.
+    DStable = get_DSInfo_table(UA, utids=utids, stim='S1')
+    n_utids = DStable.sort_values('DSI', ascending=False).iloc[:n].index
+
+    return n_utids
+
+
 def get_a_unit(UA, rec, task):
     """Query units for recording and task in UA."""
 
