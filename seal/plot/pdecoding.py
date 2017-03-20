@@ -201,7 +201,7 @@ def plot_scores_weights(recs, tasks, stims, feat, cond, zscore, res_dir,
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
-# TODO: update this
+
 def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
                                 res_dir, nrate, ncv, n_pshfl, sep_err_trs):
     """
@@ -239,25 +239,24 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
 
             # Init data.
             res = rt_res[(rec, task)]
-            Scores = res['Scores']
-            Coefs = res['Coefs']
-            # C = res['C']
-            # ShfldScores = res['ShfldScores']
-            # nunits = res['nunits']
-            # ntrials = res['ntrials']
-            # prd_pars = res['prd_pars']
-            nvals = len(Coefs.index.get_level_values(1).unique())
-            if nvals == 1:  # binary case
-                nvals = 2
+            cols = sns.color_palette('hls', len(res.keys()))
 
-            # Plot accuracy over time.
-            # Unstack dataframe with results.
-            lScores = pd.DataFrame(Scores.unstack(), columns=['score'])
-            lScores['time'] = lScores.index.get_level_values(0)
-            lScores['fold'] = lScores.index.get_level_values(1)
-            lScores.index = np.arange(len(lScores.index))
+            for v, col in zip(res.keys(), cols):
+                vres = res[v]
+                Scores = vres['Scores']
+                Coefs = vres['Coefs']
 
-            dict_lScores[rec] = lScores
+                nvals = len(Coefs.index.get_level_values(1).unique())
+                if nvals == 1:  # binary case
+                    nvals = 2
+
+                # Unstack dataframe with results.
+                lScores = pd.DataFrame(Scores.unstack(), columns=['score'])
+                lScores['time'] = lScores.index.get_level_values(0)
+                lScores['fold'] = lScores.index.get_level_values(1)
+                lScores.index = np.arange(len(lScores.index))
+
+                dict_lScores[(rec, v)] = lScores
 
         # Concatenate accuracy scores from every recording.
         all_lScores = pd.concat(dict_lScores)
@@ -294,11 +293,12 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, cond, zscore,
         putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
     # Save figure.
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs)
+    title = decode.fig_title(res_dir, feat, nrate, ncv,
+                             n_pshfl, sep_err_trs, cond)
     fs_title = 'large'
     ytitle = 1.10
     w_pad, h_pad = 3, 3
-    ffig = decode.fig_fname(res_dir + 'all_scores_', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs)
+    ffig = decode.fig_fname(res_dir + 'all_scores_', feat, nrate,
+                            ncv, n_pshfl, sep_err_trs, cond)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
