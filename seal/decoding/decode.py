@@ -6,7 +6,6 @@ Functions to perform decoding analyses and process results.
 @author: David Samu
 """
 
-import os
 import warnings
 
 import numpy as np
@@ -220,7 +219,7 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None,
 
 
 def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
-                    ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs):
+                    ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs, tstep):
     """Run logistic regression analysis on population for time period."""
 
     # Get target vector.
@@ -233,7 +232,7 @@ def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
 
     # Get FR matrix.
     rates = ua_query.get_rate_matrix(UA, rec, task, uids, prd,
-                                     ref_ev, nrate, trs)
+                                     ref_ev, nrate, trs, tstep)
 
     # Separate correct trials from error trials, if requested.
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
@@ -246,7 +245,7 @@ def run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
 
 
 def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
-                sep_err_trs, ncv, Cs):
+                sep_err_trs, ncv, Cs, tstep):
     """Run population decoding on multiple periods across given trials."""
 
     lScores, lCoefs, lC, lShfldScores = [], [], [], []
@@ -260,7 +259,8 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         # Run decoding.
 #        try:
         res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
-                              ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs)
+                              ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs,
+                              tstep)
         Scores, Coefs, C, ShfldScores = res
         lScores.append(Scores)
         lCoefs.append(Coefs)
@@ -292,61 +292,3 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
                 'ntrials': len(trs), 'prd_pars': prd_pars}
 
     return res_dict
-
-
-# %% Utility functions for getting file names, and import / export data.
-
-def res_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
-              n_most_DS):
-    """Return full path to decoding result with given parameters."""
-
-    feat_str = util.format_to_fname(str(feat))
-    ncv_str = 'ncv_{}'.format(ncv)
-    pshfl_str = 'npshfl_{}'.format(n_pshfl)
-    err_str = 'w{}_err'.format('o' if sep_err_trs else '')
-    cond_str = ('_zscored_by_'+util.format_feat_name(zscore_by, True)
-                if zscore_by is not None else '')
-    nDS_str = ('top_{}_units'.format(n_most_DS)
-               if n_most_DS != 0 else 'all_units')
-    fres = '{}{}{}/{}_{}_{}_{}_{}.data'.format(res_dir, feat_str, cond_str,
-                                               nrate, ncv_str, pshfl_str,
-                                               err_str, nDS_str)
-    return fres
-
-
-def fig_fname(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
-              n_most_DS, ext='png'):
-    """Return full path to decoding result with given parameters."""
-
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl,
-                     sep_err_trs, zscore_by, n_most_DS)
-    ffig = os.path.splitext(fres)[0] + '.' + ext
-    return ffig
-
-
-def fig_title(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, zscore_by,
-              n_most_DS):
-    """Return title for decoding result figure with given parameters."""
-
-    feat_str = util.format_to_fname(str(feat))
-    cv_str = 'Logistic regression with {}-fold CV'.format(ncv)
-    err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
-    pshfl_str = '# population shuffles: {}'.format(n_pshfl)
-    cond_str = ('' if zscore_by is None else
-                'z-scored by ' + util.format_feat_name(zscore_by, True))
-    nDS_str = ('using {} most DS units'.format(n_most_DS)
-               if n_most_DS != 0 else 'all units')
-    title = ('Decoding {}\n'.format(feat_str) + cv_str +
-             '\nFR kernel: {}, {}'.format(nrate, err_str) +
-             '\n{}, {}, {}'.format(pshfl_str, nDS_str, cond_str))
-    return title
-
-
-def load_res(res_dir, feat, nrate, ncv, n_pshfl, sep_err_trs, cond, nDS_str):
-    """Load decoding results."""
-
-    fres = res_fname(res_dir, feat, nrate, ncv, n_pshfl,
-                     sep_err_trs, cond, nDS_str)
-    dec_res = util.read_objects(fres, ['Scores', 'Coefs', 'C'])
-
-    return dec_res

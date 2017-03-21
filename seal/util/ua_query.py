@@ -117,11 +117,12 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None):
     return t1s, t2s, ref_ts
 
 
-def get_rate_matrix(UA, rec, task, uids, prd, ref_ev, nrate, trs=None):
+def get_rate_matrix(UA, rec, task, uids, prd, ref_ev, nrate, trs=None,
+                    tstep=None):
     """Return rate matrix across units and periods."""
 
     t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs)
-    rates = {u.Name: u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts)
+    rates = {u.Name: u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, tstep)
              for u in UA.iter_thru([task], uids)}
     rates = pd.concat(rates)
 

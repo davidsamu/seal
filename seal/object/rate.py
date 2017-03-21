@@ -108,7 +108,8 @@ class Rate:
 
     # %% Methods to get rates for given trials and time periods.
 
-    def get_rates(self, trs, t1s, t2s, ref_ts=None, rem_all_nan_ts=True):
+    def get_rates(self, trs, t1s, t2s, ref_ts=None, tstep=None,
+                  rem_all_nan_ts=True):
         """
         Return firing rates of some trials within trial-specific time windows.
 
@@ -131,7 +132,8 @@ class Rate:
         rates = len(trs) * [[]]
         for i, itr in enumerate(trs):
             ts1, ts2 = self.get_sampled_t_limits(t1s.iloc[i], t2s.iloc[i])
-            rates[i] = self.rates.loc[itr, ts1:ts2]
+            istep = int(tstep/self.step)
+            rates[i] = self.rates.loc[itr, ts1:ts2:istep]
 
         # Align rates relative to reference times.
         if ref_ts is None:  # default: align to start of each time window

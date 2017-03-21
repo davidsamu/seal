@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from seal.decoding import decode
+from seal.decoding import decutil
 from seal.plot import putil
 from seal.util import util, constants
 
@@ -97,20 +97,19 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
     putil.hide_legend(ax)
 
 
-def plot_scores_weights(recs, tasks, stims, feat, sep_by, zscore_by, res_dir,
-                        nrate, ncv, n_pshfl, sep_err_trs, n_most_DS):
+def plot_scores_weights(recs, tasks, stims, res_dir, par_kws):
     """
     Plot prediction scores and model weights for given recording and analysis.
     """
 
     # Init.
     putil.set_style('notebook', 'ticks')
+    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
+                                   par_kws['sep_by'], par_kws['zscore_by'],
+                                   constants.fixed_tr_prds)
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
-                                   constants.fixed_tr_prds)
-    fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, zscore_by, n_most_DS)
+    fres = decutil.res_fname(res_dir, 'results', **par_kws)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figures.
@@ -183,28 +182,23 @@ def plot_scores_weights(recs, tasks, stims, feat, sep_by, zscore_by, res_dir,
     #  for itask in range(axs_scr.shape[1])]
 
     # Save plots.
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
-                             sep_err_trs, zscore_by, n_most_DS)
+    title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     # Performance.
-    ffig = decode.fig_fname(res_dir, feat, 'score_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, zscore_by, n_most_DS)
+    ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
-    ffig = decode.fig_fname(res_dir, feat, 'weight_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, zscore_by, n_most_DS)
+    ffig = decutil.fig_fname(res_dir, 'weight', **par_kws)
     putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_score_weight_multi_rec(recs, tasks, stims, feat, sep_by, zscore_by,
-                                res_dir, nrate, ncv, n_pshfl,
-                                sep_err_trs, n_most_DS):
+def plot_score_weight_multi_rec(recs, tasks, stims, res_dir, par_kws):
     """
     Plot prediction scores and model weights of analysis for multiple
     recordings.
@@ -212,12 +206,12 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, sep_by, zscore_by,
 
     # Init.
     putil.set_style('notebook', 'ticks')
+    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
+                                   par_kws['sep_by'], par_kws['zscore_by'],
+                                   constants.fixed_tr_prds)
 
     # Load results.
-    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
-                                   constants.fixed_tr_prds)
-    fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                            sep_err_trs, zscore_by, n_most_DS)
+    fres = decutil.res_fname(res_dir, 'results', **par_kws)
     rt_res = util.read_objects(fres, 'rt_res')
 
     # Create figure.
@@ -295,34 +289,31 @@ def plot_score_weight_multi_rec(recs, tasks, stims, feat, sep_by, zscore_by,
         putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
     # Save figure.
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,
-                             sep_err_trs, zscore_by, n_most_DS)
+    title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
     ytitle = 1.12
     w_pad, h_pad = 3, 3
-    ffig = decode.fig_fname(res_dir, feat, 'all_scores_' + nrate,
-                            ncv, n_pshfl, sep_err_trs, zscore_by, n_most_DS)
+    ffig = decutil.fig_fname(res_dir, 'all_scores', **par_kws)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_scores_across_nunits(recs, tasks, stims, feat, sep_by, zscore_by,
-                              res_dir, nrate, ncv, n_pshfl, sep_err_trs,
-                              list_n_most_DS):
+def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
+                              par_kws):
     """
     Plot prediction score results across different number of units included.
     """
 
     # Init.
     putil.set_style('notebook', 'ticks')
-    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by,
+    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
+                                   par_kws['sep_by'], par_kws['zscore_by'],
                                    constants.fixed_tr_prds)
 
     # Load all restuls to plot.
     dict_rt_res = {}
     for n_most_DS in list_n_most_DS:
-        fres = decode.res_fname(res_dir+'results/', feat, nrate, ncv, n_pshfl,
-                                sep_err_trs, zscore_by, n_most_DS)
+        fres = decutil.res_fname(res_dir, 'results', **par_kws)
         rt_res = util.read_objects(fres, 'rt_res')
         dict_rt_res[n_most_DS] = rt_res
 
@@ -407,14 +398,13 @@ def plot_scores_across_nunits(recs, tasks, stims, feat, sep_by, zscore_by,
 
     # Save plots.
     list_n_most_DS_str = [str(i) if i != 0 else 'all' for i in list_n_most_DS]
-    title = decode.fig_title(res_dir, feat, nrate, ncv, n_pshfl,  sep_err_trs,
-                             zscore_by, ', '.join(list_n_most_DS_str))
+    par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
+    title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
-    ffig = decode.fig_fname(res_dir, feat,  'score_' + nrate, ncv, n_pshfl,
-                            sep_err_trs, zscore_by,
-                            '_'.join(list_n_most_DS_str))
+    par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
+    ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
