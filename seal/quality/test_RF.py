@@ -105,6 +105,7 @@ def RF_coverage_analysis(UA, stims, fdir):
     # Init.
     RFres = get_RF_mapping_results(UA.recordings())
     if RFres.empty:  # no RF mapping was done
+        UA.RF_res = None
         return
     # Test DS in case it hasn't been tested yet.
     ua_query.test_DS(UA)
@@ -177,6 +178,9 @@ def plot_RF_results(RF_res, stims, fdir, title):
                 scov, sval = [stim + '_' + name for name in ('cover', vname)]
                 df = RF_res.xs(task, level=3)
                 sns.regplot(scov, sval, df, color=colors[itask], ax=ax)
+                # Add unit labels.
+                uids = df.index.droplevel(0)
+                putil.add_unit_labels(ax, uids, df[scov], df[sval])
                 # Add stats.
                 r, p = sp.stats.pearsonr(df[sval], df[scov])
                 pstr = util.format_pvalue(p)
@@ -199,7 +203,7 @@ def plot_RF_results(RF_res, stims, fdir, title):
 
 # %% Exclude units with low RF coverage.
 
-def exclude_uncovered_units(UA, min_RF_R2=0.5, exc_unmapped=False):
+def exclude_uncovered_units(UA, exc_unmapped=False):
     """Exclude units from UnitArray with low RF coverage."""
 
     # Get RF mapping results.

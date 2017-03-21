@@ -109,11 +109,22 @@ def get_unit_info_title(u, fullname=False):
     #info_lines += '{}, {}, {}\n\n'.format(fvals['Fac/Sup'], fvals['mFR'],
     #                                      fvals['baseline'])
 
-
     return info_lines
 
 
 # %% Generic plot decorator functions.
+
+def add_unit_labels(ax, uids, x, y, sep='/'):
+    """Add unit labels to plot."""
+
+    if (len(uids) != len(x)) or (len(uids) != len(y)):
+        warnings.warn('Number of unit labels and data points differ.')
+
+    unames = [sep.join([str(ni) for ni in uid]) for uid in list(uids)]
+    [ax.annotate(uni, [xi, yi]) for xi, yi, uni in zip(x, y, unames)]
+
+    return
+
 
 def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
                      color='c', linewidth=4, ax=None):
