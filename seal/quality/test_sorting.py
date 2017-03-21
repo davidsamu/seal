@@ -204,7 +204,10 @@ def test_drift(u):
         idxs = list(range(cntr-hl, cntr+hl))
         if min(idxs) >= 0 and max(idxs) <= max(trs):
             itrs.append(idxs)
-    itrs[-1] = list(range(itrs[-1][0], trs[-1]+1))  # add modulo trials
+    if not len(itrs):  # in case there's not enough trials for a single window
+        itrs = [list(range(len(bs_rate)))]
+    else:
+        itrs[-1] = list(range(itrs[-1][0], trs[-1]+1))  # add modulo trials
 
     # Get baseline activity stats in each window.
     bs_stats = pd.DataFrame()
@@ -225,7 +228,7 @@ def test_drift(u):
     res = []
     for i in bs_stats.index:
         rmin = rmax = bs_stats.loc[i, 'rate']
-        for j in bs_stats.index[(i+1):]:
+        for j in bs_stats.index[i:]:
             r = bs_stats.loc[j, 'rate']
             # Update extreme values.
             rmin = min(rmin, r)
