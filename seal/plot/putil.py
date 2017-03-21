@@ -114,14 +114,15 @@ def get_unit_info_title(u, fullname=False):
 
 # %% Generic plot decorator functions.
 
-def add_unit_labels(ax, uids, x, y, sep='/'):
+def add_unit_labels(ax, uids, x, y, sep='/', color='grey'):
     """Add unit labels to plot."""
 
     if (len(uids) != len(x)) or (len(uids) != len(y)):
         warnings.warn('Number of unit labels and data points differ.')
 
     unames = [sep.join([str(ni) for ni in uid]) for uid in list(uids)]
-    [ax.annotate(uni, [xi, yi]) for xi, yi, uni in zip(x, y, unames)]
+    for xi, yi, uni in zip(x, y, unames):
+        ax.annotate(uni, [xi, yi], color=color)
 
     return
 

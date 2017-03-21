@@ -159,7 +159,7 @@ def RF_coverage_analysis(UA, stims, fdir):
     return RF_res
 
 
-def plot_RF_results(RF_res, stims, fdir, title):
+def plot_RF_results(RF_res, stims, fdir, sup_title):
     """Plot receptive field results."""
 
     # Plot RF coverage and rate during S1 on regression plot for each
@@ -196,55 +196,43 @@ def plot_RF_results(RF_res, stims, fdir, title):
                 putil.set_limits(ax, xlim, ylim)
 
         # Save plot.
-        fname = '{}_cover_{}.png'.format(util.format_to_fname(title), vname)
+        fst = util.format_to_fname(sup_title)
+        fname = '{}_cover_{}.png'.format(fst, vname)
         ffig = util.join([fdir, vname, fname])
-        putil.save_fig(ffig, fig, title, ytitle=1.1)
+        putil.save_fig(ffig, fig, sup_title, ytitle=1.1)
 
 
 # %% Exclude units with low RF coverage.
 
-def exclude_uncovered_units(UA, exc_unmapped=False):
+def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=False, cov_th=0.33):
     """Exclude units from UnitArray with low RF coverage."""
 
-    # Get RF mapping results.
-    RFres = get_RF_mapping_results(UA.recordings())
+    if RF_res is None:
+        RF_res = RF_coverage_analysis(UA)
 
-    # For each unit (channel) test distance of each stimulus location
-    # from RF center.
     nstart = len(UA.utids())
     nnoRF = 0
     for u in UA.iter_thru():
 
         # Get results of unit.
-        uRFres = get_unit_results(u, RFres)
+        utid = tuple(u.get_utid())
 
-        # No RF mapping data found for unit.
-        if uRFres.empty:
+        # No RF mapping result for recording or for unit.
+        if RF_res is None or utid not in RF_res.index:
             u.set_excluded(exc_unmapped)
             nnoRF += 1
             continue
 
-        x, y, FWHM, R2 = uRFres
+        # Exclude unit if coverage with RF is low for both stimuli.
+        uRFres = RF_res.loc[utid]
 
-        # Get stimulus center locations.
-        stims = ('S1', 'S2')
-        s1locs, s2locs = [list(u.TrData[(stim, 'Loc')].unique())
-                          for stim in stims]
-
-        # Calculate distance of RF center from each stimulus.
-        dists = np.array([sp.spatial.distance.euclidean([x, y], stimloc)
-                          for stimloc in s1locs + s2locs])
-
-        # Exclude unit if
-        # 1) it does not have a strong RF, or
-        # 2) all stimulus presented are away from RF.
-        if R2 > min_RF_R2 or np.all(dists > FWHM):
+        if uRFres['S1_cover'] < cov_th and uRFres['S1_cover'] < cov_th:
             u.set_excluded(True)
 
     # Report some stats on unit exclusion.
     nexc = nstart - len(UA.utids())
     pexc = int(100*nexc/nstart)
-    print('Excluded {}/{} ({}%) of units'.format(nexc, nstart, pexc))
+    print('Excluded {}/{} ({}%) of all units.'.format(nexc, nstart, pexc))
     if nnoRF != 0:
         pnoRF = int(100*nnoRF/nstart)
         snorf = 'and were ' if exc_unmapped else 'but were not '
