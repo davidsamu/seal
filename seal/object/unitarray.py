@@ -338,9 +338,6 @@ class UnitArray:
     def clean_array(self, keep_excl=True):
         """Remove empty (and excluded) uids (rows) and tasks (columns)."""
 
-        for uid in self.uids():
-            len(list(self.iter_thru(uids=[uid], excl=keep_excl)))
-
         # Clean uids.
         empty_uids = [uid for uid in self.uids()
                       if not len(list(self.iter_thru(uids=[uid],

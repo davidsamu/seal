@@ -15,7 +15,6 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
-from seal.plot import pauc
 
 
 # Some analysis constants.
@@ -116,7 +115,8 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     return roc_res
 
 
-def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, n_perm, verbose):
+def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, t_step, n_perm,
+                           verbose):
     """Run ROC analysis of unit over time. Suitable for parallelization."""
 
     # Report progress.
@@ -128,7 +128,7 @@ def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, n_perm, verbose):
     ref_ts = u.ev_times(ref)
 
     # Calculate AROC on rates.
-    rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts)
+    rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, t_step)
                       for trs in trs_list]
     aroc_res = run_ROC_over_time(rates1, rates2, n_perm)
 
@@ -136,11 +136,11 @@ def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, n_perm, verbose):
 
 
 def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
-                            nrate=None, verbose=True):
+                            nrate=None, tstep=None, verbose=True):
     """Run ROC over list of units over time."""
 
     # Run unit-wise AROC test in pool.
-    params = [(u, prd, ref, trs_list[i], nrate, n_perm, verbose)
+    params = [(u, prd, ref, trs_list[i], nrate, tstep, n_perm, verbose)
               for i, u in enumerate(ulist)]
     aroc_res = util.run_in_pool(run_unit_ROC_over_time, params)
 
@@ -155,59 +155,44 @@ def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
     return aroc_res, pval_res
 
 
-# %% Meta-functions to run and plot AROC over different trial periods.
-
-def calc_AROC(ulist, trs_list, stims, prd_limits, stim_timings,
-              n_perm, nrate, fres, verbose=True,
-              rem_all_nan_units=True, rem_any_nan_times=True):
+def calc_AROC(ulist, trs_list, prd_pars, n_perm, nrate, tstep, fres,
+              verbose=True, rem_all_nan_units=True, rem_any_nan_times=True):
     """Calculate and plot AROC over time between specified sets of trials."""
 
+    stims = prd_pars.index
     aroc_list, pval_list = [], []
     for stim in stims:
+        print('    ' + stim)
 
-        # Set up params.
-        prd = stim + ' half'
-        ref = stim + ' on'
+        # Extract period params.
+        pars = ['prd', 'ref_ev', 'feat', 'cond_by', 'zscore_by']
+        prd, ref_ev, sfeat, sep_by, zscore_by = prd_pars.loc[stim, pars]
 
         # Calculate AROC DF.
-        aroc, pval = run_group_ROC_over_time(ulist, trs_list[stim], prd, ref,
-                                             n_perm, nrate, verbose)
+        aroc, pval = run_group_ROC_over_time(ulist, trs_list[stim], prd,
+                                             ref_ev, n_perm, nrate, tstep,
+                                             verbose)
         aroc_list.append(aroc)
         pval_list.append(pval)
 
     # Concatenate stimulus-specific results.
-    offsets = [None, stim_timings.loc['S2', 'on']]
-    truncate_prds = [prd_limits.loc[stim, t] for t in ['start', 'stop']]
-    aroc = util.concat_stim_prd_res(aroc_list, offsets, truncate_prds,
+    tshifts = list(prd_pars.stim_start)
+    truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
+                     for stim in stims]
+
+    aroc = util.concat_stim_prd_res(aroc_list, tshifts, truncate_prds,
                                     rem_all_nan_units, rem_any_nan_times)
-    pval = util.concat_stim_prd_res(pval_list, offsets, truncate_prds,
+    pval = util.concat_stim_prd_res(pval_list, tshifts, truncate_prds,
                                     rem_all_nan_units, rem_any_nan_times)
+
+    # Refill pvals with NaN's if it gets completely emptied above.
+    if pval.empty:
+        pval = pd.DataFrame(columns=pval.columns, index=aroc.index)
 
     # Save results.
     if fres is not None:
-        aroc_res = {'aroc': aroc, 'pval': pval}
+        aroc_res = {'aroc': aroc, 'pval': pval, 'nrate': nrate,
+                    'tstep': tstep, 'n_perm': n_perm}
         util.write_objects(aroc_res, fres)
 
     return aroc, pval
-
-
-def plot_AROC_heatmap(aroc, stims, stim_timings, title, cmap='jet', ffig=None):
-    """Plot AROC result matrix (units by time points) on heatmap."""
-
-    # Init plotting.
-    xlab = 'time since S1 onset (ms)'
-    ylab = 'unit index'
-
-    # Get trial periods.
-    events = pd.DataFrame(columns=['time', 'label'])
-    for stim in stims:
-        ton, toff = stim_timings.loc[stim]
-        ion, ioff = [int(np.where(np.array(aroc.columns) == t)[0])
-                     for t in (ton, toff)]
-        events.loc[stim+' on'] = (ion, stim+' on')
-        events.loc[stim+' off'] = (ioff, stim+' off')
-
-    # Plot on heatmap and save figure.
-    pauc.plot_auc_heatmap(aroc, cmap=cmap, events=events,
-                          xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
-                          title=title, ffig=ffig)

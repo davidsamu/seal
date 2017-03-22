@@ -53,13 +53,15 @@ def write_matlab_object(fname, obj_dict):
     sp.io.savemat(fname, obj_dict)
 
 
-def read_objects(fname, obj_names):
+def read_objects(fname, obj_names=None):
     """Read in objects from pickled data file."""
 
     data = pickle.load(open(fname, 'rb'))
 
     # Unload objects from dictionary.
-    if isinstance(obj_names, str):
+    if obj_names is None:
+        objects = data  # all objects
+    elif isinstance(obj_names, str):
         objects = data[obj_names]   # single object
     else:
         objects = [data[oname] for oname in obj_names]  # multiple objects

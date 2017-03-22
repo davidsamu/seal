@@ -11,11 +11,12 @@ from seal.util import util
 
 # %% Utility functions to get file names, and import / export data.
 
-def aroc_res_fname(res_dir, nrate, n_perm, offsets):
+def aroc_res_fname(res_dir, nrate, tstep, n_perm, offsets):
     """Return full path to AROC result with given parameters."""
 
     offset_str = '_'.join([str(int(d)) for d in offsets])
-    fname = '{}_nperm_{}_offs_{}.data'.format(nrate, n_perm, offset_str)
+    fname = '{}_tstep{}_nperm{}_offs{}.data'.format(nrate, tstep, n_perm,
+                                                    offset_str)
     fpath = util.join([res_dir+'res', fname])
 
     return fpath
@@ -33,34 +34,34 @@ def aroc_fig_fname(res_dir, prefix, offsets, cmap, sort_prd=None):
     return ffig
 
 
-def aroc_fig_title(between_str, monkey, task, nrec, offsets, sort_prd=None):
+def aroc_fig_title(between_str, task, nunits, offsets, sort_prd=None):
     """Return title to AROC results figure with given parameters."""
 
     prd_str = 'sorted by: ' + sort_prd if sort_prd is not None else 'unsorted'
     ostr = ', '.join([str(int(d)) for d in offsets])
     title = ('AROC between {}, {}\n'.format(between_str, prd_str) +
-             'monkey: {}, task: {}'.format(monkey, task) +
-             ', # recordings: {}, offsets: {} deg'.format(nrec, ostr))
+             '{}, # units: {}, offsets: {} deg'.format(task, nunits, ostr))
     return title
 
 
-def aroc_table_fname(res_dir, monkey, task, nrate, n_perm, offsets,
+def aroc_table_fname(res_dir, task, nrate, tstep, n_perm, offsets,
                      sort_prd, min_len, pth, vth_hi, vth_lo):
     """Return full path to AROC results table with given parameters."""
 
     ostr = '_'.join([str(int(d)) for d in offsets])
-    ftable = ('{}_nperm_{}_offs_{}'.format(nrate, n_perm, ostr) +
-              '_prd_{}_min_len_{}_pth_{}'.format(sort_prd, int(min_len), pth) +
-              '_vth_hi_{}_vth_lo_{}'.format(vth_hi, vth_lo))
+    ftable = ('{}_{}_tstep{}_nperm{}_offs{}'.format(task, nrate, tstep,
+                                                    n_perm, ostr) +
+              '_prd{}_minlen{}_pth{}'.format(sort_prd, int(min_len), pth) +
+              '_vthhi{}_vthlo{}'.format(vth_hi, vth_lo))
     ftable = util.join([res_dir+'tables',
                         util.format_to_fname(ftable)+'.xlsx'])
     return ftable
 
 
-def load_aroc_res(res_dir, nrate, n_perm, offsets):
+def load_aroc_res(res_dir, nrate, tstep, n_perm, offsets):
     """Load AROC results."""
 
-    fres = aroc_res_fname(res_dir, nrate, n_perm, offsets)
-    aroc_res = util.read_objects(fres, ['aroc', 'pval'])
+    fres = aroc_res_fname(res_dir, nrate, tstep, n_perm, offsets)
+    aroc_res = util.read_objects(fres)
 
     return aroc_res

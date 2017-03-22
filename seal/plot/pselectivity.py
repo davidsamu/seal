@@ -78,11 +78,11 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
         if colors is None:
             colcyc = putil.get_colors()
-            cols = [next(colcyc) for itrs in range(len(trs))]
+            colors = [next(colcyc) for itrs in range(len(trs))]
 
         # Plot response on raster and rate plots.
         _, raster_axs, rate_ax = prate.plot_rr(u, prd, ref, prds, evnts, nrate,
-                                               trs, ppars.max_len, cols=cols,
+                                               trs, ppars.max_len, cols=colors,
                                                fig=fig, sps=rr_sps, **kwargs)
 
         # Add period name to rate plot.
