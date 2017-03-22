@@ -11,10 +11,6 @@ preprocessing pipeline
 
 analyses to add from DD scripts
 -------------------------------
-  - decoding
-    - preprocessing
-    - run
-    - analysis
   - comparison effect
 
 
@@ -32,4 +28,9 @@ decoding
 --------
   - extend with error trial analysis
   - choice probability
+
+
+unitarray
+---------
+  - remove support for indexed tasks for simplicity
 

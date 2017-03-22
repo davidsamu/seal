@@ -11,8 +11,9 @@ import pandas as pd
 
 from quantities import deg, ms
 
-from seal.analysis import direction, roc
+from seal.analysis import direction
 from seal.plot import putil, ptuning, prate, pauc
+from seal.roc import roccore
 from seal.util import util, constants
 
 
@@ -96,7 +97,7 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             plot_params = prate.prep_rr_plot_params(u, prd, ref, nrate, trs)
             _, _, (rates1, rates2), _, _ = plot_params
             # Calculate ROC results.
-            aroc = roc.run_ROC_over_time(rates1, rates2, n_perm=0)
+            aroc = roccore.run_ROC_over_time(rates1, rates2, n_perm=0)
             # Set up plot params and plot results.
             tvec, auc = aroc.index, aroc.auc
             xlim = rate_ax.get_xlim()
