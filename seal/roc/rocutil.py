@@ -15,8 +15,8 @@ def aroc_res_fname(res_dir, nrate, tstep, n_perm, offsets):
     """Return full path to AROC result with given parameters."""
 
     offset_str = '_'.join([str(int(d)) for d in offsets])
-    fname = '{}_tstep{}_nperm{}_offs{}.data'.format(nrate, tstep, n_perm,
-                                                    offset_str)
+    fname = '{}_tstep{}ms_nperm{}_offs{}.data'.format(nrate, int(tstep),
+                                                      n_perm, offset_str)
     fpath = util.join([res_dir+'res', fname])
 
     return fpath
@@ -49,8 +49,8 @@ def aroc_table_fname(res_dir, task, nrate, tstep, n_perm, offsets,
     """Return full path to AROC results table with given parameters."""
 
     ostr = '_'.join([str(int(d)) for d in offsets])
-    ftable = ('{}_{}_tstep{}_nperm{}_offs{}'.format(task, nrate, tstep,
-                                                    n_perm, ostr) +
+    ftable = ('{}_{}_tstep{}ms_nperm{}_offs{}'.format(task, nrate, int(tstep),
+                                                      n_perm, ostr) +
               '_prd{}_minlen{}_pth{}'.format(sort_prd, int(min_len), pth) +
               '_vthhi{}_vthlo{}'.format(vth_hi, vth_lo))
     ftable = util.join([res_dir+'tables',

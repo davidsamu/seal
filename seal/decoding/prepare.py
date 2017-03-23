@@ -230,7 +230,7 @@ def select_units_trials(UA, utids=None, ffig=None):
 
     # Save plot.
     if ffig is None:
-        ffig = os.path.splitext(fres)[0] + '.png'
+        ffig = os.path.splitext(fres)[0] + '.pdf'
     title = 'Trial & unit selection prior decoding'
     putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
 
@@ -316,7 +316,7 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
     # Save plot.
     title = 'Population direction selectivity'
     if ffig is None:
-        ffig = util.join(['results', 'decoding', 'prepare', 'DS_test.png'])
+        ffig = util.join(['results', 'decoding', 'prepare', 'DS_test.pdf'])
     putil.save_fig(ffig, fig, title, ytitle=1.1, w_pad=10)
 
     return DSInfo
@@ -395,6 +395,6 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
         title = 'Trial type distribution'
         if fname is None:
             fname = util.join(['results', 'decoding', 'prepare',
-                               par_str + '_trial_type_distr.png'])
+                               par_str + '_trial_type_distr.pdf'])
 
         putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)

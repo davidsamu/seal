@@ -112,7 +112,7 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None):
 
     u = get_a_unit(UA, rec, task)
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
-    ref_ts = u.ev_times(ref_ev)
+    ref_ts = u.ev_times(ref_ev, trs)
 
     return t1s, t2s, ref_ts
 

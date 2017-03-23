@@ -310,7 +310,7 @@ def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
                                    par_kws['sep_by'], par_kws['zscore_by'],
                                    constants.fixed_tr_prds)
 
-    # Load all restuls to plot.
+    # Load all results to plot.
     dict_rt_res = {}
     for n_most_DS in list_n_most_DS:
         fres = decutil.res_fname(res_dir, 'results', **par_kws)
