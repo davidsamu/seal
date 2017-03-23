@@ -89,7 +89,7 @@ def get_unit_info_title(u, fullname=False):
     info_lines = '\n\n{}\n\n\n\n'.format(header)
 
     # Add stimulus parameters.
-    s1locs, s2locs = [', '.join(['({}, {})'.format(x, y)
+    s1locs, s2locs = [', '.join(['({:.1f}, {:.1f})'.format(x, y)
                                  for (x,y) in u.TrData[(stim, 'Loc')].unique()])
                       for stim in ('S1', 'S2')]
     info_lines += 'S1 locations: {}  |  S2 locations: {}\n\n'.format(s1locs,
