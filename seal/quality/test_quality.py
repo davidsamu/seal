@@ -8,6 +8,7 @@ Meta-function to plot sorting quality and stability plots for recordings.
 
 import os
 import numpy as np
+import pandas as pd
 
 from seal.io import export
 from seal.util import util
@@ -30,9 +31,18 @@ def quality_control(rec_name, rec_data_dir, qc_dir, comb_data_dir,
         return
 
     # Determine task order.
-    tasks = [util.params_from_fname(f).loc['taskidx'] for f in ftask_data]
+    tasks = pd.Series([util.params_from_fname(f).loc['task']
+                       for f in ftask_data])
     itask = [util.params_from_fname(f).loc['idx'] for f in ftask_data]
     task_order = np.argsort(itask)
+
+    # Check that there's no duplication in task names.
+    dupli = tasks.duplicated()
+    if dupli.any():
+        print('Error: Duplicated task names found: ' +
+              ', '.join(tasks.index[dupli]))
+        print('Please give unique names and rerun Seal Unit creation..')
+        return
 
     # Init combined UnitArray object.
     UA = unitarray.UnitArray(rec_name)

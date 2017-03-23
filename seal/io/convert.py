@@ -40,7 +40,7 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_info, excl_tasks=[]):
     """Convert TPLCell data to Seal data in recording folder."""
 
     if not os.path.exists(tpl_dir):
-        print('  Mssing TPLCell folder:', tpl_dir)
+        print('  Mssing TPLCell folder: ', tpl_dir)
         return
 
     # Query available TPLCell data files.
@@ -49,8 +49,16 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_info, excl_tasks=[]):
 
     # Extract task names from file names.
     tasks = pd.Series(f_tpl_cells, name='f_tpl_cell')
-    tasks.index = [util.params_from_fname(f_tpl).loc['taskidx']
+    tasks.index = [util.params_from_fname(f_tpl).loc['task']
                    for f_tpl in f_tpl_cells]
+
+    # Check that there's no duplication in task names.
+    dupli = tasks.index.duplicated()
+    if dupli.any():
+        print('Error: Duplicated task names found: ' +
+              ', '.join(tasks.index[dupli]))
+        print('Please give unique names and rerun Seal Unit creation..')
+        return
 
     # Exclude some tasks.
     to_include = [util.params_from_fname(f_tpl).loc['task'] not in excl_tasks
