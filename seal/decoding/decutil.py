@@ -36,7 +36,7 @@ def res_fname(res_dir, subdir, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
     return fres
 
 
-def fig_fname(res_dir, subdir, ext='png', **par_kws):
+def fig_fname(res_dir, subdir, ext='pdf', **par_kws):
     """Return full path to decoding result with given parameters."""
 
     fres = res_fname(res_dir, subdir, **par_kws)

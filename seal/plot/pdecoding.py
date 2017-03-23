@@ -313,6 +313,7 @@ def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
     # Load all results to plot.
     dict_rt_res = {}
     for n_most_DS in list_n_most_DS:
+        par_kws['n_most_DS'] = n_most_DS
         fres = decutil.res_fname(res_dir, 'results', **par_kws)
         rt_res = util.read_objects(fres, 'rt_res')
         dict_rt_res[n_most_DS] = rt_res
@@ -404,7 +405,7 @@ def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
     ytitle = 1.08
     w_pad, h_pad = 3, 3
 
-    par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
+    par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
     ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
