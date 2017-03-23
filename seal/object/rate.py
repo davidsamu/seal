@@ -109,13 +109,16 @@ class Rate:
     # %% Methods to get rates for given trials and time periods.
 
     def get_rates(self, trs, t1s, t2s, ref_ts=None, tstep=None,
-                  rem_all_nan_ts=True):
+                  min_non_nan_trs=2):
         """
         Return firing rates of some trials within trial-specific time windows.
 
         trs:      List with indices of trials to select.
         t1s, t2s: Time window per trial. They must contain all trials!
         ref_ts:   Array of reference times to align rate vectors by.
+        min_non_nan_trs: Minimum number of trials with non-NaN values for each
+                         timestep to be returned, to deal with missing sampling
+                         times across trials. E.g. 1: at least 1 sampled trial.
         """
 
         # Set default trials.
@@ -150,8 +153,9 @@ class Rate:
         # from some trials.
         rates = pd.concat(rates, axis=1).T if len(rates) else pd.DataFrame()
 
-        # Remove time points with all NaN rates (no measurement?)
-        if rem_all_nan_ts:
-            rates = rates.loc[:, ~rates.isnull().all()]
+        # Remove time points with less then minimum number of non-NaN rates
+        # (due to missing sampling time in some trials).
+        n_non_nan_trs = (~rates.isnull()).sum()
+        rates = rates.loc[:, n_non_nan_trs >= min_non_nan_trs]
 
         return rates
