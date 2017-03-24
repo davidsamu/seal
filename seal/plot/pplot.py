@@ -6,6 +6,7 @@ Collection of general purpose plotting functions.
 @author: David Samu
 """
 
+import numpy as np
 import scipy as sp
 import pandas as pd
 import seaborn as sns
@@ -168,23 +169,28 @@ def heatmap(mat, vmin=None, vmax=None, cmap=None, cbar=True, cbar_ax=None,
     return ax
 
 
-def plot_task_violin(res, tasks, x, y, hue, hue_order, color='grey',
-                     ylab=None, add_neg=True, ffig=None):
+def plot_task_violin(res, tasks, x, y, npval=None, pth=0.01, color='grey',
+                     ylim=None, ylab=None, ffig=None):
     """Plot results on violin plots."""
 
     # Test difference from zero in each task.
-    ttest_res = {task: sp.stats.ttest_1samp(tres[x], 0)
-                 for task, tres in res.groupby('task')}
+    ttest_res = {task: sp.stats.ttest_1samp(tres[y], 0)
+                 for task, tres in res.groupby(x)}
     ttest_res = pd.DataFrame.from_dict(ttest_res, 'index')
+
+    # Binarize significance test.
+    res['is_sign'] = res[npval] < pth if npval is not None else True
+    res['direction'] = np.sign(res[y])
 
     # Set up figure and plot data.
     fig = putil.figure()
     ax = putil.axes()
     putil.add_baseline(ax=ax)
     sns.violinplot(x=x, y=y, data=res, inner=None, order=tasks, ax=ax)
-    sns.swarmplot(x=x, y=y, hue=hue, data=res, color=color,
-                  order=tasks, hue_order=hue_order, ax=ax)
+    sns.swarmplot(x=x, y=y, hue='is_sign', data=res, color=color,
+                  order=tasks, hue_order=[True, False], ax=ax)
     putil.set_labels(ax, ylab=ylab)
+    putil.set_limits(ax, ylim=ylim)
     putil.hide_legend(ax)
 
     # Add annotations.
@@ -194,22 +200,21 @@ def plot_task_violin(res, tasks, x, y, hue, hue_order, color='grey',
         tres = res.loc[res.task == task]
         # Mean.
         mean_str = 'Mean:\n' if i == 0 else '\n'
-        mean_str += '{:.2f} sp/s / s'.format(tres[y].mean())
+        mean_str += '{:.2f}'.format(tres[y].mean())
         # Non-zero test of distribution.
-        nonzero_str = 'Non-zero mean?\n' if i == 0 else '\n'
-        nonzero_str += util.format_pvalue(ttest_res.loc[task, 'pvalue'])
+        str_pval = util.format_pvalue(ttest_res.loc[task, 'pvalue'])
+        mean_str += '\n({})'.format(str_pval)
         # Stats on difference from baseline.
         nnonsign, ntot = (~tres.is_sign).sum(), len(tres)
         npos, nneg = [sum(tres.is_sign & (tres.direction == d))
                       for d in (1, -1)]
         sign_to_report = [('+', npos), ('=', nnonsign), ('-', nneg)]
-        sign_to_report = sign_to_report if add_neg else sign_to_report[:-1]
         nsign_str = ''
         for symb, n in sign_to_report:
             prc = str(int(round(100*n/ntot)))
             nsign_str += '\n{} {:>3} / {} ({:>2}%)'.format(symb, int(n),
                                                            ntot, prc)
-        lbl = '{}\n\n{}\n\n{}'.format(mean_str, nonzero_str, nsign_str)
+        lbl = '{}\n\n{}'.format(mean_str, nsign_str)
         ax.text(i, ylvl, lbl, fontsize='smaller', va='bottom', ha='center')
 
     # Save plot.
