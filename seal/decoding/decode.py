@@ -14,10 +14,12 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import KFold
 
+from seal.decoding import decutil
 from seal.util import util, ua_query
 
+
 # For reproducable (deterministic) results.
-seed = None
+seed = 8257  # just a random number
 
 verbose = True
 
@@ -292,3 +294,53 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
                 'ntrials': len(trs), 'prd_pars': prd_pars}
 
     return res_dict
+
+
+def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
+                   res_dir, nrate, tstep, ncv, Cs, n_pshfl, sep_err_trs,
+                   n_most_DS):
+    """Run decoding across tasks and recordings."""
+
+    print('\nDecoding: ' + util.format_feat_name(feat))
+
+    # Set up decoding params.
+    prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by)
+
+    fres = decutil.res_fname(res_dir, 'results', feat, nrate, ncv, Cs,
+                             n_pshfl, sep_err_trs, sep_by, zscore_by,
+                             n_most_DS, tstep)
+    rt_res = {}
+    for irec, rec in enumerate(recs):
+        print('\n' + rec)
+        for itask, task in enumerate(tasks):
+            print('  ' + task)
+            rt_res[(rec, task)] = {}
+
+            # Init units and trials.
+            recinfo = RecInfo.loc[(rec, task)]
+            uids = [(rec, ic, iu) for ic, iu in recinfo.units]
+            inc_trs = recinfo.trials
+
+            # Select n most DS units (or all if n_most_DS is 0).
+            utids = [uid + (task, ) for uid in uids]
+            n_most_DS_utids = ua_query.select_n_most_DS_units(UA, utids,
+                                                              n_most_DS)
+            uids = [utid[:3] for utid in n_most_DS_utids]
+
+            # Split by value condition (optional).
+            if sep_by is not None:
+                TrData = ua_query.get_trial_params(UA, rec, task)
+                ltrs = inc_trs.groupby(TrData[sep_by].loc[inc_trs])
+            else:
+                ltrs = {'all': inc_trs}
+
+            # Decode feature in each period.
+            tr_res = {}
+            for v, trs in ltrs.items():
+                tr_res[v] = run_pop_dec(UA, rec, task, uids, trs, prd_pars,
+                                        nrate, n_pshfl, sep_err_trs, ncv, Cs,
+                                        tstep)
+            rt_res[(rec, task)] = tr_res
+
+    # Save results.
+    util.write_objects({'rt_res': rt_res}, fres)
