@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 from seal.decoding import decutil
 from seal.util import util, ua_query
@@ -93,7 +93,8 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
         solver = 'lbfgs' if len(y) < 500 else 'sag'
 
     if cv_obj is None:
-        cv_obj = KFold(n_splits=ncv, shuffle=True, random_state=seed)
+        cv_obj = StratifiedKFold(n_splits=ncv, shuffle=True,
+                                 random_state=seed)
 
     if Cs is None:
         Cs = [1]   # no regularisation by default
