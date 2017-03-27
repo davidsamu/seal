@@ -250,7 +250,6 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
     # Init.
     if utids is None:
         utids = UA.utids()
-    u_rt_grpby = utids.groupby(level=['rec', 'task'])
     tasks = utids.index.get_level_values('task').unique()
     recs = utids.index.get_level_values('rec').unique()
 
@@ -265,53 +264,59 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
                                           ax_kws_list={'projection': 'polar'})
     xticks = direction.deg2rad(constants.all_dirs + 360/8/2*deg)
 
-    for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
+    for ir, rec in enumerate(recs):
+        for it, task in enumerate(tasks):
 
-        # Init.
-        print(rec, task)
-        ax = axs.flatten()[i_rt]
-        rtDSInfo = DSInfo.loc[rt_utids].copy()
+            # Init.
+            print(rec, task)
+            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3]).copy()
+            ax = axs[ir, it]
 
-        # Flip all directions to 0-180 half to prevent cancellation of opposite
-        # directions.
-        PDflip = direction.deg_mod(util.dim_series_to_array(rtDSInfo.PD),
-                                   180*deg)
+            if rtDSInfo.empty:
+                ax.set_axis_off()
+                continue
 
-        # Calculate population DSI and population PD.
-        PDSI, PPD = direction.polar_wmean(PDflip, np.array(rtDSInfo.DSI))
-        # Flip back directions if needed.
-        if sum(rtDSInfo.PD >= 180) > len(rtDSInfo.index):
-            PPD = direction.anti_dir(PPD)
+            # Flip all directions to 0-180 half to prevent cancellation of
+            # opposite directions.
+            PDflip = direction.deg_mod(util.dim_series_to_array(rtDSInfo.PD),
+                                       180*deg)
 
-        # Coarse PPD and get anti-pref dir.
-        PPDc = direction.coarse_dir(PPD, constants.all_dirs)
-        PADc = direction.anti_dir(PPDc)
+            # Calculate population DSI and population PD.
+            PDSI, PPD = direction.polar_wmean(PDflip, np.array(rtDSInfo.DSI))
+            # Flip back directions if needed.
+            if sum(rtDSInfo.PD >= 180) > len(rtDSInfo.index):
+                PPD = direction.anti_dir(PPD)
 
-        # Plot results.
+            # Coarse PPD and get anti-pref dir.
+            PPDc = direction.coarse_dir(PPD, constants.all_dirs)
+            PADc = direction.anti_dir(PPDc)
 
-        # Plot PD - DSI on polar plot.
-        title = ('{} {}\n'.format(rec, task) +
-                 'PPDc = {}$^\circ$ - {}$^\circ$'.format(int(PPDc),
-                                                         int(PADc)) +
-                 ', PDSI = {:.2f}'.format(PDSI))
-        PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
-        pplot.scatter(PDrad, rtDSInfo.DSI, rtDSInfo.include, ylim=[0, 1],
-                      title=title, ytitle=1.10, c='darkblue', edgecolor='k',
-                      linewidth=1, s=80, alpha=0.8, zorder=2, ax=ax)
+            # Plot results.
 
-        # Highlight PPD and PAD.
-        offsets = np.array([-45, 0, 45]) * deg
-        for D, c in [(PPDc, 'g'), (PADc, 'r')]:
-            hlDs = direction.deg2rad(np.array(D+offsets))
-            for hlD, alpha in [(hlDs, 0.2), ([hlDs[1]], 0.4)]:
-                pplot.bars(hlD, len(hlD)*[1], align='center', alpha=alpha,
-                           color=c, zorder=1, ax=ax)
+            # Plot PD - DSI on polar plot.
+            title = ('{} {}\n'.format(rec, task) +
+                     'PPDc = {}$^\circ$ - {}$^\circ$'.format(int(PPDc),
+                                                             int(PADc)) +
+                     ', PDSI = {:.2f}'.format(PDSI))
+            PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
+            pplot.scatter(PDrad, rtDSInfo.DSI, rtDSInfo.include, ylim=[0, 1],
+                          title=title, ytitle=1.10, c='darkblue',
+                          edgecolor='k', linewidth=1, s=80, alpha=0.8,
+                          zorder=2, ax=ax)
 
-        # Format ticks.
-        ax.set_xticks(xticks, minor=True)
-        ax.grid(b=True, axis='x', which='minor')
-        ax.grid(b=False, axis='x', which='major')
-        putil.hide_tick_marks(ax)
+            # Highlight PPD and PAD.
+            offsets = np.array([-45, 0, 45]) * deg
+            for D, c in [(PPDc, 'g'), (PADc, 'r')]:
+                hlDs = direction.deg2rad(np.array(D+offsets))
+                for hlD, alpha in [(hlDs, 0.2), ([hlDs[1]], 0.4)]:
+                    pplot.bars(hlD, len(hlD)*[1], align='center',
+                               alpha=alpha, color=c, zorder=1, ax=ax)
+
+            # Format ticks.
+            ax.set_xticks(xticks, minor=True)
+            ax.grid(b=True, axis='x', which='minor')
+            ax.grid(b=False, axis='x', which='major')
+            putil.hide_tick_marks(ax)
 
     # Save plot.
     title = 'Population direction selectivity'

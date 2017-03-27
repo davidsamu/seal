@@ -311,9 +311,9 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
                              n_pshfl, sep_err_trs, sep_by, zscore_by,
                              n_most_DS, tstep)
     rt_res = {}
-    for irec, rec in enumerate(recs):
+    for rec in recs:
         print('\n' + rec)
-        for itask, task in enumerate(tasks):
+        for task in tasks:
             print('  ' + task)
             rt_res[(rec, task)] = {}
 

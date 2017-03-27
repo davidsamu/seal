@@ -54,6 +54,8 @@ def get_DSInfo_table(UA, utids=None, stim='S1'):
 
     DSInfo = pd.DataFrame.from_items(DSInfo, columns=['PD', 'DSI'],
                                      orient='index')
+    DSInfo.index = pd.MultiIndex.from_tuples(DSInfo.index,
+                                             names=unitarray.utid_names)
 
     return DSInfo
 
