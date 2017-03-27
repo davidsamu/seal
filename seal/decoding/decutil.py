@@ -13,10 +13,11 @@ import os
 from seal.util import util
 
 
-def res_fname(res_dir, subdir, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
-              sep_by, zscore_by, n_most_DS, tstep):
+def res_fname(res_dir, subdir, tasks, feat, nrate, ncv, Cs, n_pshfl,
+              sep_err_trs, sep_by, zscore_by, n_most_DS, tstep):
     """Return full path to decoding result with given parameters."""
 
+    tasks_str = '_'.join(tasks)
     feat_str = util.format_to_fname(str(feat))
     ncv_str = 'ncv{}'.format(ncv)
     Cs_str = 'nregul{}'.format(len(Cs)) if Cs != [1] else 'reguloff'
@@ -27,7 +28,7 @@ def res_fname(res_dir, subdir, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
     nDS_str = ('top{}u'.format(n_most_DS)
                if n_most_DS != 0 else 'allu')
     tstep_str = 'tstep{}ms'.format(int(tstep))
-    dir_name = '{}{}{}'.format(res_dir, feat_str, zscore_str)
+    dir_name = '{}{}/{}{}'.format(res_dir, tasks_str, feat_str, zscore_str)
     fname = '{}_{}_{}_{}_{}_{}_{}.data'.format(nrate, ncv_str, Cs_str,
                                                pshfl_str, err_str, nDS_str,
                                                tstep_str)
@@ -44,11 +45,12 @@ def fig_fname(res_dir, subdir, ext='pdf', **par_kws):
     return ffig
 
 
-def fig_title(res_dir, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
+def fig_title(res_dir, tasks, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
               sep_by, zscore_by, n_most_DS, tstep):
     """Return title for decoding result figure with given parameters."""
 
     feat_str = util.format_to_fname(str(feat))
+    tasks_str = ', '.join(tasks)
     cv_str = 'Logistic regression with {}-fold CV'.format(ncv)
     Cs_str = 'regularization: ' + (str(Cs) if Cs != [1] else 'off')
     err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
@@ -58,7 +60,8 @@ def fig_title(res_dir, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
     nDS_str = ('using {} most DS units'.format(n_most_DS)
                if n_most_DS != 0 else 'all units')
     tstep_str = 'time step: {} ms'.format(int(tstep))
-    title = ('Decoding {}\n{}, {}'.format(feat_str, cv_str, Cs_str) +
+    title = ('Decoding {} in {}'.format(feat_str, tasks_str) +
+             '\n{}, {}'.format(cv_str, Cs_str) +
              '\nFR kernel: {}, {}, {}'.format(nrate, tstep_str, err_str) +
              '\n{}, {}, {}'.format(pshfl_str, nDS_str, zscore_str))
     return title

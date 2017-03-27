@@ -307,13 +307,19 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
     # Set up decoding params.
     prd_pars = util.init_stim_prds(stims, feat, sep_by, zscore_by)
 
-    fres = decutil.res_fname(res_dir, 'results', feat, nrate, ncv, Cs,
+    fres = decutil.res_fname(res_dir, 'results', tasks, feat, nrate, ncv, Cs,
                              n_pshfl, sep_err_trs, sep_by, zscore_by,
                              n_most_DS, tstep)
     rt_res = {}
     for rec in recs:
         print('\n' + rec)
         for task in tasks:
+
+            # Skip recordings that are missing or undecodable.
+            if (((rec, task) not in RecInfo.index) or
+                not RecInfo.loc[(rec, task), 'nunits']):
+                continue
+
             print('  ' + task)
             rt_res[(rec, task)] = {}
 

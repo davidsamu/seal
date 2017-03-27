@@ -97,13 +97,14 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
     putil.hide_legend(ax)
 
 
-def plot_scores_weights(recs, tasks, stims, res_dir, par_kws):
+def plot_scores_weights(recs, stims, res_dir, par_kws):
     """
     Plot prediction scores and model weights for given recording and analysis.
     """
 
     # Init.
     putil.set_style('notebook', 'ticks')
+    tasks = par_kws['tasks']
     prd_pars = util.init_stim_prds(stims, par_kws['feat'],
                                    par_kws['sep_by'], par_kws['zscore_by'],
                                    constants.fixed_tr_prds)
@@ -198,7 +199,7 @@ def plot_scores_weights(recs, tasks, stims, res_dir, par_kws):
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_score_weight_multi_rec(recs, tasks, stims, res_dir, par_kws):
+def plot_score_weight_multi_rec(recs, stims, res_dir, par_kws):
     """
     Plot prediction scores and model weights of analysis for multiple
     recordings.
@@ -206,6 +207,7 @@ def plot_score_weight_multi_rec(recs, tasks, stims, res_dir, par_kws):
 
     # Init.
     putil.set_style('notebook', 'ticks')
+    tasks = par_kws['tasks']
     prd_pars = util.init_stim_prds(stims, par_kws['feat'],
                                    par_kws['sep_by'], par_kws['zscore_by'],
                                    constants.fixed_tr_prds)
@@ -298,7 +300,7 @@ def plot_score_weight_multi_rec(recs, tasks, stims, res_dir, par_kws):
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
+def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
                               par_kws):
     """
     Plot prediction score results across different number of units included.
@@ -306,6 +308,7 @@ def plot_scores_across_nunits(recs, tasks, stims, res_dir, list_n_most_DS,
 
     # Init.
     putil.set_style('notebook', 'ticks')
+    tasks = par_kws['tasks']
     prd_pars = util.init_stim_prds(stims, par_kws['feat'],
                                    par_kws['sep_by'], par_kws['zscore_by'],
                                    constants.fixed_tr_prds)
