@@ -260,7 +260,6 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         prd, ref_ev, sfeat, sep_by, zscore_by = prd_pars.loc[stim, pars]
 
         # Run decoding.
-#        try:
         res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
                               ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs,
                               tstep)
@@ -269,9 +268,6 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         lCoefs.append(Coefs)
         lC.append(C)
         lShfldScores.append(ShfldScores)
-#        except:
-#            print('Decoding {} - {} - {} failed'.format(rec, task, stim))
-#            continue
 
     # No successfully decoded stimulus period.
     if not len(lScores):

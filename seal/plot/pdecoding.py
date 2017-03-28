@@ -398,3 +398,76 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
     putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
                    w_pad=w_pad, h_pad=h_pad)
+
+
+def plot_combined_rec_mean(recs, stims, res_dir, list_n_most_DS, par_kws,
+                           n_boot=1e4, ci=95):
+    """Test and plot results combined across sessions."""
+
+    # Init.
+    putil.set_style('notebook', 'ticks')
+    tasks = par_kws['tasks']
+    vkey = 'all'
+    # This should be made more explicit!
+    nvals = 8 if par_kws['feat'] == 'Dir' else 2
+    prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
+            for stim in stims]
+
+    # Load all results to plot.
+    dict_rt_res = decutil.load_res(res_dir, list_n_most_DS, **par_kws)
+
+    # Create figures.
+    fig_scr, _, axs_scr = putil.get_gs_subplots(nrow=len(dict_rt_res), ncol=1,
+                                                subw=8, subh=6,
+                                                create_axes=True)
+
+    allScores = {}
+    for n_most_DS, rt_res in dict_rt_res.items():
+        dScores = {(rec, task): res[vkey]['Scores'].mean()
+                   for (rec, task), res in rt_res.items()}
+        allScores[n_most_DS] = pd.concat(dScores, axis=1).T
+
+    # Test significance by bootstrapping.
+    for inmost, n_most_DS in enumerate(list_n_most_DS):
+
+        ax_scr = axs_scr[inmost, 0]
+        Scores = allScores[n_most_DS]
+
+        # Prepare data.
+        dScores = {task: pd.DataFrame(Scores.xs(task, level=1).unstack(),
+                                      columns=['accuracy']) for task in tasks}
+        lScores = pd.concat(dScores, axis=0)
+        lScores['time'] = lScores.index.get_level_values(1)
+        lScores['task'] = lScores.index.get_level_values(0)
+        lScores['rec'] = lScores.index.get_level_values(2)
+        lScores.index = np.arange(len(lScores.index))
+
+        # Plot as time series.
+        sns.tsplot(lScores, time='time', value='accuracy', unit='rec',
+                   condition='task', ci=ci, n_boot=n_boot, ax=ax_scr)
+
+        # Add chance level line.
+        chance_lvl = 1.0 / nvals
+        putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
+
+        # Add stimulus periods.
+        putil.plot_periods(prds, ax=ax_scr)
+
+        # Format plot.
+        title = ('{} most DS units'.format(n_most_DS)
+                 if n_most_DS != 0 else 'all units')
+        ytitle = 1.0
+        putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
+
+    # Save plots.
+    list_n_most_DS_str = [str(i) if i != 0 else 'all' for i in list_n_most_DS]
+    par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
+    title = decutil.fig_title(res_dir, **par_kws)
+    fs_title = 'large'
+    ytitle = 1.04
+    w_pad, h_pad = 3, 3
+
+    par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
+    ffig = decutil.fig_fname(res_dir, 'combined_score', **par_kws)
+    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
+                   w_pad=w_pad, h_pad=h_pad)
