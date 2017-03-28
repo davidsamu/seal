@@ -12,7 +12,7 @@ import seaborn as sns
 
 from seal.decoding import decutil
 from seal.plot import putil
-from seal.util import util, constants
+from seal.util import constants
 
 
 tlab = 'Time since S1 onset (ms)'
@@ -105,13 +105,9 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
-    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
-                                   par_kws['sep_by'], par_kws['zscore_by'],
-                                   constants.fixed_tr_prds)
 
     # Load results.
-    fres = decutil.res_fname(res_dir, 'results', **par_kws)
-    rt_res = util.read_objects(fres, 'rt_res')
+    rt_res = decutil.load_res(res_dir, **par_kws)
 
     # Create figures.
     # For prediction scores.
@@ -172,7 +168,7 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
             chance_lvl = 1.0 / nvals
             putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
-                    for stim in prd_pars.index]
+                    for stim in stims]
             putil.plot_periods(prds, ax=ax_scr)
 
             # Plot unit weights over time.
@@ -199,25 +195,17 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_score_weight_multi_rec(recs, stims, res_dir, par_kws):
-    """
-    Plot prediction scores and model weights of analysis for multiple
-    recordings.
-    """
+def plot_score_multi_rec(recs, stims, res_dir, par_kws):
+    """Plot prediction scores for multiple recordings."""
 
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
-    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
-                                   par_kws['sep_by'], par_kws['zscore_by'],
-                                   constants.fixed_tr_prds)
 
     # Load results.
-    fres = decutil.res_fname(res_dir, 'results', **par_kws)
-    rt_res = util.read_objects(fres, 'rt_res')
+    rt_res = decutil.load_res(res_dir, **par_kws)
 
     # Create figure.
-    # For prediction scores.
     ret = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
                                 subw=8, subh=6, create_axes=True)
     fig_scr, _, axs_scr = ret
@@ -265,7 +253,7 @@ def plot_score_weight_multi_rec(recs, stims, res_dir, par_kws):
         title = '{}, {} recordings'.format(task, nrec)
         ytitle = 1.0
         prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
-                for stim in prd_pars.index]
+                for stim in stims]
 
         # Plot time series.
         ax_scr = axs_scr[0, itask]
@@ -300,8 +288,7 @@ def plot_score_weight_multi_rec(recs, stims, res_dir, par_kws):
                    w_pad=w_pad, h_pad=h_pad)
 
 
-def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
-                              par_kws):
+def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     """
     Plot prediction score results across different number of units included.
     """
@@ -309,17 +296,9 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
-    prd_pars = util.init_stim_prds(stims, par_kws['feat'],
-                                   par_kws['sep_by'], par_kws['zscore_by'],
-                                   constants.fixed_tr_prds)
 
     # Load all results to plot.
-    dict_rt_res = {}
-    for n_most_DS in list_n_most_DS:
-        par_kws['n_most_DS'] = n_most_DS
-        fres = decutil.res_fname(res_dir, 'results', **par_kws)
-        rt_res = util.read_objects(fres, 'rt_res')
-        dict_rt_res[n_most_DS] = rt_res
+    dict_rt_res = decutil.load_res(res_dir, list_n_most_DS, **par_kws)
 
     # Create figures.
     fig_scr, _, axs_scr = putil.get_gs_subplots(nrow=len(recs),
@@ -327,10 +306,12 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
                                                 subw=8, subh=6,
                                                 create_axes=True)
     # Do plotting per recording and task.
+    print('\nPlotting results across different number of units included...')
     for irec, rec in enumerate(recs):
         print('\n' + rec)
         for itask, task in enumerate(tasks):
             print('    ' + task)
+            ax_scr = axs_scr[irec, itask]
 
             # Init data.
             dict_lScores = {}
@@ -361,6 +342,12 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
                     nunits = vres['nunits']
                     dict_lScores[(nunits, v)] = lScores
 
+            # Skip rest if no data is available.
+            # Check if any result exists for rec-task combination.
+            if not len(dict_lScores):
+                ax_scr.axis('off')
+                continue
+
             # Concatenate accuracy scores from every recording.
             all_lScores = pd.concat(dict_lScores)
             all_lScores['n_most_DS'] = all_lScores.index.get_level_values(0)
@@ -371,10 +358,9 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS,
             title = '{} {}, {} sets of units'.format(rec, task, nnunits)
             ytitle = 1.0
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
-                    for stim in prd_pars.index]
+                    for stim in stims]
 
             # Plot time series.
-            ax_scr = axs_scr[irec, itask]
             palette = sns.color_palette('muted')
             sns.tsplot(all_lScores, time='time', value='score', unit='fold',
                        condition='n_most_DS', color=palette, ax=ax_scr)

@@ -55,7 +55,7 @@ def fig_title(res_dir, tasks, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
     Cs_str = 'regularization: ' + (str(Cs) if Cs != [1] else 'off')
     err_str = 'error trials ' + ('excl.' if sep_err_trs else 'incl.')
     pshfl_str = '# population shuffles: {}'.format(n_pshfl)
-    zscore_str = ('' if zscore_by is None else
+    zscore_str = ('raw non-z-scored rates' if zscore_by is None else
                   'z-scored by ' + util.format_feat_name(zscore_by, True))
     nDS_str = ('using {} most DS units'.format(n_most_DS)
                if n_most_DS != 0 else 'all units')
@@ -67,10 +67,21 @@ def fig_title(res_dir, tasks, feat, nrate, ncv, Cs, n_pshfl, sep_err_trs,
     return title
 
 
-def load_res(res_dir, **par_kws):
+def load_res(res_dir, list_n_most_DS=None, **par_kws):
     """Load decoding results."""
 
-    fres = res_fname(res_dir, **par_kws)
-    dec_res = util.read_objects(fres, ['Scores', 'Coefs', 'C'])
+    if list_n_most_DS is None:
+        list_n_most_DS = [par_kws['n_most_DS']]
 
-    return dec_res
+    # Load results for each number of units included.
+    all_rt_res = {}
+    for n_most_DS in list_n_most_DS:
+        par_kws['n_most_DS'] = n_most_DS
+        fres = res_fname(res_dir, 'results', **par_kws)
+        rt_res = util.read_objects(fres, 'rt_res')
+        all_rt_res[n_most_DS] = rt_res
+
+    if len(list_n_most_DS) == 1:
+        all_rt_res = list(all_rt_res.values())[0]
+
+    return all_rt_res
