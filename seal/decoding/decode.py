@@ -259,6 +259,13 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         pars = ['prd', 'ref_ev', 'feat', 'cond_by', 'zscore_by']
         prd, ref_ev, sfeat, sep_by, zscore_by = prd_pars.loc[stim, pars]
 
+        # Make trial separation and z-scoring stimulus-specific.
+        stim_spec_feats = ('Dir', 'Loc', 'LocX', 'LocY', 'Rng', 'Size')
+        if sep_by in stim_spec_feats:
+            sep_by = (stim, sep_by)
+        if zscore_by in stim_spec_feats:
+            zscore_by = (stim, zscore_by)
+
         # Run decoding.
         res = run_prd_pop_dec(UA, rec, task, uids, trs, sfeat, zscore_by, prd,
                               ref_ev, nrate, n_pshfl, sep_err_trs, ncv, Cs,
