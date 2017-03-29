@@ -315,6 +315,10 @@ def test_task_relatedness(u, p_th=0.01):
                     rates = u._Rates[nrate].get_rates(trs, t1s, t2s)
                     bs_rates = baseline[trs]
 
+                    # No rates available.
+                    if rates.empty:
+                        continue
+
                     # Get sub-period around time with maximal rate.
                     tmax = rates.mean().argmax()
                     tmin, tmax = rates.columns.min(), rates.columns.max()
