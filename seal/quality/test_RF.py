@@ -107,6 +107,7 @@ def RF_coverage_analysis(UA, stims, fdir):
     if RFres.empty:  # no RF mapping was done
         UA.RF_res = None
         return
+
     # Test DS in case it hasn't been tested yet.
     ua_query.test_DS(UA)
 

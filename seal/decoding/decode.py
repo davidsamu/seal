@@ -323,6 +323,10 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
                 not RecInfo.loc[(rec, task), 'nunits']):
                 continue
 
+            # Let's not decode saccade and correct/incorrect for passive task.
+            if ('Pas' in task) and (feat in ['saccade', 'correct']):
+                continue
+
             print('  ' + task)
             rt_res[(rec, task)] = {}
 
