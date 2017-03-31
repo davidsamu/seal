@@ -297,6 +297,13 @@ def is_iterable(obj):
     return is_itrbl
 
 
+def is_null(obj):
+    """Check if object is null (i.e. None or np.nan)."""
+
+    isnull = (obj is None) or (isinstance(obj, float) and np.isnan(obj))
+    return isnull
+
+
 def is_numpy_array(obj):
     """Check if object is Numpy array."""
 
@@ -576,8 +583,16 @@ def add_quant_col(df, col, colname):
 
 # %% Functions to init and handle analysis of multiple stimulus periods.
 
-def init_stim_prds(stims, feat, sep_cond=None, zscore_cond=None,
-                   tr_prds=None, prds=None, ref_ev=None):
+def add_stim_to_feat(feat, stims):
+    """Add stimulus to feature name for stimulus period info table."""
+
+    stim_feat = [(stim, feat) if feat in constants.stim_feats else feat
+                 for stim in stims]
+    return stim_feat
+
+
+def init_stim_prds(stims, feat, sep_by=None, zscore_by=None, even_by=None,
+                   PDD_offset=None, tr_prds=None, prds=None, ref_ev=None):
     """Initialize stimulus periods to be analyzed."""
 
     if tr_prds is None:
@@ -586,10 +601,11 @@ def init_stim_prds(stims, feat, sep_cond=None, zscore_cond=None,
     pars = pd.DataFrame(index=stims)
 
     # Stimulus feature parameters.
-    pars['feat'] = [(stim, feat) if feat in constants.stim_feats else feat
-                    for stim in stims]
-    pars['sep_by'] = [sep_cond for stim in stims]
-    pars['zscore_by'] = [zscore_cond for stim in stims]
+    pars['feat'] = add_stim_to_feat(feat, stims)
+    pars['sep_by'] = add_stim_to_feat(sep_by, stims)
+    pars['zscore_by'] = add_stim_to_feat(zscore_by, stims)
+    pars['even_by'] = add_stim_to_feat(even_by, stims)
+    pars['PDD_offset'] = [PDD_offset for stim in stims]
 
     # Time period parameters.
     pars['prd'] = [stim + ' half' for stim in stims] if prds is None else prds
