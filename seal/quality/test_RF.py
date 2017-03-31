@@ -200,7 +200,7 @@ def plot_RF_results(RF_res, stims, fdir, sup_title):
         fst = util.format_to_fname(sup_title)
         fname = '{}_cover_{}.png'.format(fst, vname)
         ffig = util.join([fdir, vname, fname])
-        putil.save_fig(ffig, fig, sup_title, ytitle=1.1)
+        putil.save_fig(ffig, fig, sup_title)
 
 
 # %% Exclude units with low RF coverage.

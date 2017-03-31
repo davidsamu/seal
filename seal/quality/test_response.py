@@ -54,7 +54,7 @@ def DR_plot(UA, ftempl=None, match_scales=True):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             ffig = ftempl.format(uid_str)
-            putil.save_fig(ffig, fig, title, ytitle=1.05)
+            putil.save_fig(ffig, fig, title)
 
 
 def selectivity_summary(UA, ftempl=None, match_scales=True):
@@ -95,7 +95,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=True):
             uid_str = util.format_uid(uid)
             title = uid_str.replace('_', ' ')
             ffig = ftempl.format(uid_str)
-            putil.save_fig(ffig, fig, title, ytitle=1.00)
+            putil.save_fig(ffig, fig, title)
 
 
 def plot_response(f_sealcombined, resp_plot_dir,

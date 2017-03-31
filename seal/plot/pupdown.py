@@ -162,4 +162,4 @@ def plot_spike_count_results(bspk_cnts, rec, task, prds, binsize):
     fname = 'UpDown_spk_cnt_hist_{}_{}_bin_{}.png'.format(rec, task,
                                                           int(binsize))
     ffig = util.join(['results', 'UpDown', fname])
-    putil.save_fig(ffig, fig, title, ytitle=1.1)
+    putil.save_fig(ffig, fig, title)

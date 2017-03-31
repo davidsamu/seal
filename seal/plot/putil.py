@@ -701,9 +701,10 @@ def sps_add_axes(fig, sps, nrow, ncol, **kwargs):
 
 # %% Functions to save figure.
 
-def save_fig(ffig, fig=None, title=None, ytitle=0.98, fs_title='xx-large',
-             rect_height=None, border=0.03, pad=1.0, h_pad=None, w_pad=None,
-             dpi=300, bbox_extra_artists=None, close=True, **kwargs):
+def save_fig(ffig, fig=None, title=None, ytitle=1.01, fs_title='xx-large',
+             va_title='bottom', rect_height=None, border=0.03, pad=1.0,
+             h_pad=None, w_pad=None, dpi=300, bbox_extra_artists=None,
+             close=True, **kwargs):
     """Save composite (GridSpec) figure to file."""
 
     # Init figure and folder to save figure into.
@@ -716,7 +717,8 @@ def save_fig(ffig, fig=None, title=None, ytitle=0.98, fs_title='xx-large',
 
     # Add super title to figure.
     if title is not None:
-        fig.suptitle(title, y=ytitle, fontsize=fs_title, **kwargs)
+        fig.suptitle(title, y=ytitle, fontsize=fs_title,
+                     va=va_title, **kwargs)
 
     # Adjust plotting area and set tight layout.
     if rect_height is None:  # relative height of plotted area

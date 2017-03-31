@@ -181,18 +181,15 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
     # Save plots.
     title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
-    ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     # Performance.
     ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
-    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
-                   w_pad=w_pad, h_pad=h_pad)
+    putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
     ffig = decutil.fig_fname(res_dir, 'weight', **par_kws)
-    putil.save_fig(ffig, fig_wgt, title, ytitle, fs_title,
-                   w_pad=w_pad, h_pad=h_pad)
+    putil.save_fig(ffig, fig_wgt, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
 def plot_score_multi_rec(recs, stims, res_dir, par_kws):
@@ -281,11 +278,9 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
     # Save figure.
     title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
-    ytitle = 1.12
     w_pad, h_pad = 3, 3
     ffig = decutil.fig_fname(res_dir, 'all_scores', **par_kws)
-    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
-                   w_pad=w_pad, h_pad=h_pad)
+    putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
 def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
@@ -391,13 +386,11 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
     title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
-    ytitle = 1.08
     w_pad, h_pad = 3, 3
 
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
     ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
-    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
-                   w_pad=w_pad, h_pad=h_pad)
+    putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
 def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
@@ -497,10 +490,8 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     title = decutil.fig_title(res_dir, **par_kws)
     title += '\n{}% CE with {} bootstrapped subsamples'.format(ci, int(n_boot))
     fs_title = 'large'
-    ytitle = 1.04
     w_pad, h_pad = 3, 3
 
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
     ffig = decutil.fig_fname(res_dir, 'combined_score', **par_kws)
-    putil.save_fig(ffig, fig_scr, title, ytitle, fs_title,
-                   w_pad=w_pad, h_pad=h_pad)
+    putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
