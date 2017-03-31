@@ -28,7 +28,7 @@ def res_fname(res_dir, subdir, tasks, feat, nrate, ncv, Cs, n_pshfl,
                   if not util.is_null(zscore_by) else '')
     even_str = ('_evenby'+util.format_feat_name(even_by, True)
                 if not util.is_null(even_by) else '')
-    PDD_str = ('_PDDoff{}'.format(PDD_offset)
+    PDD_str = ('_PDDoff{}'.format(int(PDD_offset))
                if not util.is_null(PDD_offset) else '')
     nDS_str = ('top{}u'.format(n_most_DS)
                if n_most_DS != 0 else 'allu')

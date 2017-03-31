@@ -224,13 +224,23 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None,
     return Scores, Coefs, C, ShfldScore
 
 
-def run_prd_pop_dec(UA, rec, task, stim, uids, trs, sfeat, zscore_by,
-                    PDD_offset, PPDc, PADc, prd, ref_ev, nrate, n_pshfl,
-                    sep_err_trs, ncv, Cs, tstep):
+def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
+                    even_by, PDD_offset, PPDc, PADc, prd, ref_ev, nrate,
+                    n_pshfl, sep_err_trs, ncv, Cs, tstep):
     """Run logistic regression analysis on population for time period."""
 
     # Init.
     TrData = ua_query.get_trial_params(UA, rec, task)
+
+    # Even out trials by values of a feature
+    # (same or different as one to decode).
+    if not util.is_null(even_by):
+        # ntrs: number of trials of least frequent feature value.
+        vfeven = TrData[even_by][trs]
+        ntrs = vfeven.value_counts().min()
+        # Select ntrs number of trials from beginning of recording.
+        ltrs = [grp.index[:ntrs] for v, grp in vfeven.groupby(vfeven)]
+        trs = pd.Int64Index(pd.Series(np.concatenate(ltrs)).sort_values())
 
     # Select only trials where direction is PDD/PAD +- offset.
     if not util.is_null(PDD_offset):
@@ -243,10 +253,10 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, sfeat, zscore_by,
         trs = trs[trs.isin(pdd_trs)]
 
     # Get target vector.
-    vfeat = TrData.loc[trs].copy()[sfeat].squeeze()
+    vfeat = TrData.loc[trs, feat].squeeze()
 
     # Binarize direction target vector to decode if PDD/PAD is requested.
-    if ('Dir' in sfeat) and (not util.is_null(PDD_offset)):
+    if ('Dir' in feat) and (not util.is_null(PDD_offset)):
         vbin = [np.argmin([direction.deg_diff(d*deg, pd) for pd in ppds])
                 for d in vfeat]
         vfeat = pd.Series(vbin, vfeat.index)
@@ -266,6 +276,9 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, sfeat, zscore_by,
     res = run_logreg_across_time(rates, vfeat, vzscore_by,
                                  n_pshfl, corr_trs, ncv, Cs)
 
+    # Add number of trials to results.
+    res = res.append(len(trs))
+
     return res
 
 
@@ -275,28 +288,28 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
     lScores, lCoefs, lC, lShfldScores = [], [], [], []
     stims = prd_pars.index
-    ntrs = []
+    lntrs = []
     for stim in stims:
-        print('    ' + stim)
+        # print('    ' + stim)
 
         # Get params.
         pars_names = ['prd', 'ref_ev', 'feat', 'sep_by',
                       'zscore_by', 'even_by', 'PDD_offset']
         pars = prd_pars.loc[stim, pars_names]
-        prd, ref_ev, sfeat, sep_by, zscore_by, even_by, PDD_offset = pars
+        prd, ref_ev, feat, sep_by, zscore_by, even_by, PDD_offset = pars
 
         # Run decoding.
-        res = run_prd_pop_dec(UA, rec, task, stim, uids, trs, sfeat, zscore_by,
-                              PDD_offset, PPDc, PADc, prd, ref_ev, nrate,
-                              n_pshfl, sep_err_trs, ncv, Cs, tstep)
+        res = run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
+                              even_by, PDD_offset, PPDc, PADc, prd, ref_ev,
+                              nrate, n_pshfl, sep_err_trs, ncv, Cs, tstep)
 
         # Collect results.
-        Scores, Coefs, C, ShfldScores = res
+        Scores, Coefs, C, ShfldScores, ntrs = res
         lScores.append(Scores)
         lCoefs.append(Coefs)
         lC.append(C)
         lShfldScores.append(ShfldScores)
-        ntrs.append(len(trs))
+        lntrs.append(ntrs)
 
     # No successfully decoded stimulus period.
     if not len(lScores):
@@ -313,7 +326,7 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
                                     rem_all_nan_units, rem_any_nan_times)
            for r in (lScores, lCoefs, lC, lShfldScores)]
     Scores, Coefs, C, ShfldScores = res
-    ntrs = np.mean(ntrs)
+    ntrs = np.mean(lntrs)
 
     # Prepare results.
     res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
