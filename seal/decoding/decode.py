@@ -232,8 +232,8 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     # Init.
     TrData = ua_query.get_trial_params(UA, rec, task)
 
-    # Even out trials by values of a feature
-    # (same or different as one to decode).
+    # Homogenize occurance of values of a feature (same or different as the
+    # one to decode), by dropping some trials.
     if not util.is_null(even_by):
         # ntrs: number of trials of least frequent feature value.
         vfeven = TrData[even_by][trs]
@@ -253,7 +253,7 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
         trs = trs[trs.isin(pdd_trs)]
 
     # Get target vector.
-    vfeat = TrData.loc[trs, feat].squeeze()
+    vfeat = TrData[feat][trs].squeeze()
 
     # Binarize direction target vector to decode if PDD/PAD is requested.
     if ('Dir' in feat) and (not util.is_null(PDD_offset)):

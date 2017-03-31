@@ -5,8 +5,6 @@ Functions to prepare data for decoding analysis.
 @author: David Samu
 """
 
-import os
-
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -21,13 +19,10 @@ from seal.analysis import direction
 min_n_units = 5           # minimum number of units to keep (0: off)
 min_n_trs_per_unit = 5    # minimum number of trials per unit to keep (0: off)
 
-fres = util.join(['results', 'decoding', 'prepare',
-                  'unit_trial_selection.data'])
-
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, ffig=None):
+def select_units_trials(UA, utids=None, fres=None, ffig=None):
     """Select optimal set of units and trials for population decoding."""
 
     print('Selecting optimal set of units and trials for decoding...')
@@ -225,12 +220,11 @@ def select_units_trials(UA, utids=None, ffig=None):
     RecInfo['% remaining trials'] = 100 * RecInfo.ntrials / RecInfo.nalltrials
 
     # Save results.
-    results = {'RecInfo': RecInfo, 'UInc': UInc}
-    util.write_objects(results, fres)
+    if fres is not None:
+        results = {'RecInfo': RecInfo, 'UInc': UInc}
+        util.write_objects(results, fres)
 
     # Save plot.
-    if ffig is None:
-        ffig = os.path.splitext(fres)[0] + '.pdf'
     title = 'Trial & unit selection prior decoding'
     putil.save_fig(ffig, fig, title, w_pad=3, h_pad=3)
 
@@ -239,7 +233,7 @@ def select_units_trials(UA, utids=None, ffig=None):
 
 # %% Direction selectivity analysis.
 
-def PD_across_units(UA, UInc, utids=None, ffig=None):
+def PD_across_units(UA, UInc, utids=None, fres=None, ffig=None):
     """
     Test consistency/spread of PD across units per recording.
     What is the spread in the preferred directions across units?
@@ -273,6 +267,11 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
             dPPDres[(rec, task)] = res
 
     PPDres = pd.DataFrame(dPPDres).T
+
+    # Save results.
+    if fres is not None:
+        results = {'DSInfo': DSInfo, 'PPDres': PPDres}
+        util.write_objects(results, fres)
 
     # Plot results.
 
@@ -324,8 +323,6 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
 
     # Save plot.
     title = 'Population direction selectivity'
-    if ffig is None:
-        ffig = util.join(['results', 'decoding', 'prepare', 'DS_test.pdf'])
     putil.save_fig(ffig, fig, title, w_pad=12, h_pad=20)
 
     return DSInfo, PPDres
