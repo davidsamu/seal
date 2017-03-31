@@ -13,7 +13,7 @@ import pandas as pd
 from quantities import deg, rad
 
 from seal.analysis import tuning
-from seal.util import util
+from seal.util import util, constants
 
 # Constants.
 res_names = ['PD', 'cPD', 'AD', 'cAD']
@@ -130,6 +130,58 @@ def tuned_DS(dirs, resp, dir0=0*deg, **kwargs):
     PDres = pd.Series([PD, cPD, AD, cAD], res_names, name='tuned')
 
     return PDres, fit_params, fit_res
+
+
+# %% Functions to calculate population level preferred directions.
+
+def calc_PPD(DSInfo):
+    """
+    Calculate population preferred direction (PPD) and
+    population direction selectivity (PDSI).
+    """
+
+    res_idx = ['PDSI', 'PPD', 'PPDc', 'PADc']
+    if DSInfo.empty:
+        return pd.Series([np.nan, np.nan, np.nan, np.nan], index=res_idx)
+
+    PD = util.dim_series_to_array(DSInfo.PD)
+    DSI = np.array(DSInfo.DSI)
+    dres = {}
+    for rot in constants.all_dirs:
+
+        # Currently first need to rotate PDs before flipping.
+        rPD = deg_mod(PD + rot, 360*deg)
+
+        # Flip all directions to 0-180 half to prevent
+        # cancellation of opposite directions.
+        PDflip = deg_mod(rPD, 180*deg)
+
+        # Calculate population DSI and population PD.
+        PDSI, PPD = polar_wmean(PDflip, DSI)
+
+        # Scale PDSI by population average DSI.
+        PDSI = DSI.mean() * PDSI
+
+        # Determine direction of PPD (may have to flip around).
+        if sum(rPD >= 180) > len(rPD)/2:
+            PPD = anti_dir(PPD)
+
+        # Rotate back PPD to original space.
+        PPD = deg_mod(PPD - rot, 360*deg)
+
+        # Coarse PPD and get anti-pref dir.
+        PPDc = coarse_dir(PPD, constants.all_dirs)
+        PADc = anti_dir(PPDc)
+
+        # Collect results.
+        dres[float(rot)] = {'PDSI': PDSI, 'PPD': PPD,
+                            'PPDc': PPDc, 'PADc': PADc}
+    PPDres = pd.DataFrame(dres, ).T
+
+    # Find highest PDSI. Ties should give the same result.
+    res = PPDres.loc[PPDres.PDSI.idxmax(), res_idx]
+
+    return res
 
 
 # %% Utility functions to analyze directions.

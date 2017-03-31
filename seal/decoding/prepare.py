@@ -34,7 +34,7 @@ def select_units_trials(UA, utids=None, ffig=None):
 
     # Init.
     if utids is None:
-        utids = UA.utids()
+        utids = UA.utids(as_series=True)
     u_rt_grpby = utids.groupby(level=['rec', 'task'])
 
     # Unit info frame.
@@ -232,7 +232,7 @@ def select_units_trials(UA, utids=None, ffig=None):
     if ffig is None:
         ffig = os.path.splitext(fres)[0] + '.pdf'
     title = 'Trial & unit selection prior decoding'
-    putil.save_fig(ffig, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
+    putil.save_fig(ffig, fig, title, w_pad=3, h_pad=3)
 
     return RecInfo, UInc
 
@@ -241,21 +241,40 @@ def select_units_trials(UA, utids=None, ffig=None):
 
 def PD_across_units(UA, UInc, utids=None, ffig=None):
     """
-    Consistency/spread of PD across units per recording.
-    How much is the spread in the preferred directions across units?
+    Test consistency/spread of PD across units per recording.
+    What is the spread in the preferred directions across units?
 
-    Can be used to determine dominant preferred direction to decode.
+    Return population level preferred direction (and direction selectivity),
+    that can be used to determine dominant preferred direction to decode.
     """
 
     # Init.
     if utids is None:
-        utids = UA.utids()
+        utids = UA.utids(as_series=True)
     tasks = utids.index.get_level_values('task').unique()
     recs = utids.index.get_level_values('rec').unique()
 
     # Get DS info frame.
     DSInfo = ua_query.get_DSInfo_table(UA, utids)
     DSInfo['include'] = UInc
+
+    # Calculate population PD and DSI.
+    dPPDres = {}
+    for rec in recs:
+        for task in tasks:
+
+            # Init.
+            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3])
+            if rtDSInfo.empty:
+                continue
+
+            # Calculate population PD and population DSI.
+            res = direction.calc_PPD(rtDSInfo.loc[rtDSInfo.include])
+            dPPDres[(rec, task)] = res
+
+    PPDres = pd.DataFrame(dPPDres).T
+
+    # Plot results.
 
     # Init plotting.
     putil.set_style('notebook', 'darkgrid')
@@ -268,45 +287,30 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
         for it, task in enumerate(tasks):
 
             # Init.
-            print(rec, task)
-            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3]).copy()
+            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3])
             ax = axs[ir, it]
-
             if rtDSInfo.empty:
                 ax.set_axis_off()
                 continue
-
-            # Flip all directions to 0-180 half to prevent cancellation of
-            # opposite directions.
-            PDflip = direction.deg_mod(util.dim_series_to_array(rtDSInfo.PD),
-                                       180*deg)
-
-            # Calculate population DSI and population PD.
-            PDSI, PPD = direction.polar_wmean(PDflip, np.array(rtDSInfo.DSI))
-            # Flip back directions if needed.
-            if sum(rtDSInfo.PD >= 180) > len(rtDSInfo.index):
-                PPD = direction.anti_dir(PPD)
-
-            # Coarse PPD and get anti-pref dir.
-            PPDc = direction.coarse_dir(PPD, constants.all_dirs)
-            PADc = direction.anti_dir(PPDc)
-
-            # Plot results.
+            PDSI, PPD, PPDc, PADc = PPDres.loc[(rec, task)]
 
             # Plot PD - DSI on polar plot.
+            sPPDc, sPADc = [int(v) if not np.isnan(v) else v
+                            for v in (PPDc, PADc)]
             title = ('{} {}\n'.format(rec, task) +
-                     'PPDc = {}$^\circ$ - {}$^\circ$'.format(int(PPDc),
-                                                             int(PADc)) +
+                     'PPDc = {}$^\circ$ - {}$^\circ$'.format(PPDc, PADc) +
                      ', PDSI = {:.2f}'.format(PDSI))
             PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
             pplot.scatter(PDrad, rtDSInfo.DSI, rtDSInfo.include, ylim=[0, 1],
-                          title=title, ytitle=1.10, c='darkblue',
+                          title=title, ytitle=1.08, c='darkblue',
                           edgecolor='k', linewidth=1, s=80, alpha=0.8,
                           zorder=2, ax=ax)
 
             # Highlight PPD and PAD.
             offsets = np.array([-45, 0, 45]) * deg
             for D, c in [(PPDc, 'g'), (PADc, 'r')]:
+                if np.isnan(D):
+                    continue
                 hlDs = direction.deg2rad(np.array(D+offsets))
                 for hlD, alpha in [(hlDs, 0.2), ([hlDs[1]], 0.4)]:
                     pplot.bars(hlD, len(hlD)*[1], align='center',
@@ -322,9 +326,9 @@ def PD_across_units(UA, UInc, utids=None, ffig=None):
     title = 'Population direction selectivity'
     if ffig is None:
         ffig = util.join(['results', 'decoding', 'prepare', 'DS_test.pdf'])
-    putil.save_fig(ffig, fig, title, ytitle=1.1, w_pad=10)
+    putil.save_fig(ffig, fig, title, w_pad=12, h_pad=20)
 
-    return DSInfo
+    return DSInfo, PPDres
 
 
 # %% Trial type distribution analysis.
@@ -336,7 +340,7 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
     # Init.
     par_str = util.format_to_fname(str(tr_par))
     if utids is None:
-        utids = UA.utids()
+        utids = UA.utids(as_series=True)
     recs, tasks = [RecInfo.index.get_level_values(v).unique()
                    for v in ('rec', 'task')]
     # Reorder recordings and tasks.
@@ -402,4 +406,4 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
             fname = util.join(['results', 'decoding', 'prepare',
                                par_str + '_trial_type_distr.pdf'])
 
-        putil.save_fig(fname, fig, title, ytitle=1.05, w_pad=3, h_pad=3)
+        putil.save_fig(fname, fig, title, w_pad=3, h_pad=3)
