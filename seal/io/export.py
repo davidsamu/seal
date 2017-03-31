@@ -9,7 +9,7 @@ Functions related to exporting data.
 import numpy as np
 import pandas as pd
 
-from seal.util import util
+from seal.util import util, constants
 
 
 def export_unit_list(UA, fname):
@@ -47,8 +47,7 @@ def export_unit_trial_selection(UA, fname):
     util.write_table(SelectDF, writer)
 
 
-def export_decoding_data(UA, fname, rec, task, trs=None, uids=None, prd=None,
-                         nrate=None):
+def export_decoding_data(UA, fname, rec, task, trs, uids, prd, nrate):
     """Export decoding data into .mat file."""
 
     # Below inits rely on these params being the same across units, which is
@@ -59,8 +58,8 @@ def export_decoding_data(UA, fname, rec, task, trs=None, uids=None, prd=None,
 
     u = UA.get_unit(uids[0], task)
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
-    start_ev = u.CTask['tr_prds'].start[prd]
-    ref_ev = u.CTask['tr_evts'].loc[start_ev, 'rel to']
+    prd_str = constants.tr_prds.loc[prd, 'start']
+    ref_ev = constants.tr_evts.loc[prd_str, 'rel to']
     ref_ts = u.ev_times(ref_ev)
     if nrate is None:
         nrate = u.init_nrate()
@@ -72,10 +71,10 @@ def export_decoding_data(UA, fname, rec, task, trs=None, uids=None, prd=None,
                    for col in u.TrData.columns]
 
     # Trial events.
-    trevents = u.Events
-    trevns = np.array([util.remove_dim_from_series(trevents.loc[trs, evn])
-                       for evn in trevents]).T
-    trevn_names = trevents.columns.tolist()
+    tr_evts = u.Events
+    trevn_names = tr_evts.columns.tolist()
+    tr_evts = np.array([util.remove_dim_from_series(tr_evts.loc[trs, evn])
+                       for evn in tr_evts]).T
 
     # Rates.
     rates = np.array([np.array(u._Rates[nrate].get_rates(trs, t1s, t2s))
@@ -90,7 +89,7 @@ def export_decoding_data(UA, fname, rec, task, trs=None, uids=None, prd=None,
                    'trial_parameter_names': trpar_names,
                    'trial_parameters': trpars,
                    'trial_event_names': trevn_names,
-                   'trial_events': trevns,
+                   'trial_events': tr_evts,
                    'times': times, 'rates': rates}
 
     # Export data.
