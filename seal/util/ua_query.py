@@ -29,7 +29,7 @@ def create_UA_from_recs(frecs, ua_name='UA'):
 
 # %% Query methods.
 
-def get_DSInfo_table(UA, utids=None, stim='S1'):
+def get_DSInfo_table(UA, utids=None, stim='S2'):
     """Return data frame with direction selectivity information."""
 
     # Init.

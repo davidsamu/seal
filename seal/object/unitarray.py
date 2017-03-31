@@ -143,7 +143,7 @@ class UnitArray:
     def recordings(self):
         """Return list of recordings."""
 
-        if not len(self.Units.index):
+        if not len(self.Units):
             return []
 
         recordings = self.Units.index.get_level_values('rec').unique()
@@ -158,7 +158,7 @@ class UnitArray:
     def n_units(self):
         """Return number of units (# of rows of UnitArray)."""
 
-        nunits = len(self.Units.index)
+        nunits = len(self.Units)
         return nunits
 
     def uids(self, recs=None, drop_rec=False, as_series=False):
@@ -167,7 +167,7 @@ class UnitArray:
         No check for missing or excluded units is performed!
         """
 
-        if not len(self.Units.index):
+        if self.Units.empty:
             return []
 
         # Init.

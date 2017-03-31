@@ -267,7 +267,7 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
         transform = None
 
     xy = [xymin, xymax]
-    ax.plot(xy, xy, ax=ax, color=color, ls=ls, transform=transform)
+    ax.plot(xy, xy, color=color, ls=ls, transform=transform)
 
 
 # %% Functions to adjust position of plot decorators

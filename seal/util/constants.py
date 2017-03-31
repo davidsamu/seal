@@ -120,7 +120,7 @@ tr_prds = [('whole trial', ('fixate', 'saccade')),  # ***
            ('baseline', ('base on', 'base off')),
 
            # Cue related periods.
-           ('S1 to cue', ('S1', 'cue')),  # ***
+           ('S1 to cue', ('S1 off', 'cue')),  # ***
            ('cue to S2', ('cue', 'S2 on'))]
 
 tr_prds = pd.DataFrame.from_items(tr_prds, ['start', 'stop'], 'index')
