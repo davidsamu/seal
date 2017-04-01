@@ -105,9 +105,10 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
+    n_most_DS = par_kws['n_most_DS']
 
     # Load results.
-    rt_res = decutil.load_res(res_dir, **par_kws)
+    rt_res = decutil.load_res(res_dir, **par_kws)[n_most_DS]
 
     # Create figures.
     # For prediction scores.
@@ -198,9 +199,10 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
+    n_most_DS = par_kws['n_most_DS']
 
     # Load results.
-    rt_res = decutil.load_res(res_dir, **par_kws)
+    rt_res = decutil.load_res(res_dir, **par_kws)[n_most_DS]
 
     # Create figure.
     ret = putil.get_gs_subplots(nrow=1, ncol=len(tasks),
@@ -210,6 +212,8 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
     print('\nPlotting multi-recording results...')
     for itask, task in enumerate(tasks):
         print('    ' + task)
+        ax_scr = axs_scr[0, itask]
+
         dict_lScores = {}
         for irec, rec in enumerate(recs):
 
@@ -240,6 +244,10 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
 
                 dict_lScores[(rec, v)] = lScores
 
+        if not len(dict_lScores):
+            ax_scr.axis('off')
+            continue
+
         # Concatenate accuracy scores from every recording.
         all_lScores = pd.concat(dict_lScores)
         all_lScores['rec'] = all_lScores.index.get_level_values(0)
@@ -253,7 +261,6 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
                 for stim in stims]
 
         # Plot time series.
-        ax_scr = axs_scr[0, itask]
         palette = sns.color_palette('muted')
         sns.tsplot(all_lScores, time='time', value='score', unit='fold',
                    condition='rec', color=palette, ax=ax_scr)
@@ -400,8 +407,8 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
 
     # Init.
     putil.set_style('notebook', 'ticks')
-    tasks = par_kws['tasks']
     vkey = 'all'
+
     # This should be made more explicit!
     nvals = 8 if par_kws['feat'] == 'Dir' else 2
     prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
@@ -449,9 +456,10 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                 continue
 
             # Prepare data.
+            dtasks = nScores.index.get_level_values(1).unique()  # in data
             dScores = {task: pd.DataFrame(nScores.xs(task, level=1).unstack(),
                                           columns=['accuracy'])
-                       for task in tasks}
+                       for task in dtasks}
             lScores = pd.concat(dScores, axis=0)
             lScores['time'] = lScores.index.get_level_values(1)
             lScores['task'] = lScores.index.get_level_values(0)
@@ -459,7 +467,7 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
             lScores.index = np.arange(len(lScores.index))
 
             # Add altered task names for legend plotting.
-            nrecs = {task: len(nScores.xs(task, level=1)) for task in tasks}
+            nrecs = {task: len(nScores.xs(task, level=1)) for task in dtasks}
             lScores['task_nrecs'] = lScores['task'].apply(lambda x: '{} (n={})'.format(x, nrecs[x]))
 
             # Plot as time series.

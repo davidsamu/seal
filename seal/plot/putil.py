@@ -701,7 +701,7 @@ def sps_add_axes(fig, sps, nrow, ncol, **kwargs):
 
 # %% Functions to save figure.
 
-def save_fig(ffig, fig=None, title=None, ytitle=1.01, fs_title='xx-large',
+def save_fig(ffig, fig=None, title=None, fs_title='xx-large', ytitle=1.01,
              va_title='bottom', rect_height=None, border=0.03, pad=1.0,
              h_pad=None, w_pad=None, dpi=300, bbox_extra_artists=None,
              close=True, **kwargs):

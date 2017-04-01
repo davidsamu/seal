@@ -273,11 +273,11 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
-    res = run_logreg_across_time(rates, vfeat, vzscore_by,
-                                 n_pshfl, corr_trs, ncv, Cs)
+    dec_res = run_logreg_across_time(rates, vfeat, vzscore_by,
+                                     n_pshfl, corr_trs, ncv, Cs)
 
-    # Add number of trials to results.
-    res = res.append(len(trs))
+    # Add number of trials and classes to results.
+    res = [dec_res, len(trs), len(vfeat.unique())]
 
     return res
 
@@ -288,7 +288,7 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
 
     lScores, lCoefs, lC, lShfldScores = [], [], [], []
     stims = prd_pars.index
-    lntrs = []
+    lntrs, lncls = [], []
     for stim in stims:
         # print('    ' + stim)
 
@@ -304,12 +304,16 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
                               nrate, n_pshfl, sep_err_trs, ncv, Cs, tstep)
 
         # Collect results.
-        Scores, Coefs, C, ShfldScores, ntrs = res
+        dec_res, ntrs, ncls = res
+        lntrs.append(ntrs)
+        lncls.append(ncls)
+        if dec_res is None:
+            continue
+        Scores, Coefs, C, ShfldScores = dec_res
         lScores.append(Scores)
         lCoefs.append(Coefs)
         lC.append(C)
         lShfldScores.append(ShfldScores)
-        lntrs.append(ntrs)
 
     # No successfully decoded stimulus period.
     if not len(lScores):
@@ -326,12 +330,11 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
                                     rem_all_nan_units, rem_any_nan_times)
            for r in (lScores, lCoefs, lC, lShfldScores)]
     Scores, Coefs, C, ShfldScores = res
-    ntrs = np.mean(lntrs)
 
     # Prepare results.
     res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
-                'ShfldScores': ShfldScores, 'nunits': len(uids),
-                'ntrials': ntrs, 'prd_pars': prd_pars}
+                'ShfldScores': ShfldScores, 'prd_pars': prd_pars,
+                'nunits': len(uids), 'ntrials': lntrs, 'nclasses': lncls}
 
     return res_dict
 

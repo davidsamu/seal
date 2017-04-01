@@ -218,3 +218,20 @@ def exclude_low_DS(UA, dsi_th=0.3, stims=None):
     print('Excluded {}/{} ({}%) of all units'.format(nexc, nstart, pexc))
 
     return UA
+
+
+def rename_task(UA, task, newtask):
+    """Rename task in UnitArray and Units."""
+
+    if newtask in UA.tasks():
+        # Go with original task if exists.
+        UA.remove_task(task)
+    else:
+        # Rename task in Units.
+        for u in UA.iter_thru(tasks=[task]):
+            u.SessParams['task'] = newtask
+            u.set_name()
+        # Rename task in UnitArray.
+        UA.Units = UA.Units.rename(columns={task: newtask})
+
+    return UA

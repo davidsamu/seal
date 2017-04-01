@@ -93,7 +93,4 @@ def load_res(res_dir, list_n_most_DS=None, **par_kws):
         rt_res = util.read_objects(fres, 'rt_res')
         all_rt_res[n_most_DS] = rt_res
 
-    if len(list_n_most_DS) == 1:
-        all_rt_res = list(all_rt_res.values())[0]
-
     return all_rt_res
