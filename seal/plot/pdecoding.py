@@ -19,6 +19,9 @@ tlab = 'Time since S1 onset (ms)'
 ylab_scr = 'decoding accuracy'
 tlim = [-1000, 3500]
 ylim_scr = [0, 1]
+fformat = 'png'
+
+verbose = False
 
 
 def plot_score_set(Scores, ax=None, time='time', value='score', unit='fold',
@@ -124,9 +127,11 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
                                                 create_axes=True)
 
     for irec, rec in enumerate(recs):
-        print('\n' + rec)
+        if verbose:
+            print('\n' + rec)
         for itask, task in enumerate(tasks):
-            print('    ' + task)
+            if verbose:
+                print('    ' + task)
 
             # Init figures.
             ax_scr = axs_scr[irec, itask]
@@ -135,8 +140,6 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
             # Check if any result exists for rec-task combination.
             if (((rec, task) not in rt_res.keys()) or
                (not len(rt_res[(rec, task)].keys()))):
-                print('No result found for {} - {}.'.format(rec, task))
-
                 ax_scr.axis('off')
                 ax_wgt.axis('off')
                 continue
@@ -185,11 +188,11 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
     w_pad, h_pad = 3, 3
 
     # Performance.
-    ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'score', 'pdf', **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
     # Weights.
-    ffig = decutil.fig_fname(res_dir, 'weight', **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'weight', 'pdf', **par_kws)
     putil.save_fig(ffig, fig_wgt, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
@@ -211,7 +214,8 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
 
     print('\nPlotting multi-recording results...')
     for itask, task in enumerate(tasks):
-        print('    ' + task)
+        if verbose:
+            print('    ' + task)
         ax_scr = axs_scr[0, itask]
 
         dict_lScores = {}
@@ -220,7 +224,6 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
             # Check if results exist for rec-task combination.
             if (((rec, task) not in rt_res.keys()) or
                (not len(rt_res[(rec, task)].keys()))):
-                print('No result found for {} - {}.'.format(rec, task))
                 continue
 
             # Init data.
@@ -286,7 +289,7 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
     title = decutil.fig_title(res_dir, **par_kws)
     fs_title = 'large'
     w_pad, h_pad = 3, 3
-    ffig = decutil.fig_fname(res_dir, 'all_scores', **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'all_scores', fformat, **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
@@ -310,9 +313,12 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     # Do plotting per recording and task.
     print('\nPlotting results across different number of units included...')
     for irec, rec in enumerate(recs):
-        print('\n' + rec)
+        if verbose:
+            print('\n' + rec)
         for itask, task in enumerate(tasks):
-            print('    ' + task)
+            if verbose:
+                print('    ' + task)
+
             ax_scr = axs_scr[irec, itask]
 
             # Init data.
@@ -396,7 +402,7 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     w_pad, h_pad = 3, 3
 
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
-    ffig = decutil.fig_fname(res_dir, 'score', **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'score', fformat, **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
@@ -410,7 +416,6 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     vkey = 'all'
 
     # This should be made more explicit!
-    nvals = 8 if par_kws['feat'] == 'Dir' else 2
     prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
             for stim in stims]
 
@@ -434,6 +439,14 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
         # Get number of units.
         allnunits[n_most_DS] = {(rec, task): res[vkey]['nunits']
                                 for (rec, task), res in rt_res.items()}
+        # Get # values (for baseline plotting.)
+        all_nvals = pd.DataFrame({(rec, task): res[vkey]['nclasses']
+                                 for (rec, task), res in rt_res.items()})
+        un_nvals = all_nvals.unstack().unique()
+        if len(un_nvals) > 1:
+            print('Found multiple # of classes to decode: {}'.format(un_nvals))
+        nvals = un_nvals[0]
+
     allnunits = pd.DataFrame(allnunits)
 
     # Plot mean performance across recordings and
@@ -468,7 +481,8 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
 
             # Add altered task names for legend plotting.
             nrecs = {task: len(nScores.xs(task, level=1)) for task in dtasks}
-            lScores['task_nrecs'] = lScores['task'].apply(lambda x: '{} (n={})'.format(x, nrecs[x]))
+            my_format = lambda x: '{} (n={})'.format(x, nrecs[x])
+            lScores['task_nrecs'] = lScores['task'].apply(my_format)
 
             # Plot as time series.
             sns.tsplot(lScores, time='time', value='accuracy', unit='rec',
@@ -484,7 +498,8 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
             # Format plot.
             title = ('{} most DS units'.format(n_most_DS)
                      if n_most_DS != 0 else 'all units')
-            title += ', recordings with at least {} units'.format(min_nunits)
+            title += (', recordings with at least {} units'.format(min_nunits)
+                      if (min_nunits > 1 and len(list_min_nunits) > 1) else '')
             ytitle = 1.0
             putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
 
@@ -501,5 +516,5 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     w_pad, h_pad = 3, 3
 
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
-    ffig = decutil.fig_fname(res_dir, 'combined_score', **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'combined_score', fformat, **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
