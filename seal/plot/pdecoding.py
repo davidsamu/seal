@@ -107,8 +107,12 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
 
     # Init.
     putil.set_style('notebook', 'ticks')
-    tasks = par_kws['tasks']
     n_most_DS = par_kws['n_most_DS']
+    tasks = par_kws['tasks']
+
+    # Remove Passive if plotting Saccade or Correct.
+    if par_kws['feat'] in ['saccade', 'correct']:
+        tasks = tasks[~tasks.str.contains('Pas')]
 
     # Load results.
     rt_res = decutil.load_res(res_dir, **par_kws)[n_most_DS]
@@ -201,8 +205,12 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
 
     # Init.
     putil.set_style('notebook', 'ticks')
-    tasks = par_kws['tasks']
     n_most_DS = par_kws['n_most_DS']
+    tasks = par_kws['tasks']
+
+    # Remove Passive if plotting Saccade or Correct.
+    if par_kws['feat'] in ['saccade', 'correct']:
+        tasks = tasks[~tasks.str.contains('Pas')]
 
     # Load results.
     rt_res = decutil.load_res(res_dir, **par_kws)[n_most_DS]
@@ -301,6 +309,10 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     # Init.
     putil.set_style('notebook', 'ticks')
     tasks = par_kws['tasks']
+
+    # Remove Passive if plotting Saccade or Correct.
+    if par_kws['feat'] in ['saccade', 'correct']:
+        tasks = tasks[~tasks.str.contains('Pas')]
 
     # Load all results to plot.
     dict_rt_res = decutil.load_res(res_dir, list_n_most_DS, **par_kws)
