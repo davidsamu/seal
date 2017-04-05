@@ -37,7 +37,7 @@ def res_fname(res_dir, subdir, tasks, feat, nrate, ncv, Cs, n_perm, n_pshfl,
     dir_name = '{}{}/{}{}{}{}'.format(res_dir, tasks_str, feat_str,
                                       zscore_str, even_str, PDD_str)
     fname = '{}_{}_{}_{}_{}_{}_{}_{}.data'.format(nrate, ncv_str, Cs_str,
-                                                  pshfl_str, prem_str, err_str,
+                                                  prem_str, pshfl_str, err_str,
                                                   nDS_str, tstep_str)
     fres = util.join([dir_name, subdir, fname])
 

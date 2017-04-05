@@ -13,6 +13,7 @@ from matplotlib.collections import PatchCollection
 
 from quantities import ms
 
+from seal.analysis import stats
 from seal.util import util
 from seal.plot import putil
 
@@ -246,8 +247,8 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
     # Add significance line to top of axes.
     if (pval is not None) and (len(rate_list) == 2):
         rates1, rates2 = rate_list
-        putil.plot_signif_prds(rates1, rates2, pval, test, test_kws,
-                               color='m', linewidth=4.0, ax=ax)
+        sign_prds = stats.sign_periods(rates1, rates2, pval, test, **test_kws)
+        putil.plot_signif_prds(sign_prds, color='m', linewidth=4.0, ax=ax)
 
     # Plot event markers.
     putil.plot_event_markers(evts, ax=ax)

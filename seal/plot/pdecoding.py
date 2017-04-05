@@ -10,9 +10,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from seal.analysis import stats
 from seal.decoding import decutil
-from seal.plot import putil
-from seal.util import constants
+from seal.plot import putil, pplot
+from seal.util import constants, util
 
 
 tlab = 'Time since S1 onset (ms)'
@@ -38,23 +39,58 @@ def plot_score_set(Scores, ax=None, time='time', value='score', unit='fold',
     sns.tsplot(lScores, time=time, value=value,
                unit=unit, color=color, ax=ax)
 
+    return ax
 
-def plot_scores(ax, Scores, ShfldScores, nvals=None, prds=None, col='b',
-                shflcol='g', xlim=None, ylim=ylim_scr, xlab=tlab,
-                ylab=ylab_scr, title='', ytitle=1.04):
+
+def plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.01, color='b', lw=4,
+                        ax=None):
+    """Plot mean +- std and significant difference for permuted results."""
+
+    # Plot mean +- std.
+    mean_kws = {'color': color, 'alpha': 0.5}
+    band_kws = {'color': color, 'alpha': 0.2}
+    pplot.mean_err(x, ymean, ystd, mean_kws=mean_kws,
+                   band_kws=band_kws, ax=ax)
+
+    # Add bars for significance periods.
+    sign_prds = stats.periods(pval <= pth)
+    putil.plot_signif_prds(sign_prds, color=color,
+                           linewidth=lw, ax=ax)
+
+    return ax
+
+
+def plot_scores(ax, Scores, Perm=None, Psdo=None, nvals=None, prds=None,
+                col='b', perm_col='grey', psdo_col='g', xlim=None,
+                ylim=ylim_scr, xlab=tlab, ylab=ylab_scr, title='',
+                ytitle=1.04):
     """Plot decoding accuracy results."""
+
+    lgn_patches = []
+
+    # Plot permuted results (if exist).
+    if not util.is_null(Perm) and not Perm.isnull().all().all():
+        x, pval = Perm.columns, Perm.loc['pval']
+        ymean, ystd = Perm.loc['mean'], Perm.loc['std']
+        plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.1, lw=6,
+                            color=perm_col, ax=ax)
+        lgn_patches.append(putil.get_artist('permuted', perm_col))
+
+    # Plot population shuffled results (if exist).
+    if not util.is_null(Psdo) and not Psdo.isnull().all().all():
+        x, pval = Psdo.columns, Psdo.loc['pval']
+        ymean, ystd = Psdo.loc['mean'], Psdo.loc['std']
+        plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.01, lw=3,
+                            color=psdo_col, ax=ax)
+        lgn_patches.append(putil.get_artist('pseudo-population', psdo_col))
 
     # Plot scores.
     plot_score_set(Scores, ax, color=col)
+    lgn_patches.append(putil.get_artist('synchronous', col))
 
-    # Plot shuffled scores.
-    if (ShfldScores is not None) and not ShfldScores.isnull().all().all():
-        plot_score_set(ShfldScores, ax, color=shflcol)
-
-        # Add legend.
-        lgn_patches = [putil.get_artist('synchronous', col),
-                       putil.get_artist('pseudo-population', shflcol)]
-        putil.set_legend(ax, handles=lgn_patches)
+    # Add legend.
+    lgn_patches = lgn_patches[::-1]
+    putil.set_legend(ax, handles=lgn_patches)
 
     # Add chance level line.
     # This currently plots all nvals combined across stimulus period!
@@ -151,30 +187,38 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
             # Init data.
             res = rt_res[(rec, task)]
             cols = sns.color_palette('hls', len(res.keys()))
-
+            lnunits, lntrs, lncls,  = [], [], []
             for v, col in zip(res.keys(), cols):
+                # Basic results.
                 vres = res[v]
                 Scores = vres['Scores']
                 Coefs = vres['Coefs']
-                # C = vres['C']
-                ShfldScores = vres['ShfldScores']
-                nunits = vres['nunits']
-                # ntrials = vres['ntrials']
-                # prd_pars = vres['prd_pars']
-                nvals = len(Coefs.index.get_level_values(1).unique())
-                if nvals == 1:  # binary case
-                    nvals = 2
-
+                Perm = vres['Perm']
+                Psdo = vres['Psdo']
+                # Decoding params.
+                lnunits.append(vres['nunits'])
+                lntrs.append(vres['ntrials'])
+                lncls.append(vres['nclasses'])
                 # Plot decoding accuracy.
-                plot_scores(ax_scr, Scores, ShfldScores, col=col)
+                plot_scores(ax_scr, Scores, Perm, Psdo, col=col)
 
             # Add labels.
+            uni_lnunits = np.unique(np.array(lnunits).flatten())
+            if len(uni_lnunits) > 1 and verbose:
+                print('Different number of units found.')
+            nunits = uni_lnunits[0]
             title = '{} {}, {} units'.format(rec, task, nunits)
             putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle=1.04)
 
-            # Add chance level line and stimulus periods.
-            chance_lvl = 1.0 / nvals
-            putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
+            # Add chance level line.
+            uni_ncls = np.unique(np.array(lncls).flatten())
+            if len(uni_ncls) > 1 and verbose:
+                print('Different number of classes found.')
+            for nvals in uni_ncls:
+                chance_lvl = 1.0 / nvals
+                putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
+
+            # Plot stimulus periods.
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
                     for stim in stims]
             putil.plot_periods(prds, ax=ax_scr)
@@ -237,18 +281,14 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
             # Init data.
             res = rt_res[(rec, task)]
             cols = sns.color_palette('hls', len(res.keys()))
-
+            lncls = []
             for v, col in zip(res.keys(), cols):
                 vres = res[v]
                 if vres is None:
                     continue
 
                 Scores = vres['Scores']
-                Coefs = vres['Coefs']
-
-                nvals = len(Coefs.index.get_level_values(1).unique())
-                if nvals == 1:  # binary case
-                    nvals = 2
+                lncls.append(vres['nclasses'])
 
                 # Unstack dataframe with results.
                 lScores = pd.DataFrame(Scores.unstack(), columns=['score'])
@@ -282,7 +322,10 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
         # Add chance level line.
         # This currently plots a chance level line for every nvals,
         # combined across stimulus period!
-        if nvals is not None:
+        uni_ncls = np.unique(np.array(lncls).flatten())
+        if len(uni_ncls) > 1 and verbose:
+            print('Different number of classes found.')
+        for nvals in uni_ncls:
             chance_lvl = 1.0 / nvals
             putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
 
@@ -338,6 +381,7 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
             # Init data.
             dict_lScores = {}
             cols = sns.color_palette('hls', len(dict_rt_res.keys()))
+            lncls = []
             for (n_most_DS, rt_res), col in zip(dict_rt_res.items(), cols):
 
                 # Check if results exist for rec-task combination.
@@ -349,11 +393,7 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
                 for v, col in zip(res.keys(), cols):
                     vres = res[v]
                     Scores = vres['Scores']
-                    Coefs = vres['Coefs']
-
-                    nvals = len(Coefs.index.get_level_values(1).unique())
-                    if nvals == 1:  # binary case
-                        nvals = 2
+                    lncls.append(vres['nclasses'])
 
                     # Unstack dataframe with results.
                     lScores = pd.DataFrame(Scores.unstack(), columns=['score'])
@@ -361,7 +401,14 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
                     lScores['fold'] = lScores.index.get_level_values(1)
                     lScores.index = np.arange(len(lScores.index))
 
+                    # Get number of units tested.
                     nunits = vres['nunits']
+                    uni_nunits = nunits.unique()
+                    if len(uni_nunits) > 1 and verbose:
+                        print('Different number of units found.')
+                    nunits = uni_nunits[0]
+
+                    # Collect results.
                     dict_lScores[(nunits, v)] = lScores
 
             # Skip rest if no data is available.
@@ -390,7 +437,10 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
             # Add chance level line.
             # This currently plots a chance level line for every nvals,
             # combined across stimulus period!
-            if nvals is not None:
+            uni_ncls = np.unique(np.array(lncls).flatten())
+            if len(uni_ncls) > 1 and verbose:
+                print('Different number of classes found.')
+            for nvals in uni_ncls:
                 chance_lvl = 1.0 / nvals
                 putil.add_chance_level(ax=ax_scr, ylevel=chance_lvl)
 
@@ -416,7 +466,7 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
     w_pad, h_pad = 3, 3
 
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
-    ffig = decutil.fig_fname(res_dir, 'score', fformat, **par_kws)
+    ffig = decutil.fig_fname(res_dir, 'score_nunits', fformat, **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
 
 
@@ -452,15 +502,15 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                    if res[vkey] is not None}
         allScores[n_most_DS] = pd.concat(dScores, axis=1).T
         # Get number of units.
-        allnunits[n_most_DS] = {(rec, task): res[vkey]['nunits']
+        allnunits[n_most_DS] = {(rec, task): res[vkey]['nunits'].iloc[0]
                                 for (rec, task), res in rt_res.items()
                                 if res[vkey] is not None}
         # Get # values (for baseline plotting.)
-        all_nvals = pd.DataFrame({(rec, task): res[vkey]['nclasses']
-                                 for (rec, task), res in rt_res.items()
-                                 if res[vkey] is not None})
-        un_nvals = all_nvals.unstack().unique()
-        if len(un_nvals) > 1:
+        all_nvals = pd.Series({(rec, task): res[vkey]['nclasses'].iloc[0]
+                               for (rec, task), res in rt_res.items()
+                               if res[vkey] is not None})
+        un_nvals = all_nvals.unique()
+        if len(un_nvals) > 1 and verbose:
             print('Found multiple # of classes to decode: {}'.format(un_nvals))
         nvals = un_nvals[0]
 

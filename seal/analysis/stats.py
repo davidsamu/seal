@@ -131,7 +131,7 @@ def periods(t_on_ser, min_len=None):
     istarts = np.logical_and(tstarts[:-1] == False, tstarts[1:] == True)
 
     # Ends of periods.
-    tends = np.insert(t_on, -1, False)
+    tends = np.append(t_on, False)
     iends = np.logical_and(tends[:-1] == True, tends[1:] == False)
 
     # Zip (start, end) pairs of periods.

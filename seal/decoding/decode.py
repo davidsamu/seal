@@ -74,8 +74,8 @@ def run_logreg(X, y, n_perm=0, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
     # Init results.
     res = [('score', np.nan * np.zeros(ncv)), ('class_names', class_names),
            ('coef', np.nan * np.zeros((nclasspars, nfeatures))), ('C', np.nan),
-           ('perm_mean', np.nan), ('perm_std', np.nan), ('perm_p', np.nan),
-           ('psdo_mean', np.nan), ('psdo_std', np.nan), ('psdo_p', np.nan)]
+           ('perm', pd.Series(np.nan, index=['mean', 'std', 'pval'])),
+           ('psdo', pd.Series(np.nan, index=['mean', 'std', 'pval']))]
     res = util.series_from_tuple_list(res)
 
     # Check that there's at least two classes.
@@ -123,16 +123,17 @@ def run_logreg(X, y, n_perm=0, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
         r = permutation_test_score(LRCV, X, y, scoring='accuracy', cv=cv_obj,
                                    n_permutations=n_perm, random_state=seed)
         _, perm_scores, perm_p = r
-        res['perm_mean'] = perm_scores.mean()
-        res['perm_std'] = perm_scores.std()
-        res['perm_p'] = perm_p
+        res['perm']['mean'] = perm_scores.mean()
+        res['perm']['std'] = perm_scores.std()
+        res['perm']['pval'] = perm_p
 
     # Run decoding on rate matrix with trials shuffled within units.
-    shfld_scores = np.array([fit_LRCV(LRCV, pop_shfl(X, y), y)[2]
-                             for i in range(n_pshfl)]).mean(1)
-    res['psdo_mean'] = shfld_scores.mean()
-    res['psdo_std'] = shfld_scores.std()
-    res['psdo_p'] = stats.perm_pval(score.mean(), shfld_scores)
+    if n_pshfl > 0:
+        shfld_scores = np.array([fit_LRCV(LRCV, pop_shfl(X, y), y)[2]
+                                 for i in range(n_pshfl)]).mean(1)
+        res['psdo']['mean'] = shfld_scores.mean()
+        res['psdo']['std'] = shfld_scores.std()
+        res['psdo']['pval'] = stats.perm_pval(score.mean(), shfld_scores)
 
     return res
 
@@ -220,8 +221,7 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None, n_perm=0,
 
     # Run logistic regression at each time point.
     res = zip(*util.run_in_pool(run_logreg, LRparams))
-    (lScores, lClasses, lCoefs, lC, lPermMean,
-     lPermStd, lPermP, lPsdoMean, lPsdoStd, lPsdoP) = res
+    lScores, lClasses, lCoefs, lC, lPerm, lPsdo = res
 
     # Put results into series and dataframes.
     tvec = rates.columns
@@ -234,17 +234,13 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None, n_perm=0,
                                 index=lClasses[i]).unstack()
                 for i, t in enumerate(tvec)}
     Coefs = pd.concat(coef_ser, axis=1)
-    # Permutation test results.
-    PermMean, PermStd, PermP = [pd.Series(list(r), index=tvec)
-                                for r in [lPermMean, lPermStd, lPermP]]
-    # Population shuffling results.
-    PsdoMean, PsdoStd, PsdoP = [pd.Series(list(r), index=tvec)
-                                for r in [lPsdoMean, lPsdoStd, lPsdoP]]
+    # Permutation and population shuffling results.
+    Perm = pd.concat(lPerm, axis=1, keys=tvec)
+    Psdo = pd.concat(lPsdo, axis=1, keys=tvec)
 
     # Collect results.
     res = [('Scores', Scores), ('Coefs', Coefs), ('C', C),
-           ('PermMean', PermMean), ('PermStd', PermStd), ('PermP', PermP),
-           ('PsdoMean', PsdoMean), ('PsdoStd', PsdoStd), ('PsdoP', PsdoP)]
+           ('Perm', Perm), ('Psdo', Psdo)]
     res = util.series_from_tuple_list(res)
 
     return res
@@ -299,11 +295,18 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
+    rates = rates.iloc[:, :2]# REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
     dec_res = run_logreg_across_time(rates, vfeat, vzscore_by, n_perm,
                                      n_pshfl, corr_trs, ncv, Cs)
 
-    # Add number of trials and classes to results.
-    res = [dec_res, len(trs), len(vfeat.unique())]
+    # Add # units, trials and classes to results.
+    nunits = len(dec_res['Coefs'].index.get_level_values(0).unique())
+    ncls = len(dec_res['Coefs'].index.get_level_values(1).unique())
+    ntrs = (sum(corr_trs) if corr_trs is not None else
+            len(rates.index.get_level_values(1).unique()))
+    if ncls == 1:  # binary case
+        ncls = 2
+    res = {'dec_res': dec_res, 'nunits': nunits, 'ntrs': ntrs, 'ncls': ncls}
 
     return res
 
@@ -313,10 +316,8 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
     """Run population decoding on multiple periods across given trials."""
 
     # Init.
-    r = {'Scores': [], 'Coefs': [], 'C': [],
-         'PermMean': [], 'PermStd': [], 'PermP': [],
-         'PsdoMean': [], 'PsdoStd': [], 'PsdoP': []}
-    lntrs, lncls = [], []
+    r = {'Scores': [], 'Coefs': [], 'C': [], 'Perm': [], 'Psdo': []}
+    nunits, ntrs, ncls = pd.Series(), pd.Series(), pd.Series()
 
     stims = prd_pars.index
     for stim in stims:
@@ -334,16 +335,15 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
                               nrate, n_perm, n_pshfl, sep_err_trs, ncv, Cs,
                               tstep)
 
-        # Collect results.
-        dec_res, ntrs, ncls = res
-        lntrs.append(ntrs)
-        lncls.append(ncls)
-        if dec_res is None:
-            continue
+        # Extract decording results.
+        if res['dec_res'] is not None:
+            r = {resname: rres + [res['dec_res'][resname]]
+                 for resname, rres in r.items()}
 
-        # Extract recording results.
-        r = {resname: rres + [dec_res[resname]]
-             for resname, rres in r.items()}
+        # Collect parameters.
+        nunits[stim] = res['nunits']
+        ntrs[stim] = res['ntrs']
+        ncls[stim] = res['ncls']
 
     # No successfully decoded stimulus period.
     if not len(r['Scores']):
@@ -356,14 +356,14 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
     truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
                      for stim in stims]
 
-    res = {rname: util.concat_stim_prd_res(rr, tshifts, truncate_prds,
-                                           rem_all_nan_units,
-                                           rem_any_nan_times)
-           for rname, rr in r.items()}
+    res = {rn: util.concat_stim_prd_res(rr, tshifts, truncate_prds,
+                                        rem_all_nan_units, rem_any_nan_times)
+           for rn, rr in r.items()}
 
-    # Add # trials and # classes.
-    res['ntrials'] = lntrs
-    res['nclasses'] = lncls
+    # Add # units, trials and classes.
+    res['nunits'] = nunits
+    res['ntrials'] = ntrs
+    res['nclasses'] = ncls
 
     return res
 

@@ -127,8 +127,7 @@ def add_unit_labels(ax, uids, x, y, sep='/', color='grey'):
     return
 
 
-def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
-                     color='c', linewidth=4, ax=None):
+def plot_signif_prds(sign_prds, ypos=None, color='c', linewidth=4, ax=None):
     """Add significant intervals to axes."""
 
     ax = axes(ax)
@@ -136,11 +135,8 @@ def plot_signif_prds(rates1, rates2, pval, test, test_kws, ypos=None,
     if ypos is None:
         ypos = ax.get_ylim()[1]
 
-    # Get intervals of significant differences between rates.
-    sign_periods = stats.sign_periods(rates1, rates2, pval, test, **test_kws)
-
     # Assamble line segments and add them to axes.
-    line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_periods]
+    line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_prds]
     lc = mc.LineCollection(line_segments, colors=ColConv.to_rgba(color),
                            linewidth=linewidth)
     lc.sign_prd = True  # add label to find these artists later

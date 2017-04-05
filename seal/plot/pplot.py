@@ -89,6 +89,48 @@ def lines(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
     return ax
 
 
+def band(x, ylower, yupper, ylim=None, xlim=None, xlab=None, ylab=None,
+         title=None, ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
+    """Plot highlighted band area."""
+
+    # Plot data.
+    ax = putil.axes(ax, polar=polar)
+    ax.fill_between(x, ylower, yupper, **kwargs)
+
+    # Format and save figure.
+    putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
+    putil.save_fig(ffig)
+
+    return ax
+
+
+def mean_err(x, ymean, ystd, ylim=None, xlim=None, xlab=None, ylab=None,
+             title=None, ytitle=None, polar=False, ffig=None, ax=None,
+             mean_kws=None, band_kws=None):
+    """Plot mean and highlighted band area around it."""
+
+    # Init params.
+    if mean_kws is None:
+        mean_kws = dict()
+    if band_kws is None:
+        band_kws = dict()
+
+    # Init data.
+    ylower = ymean - ystd
+    yupper = ymean + ystd
+
+    # Plot data.
+    ax = putil.axes(ax, polar=polar)
+    lines(x, ymean, ax=ax, **mean_kws)
+    band(x, ylower, yupper, ax=ax, **band_kws)
+
+    # Format and save figure.
+    putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
+    putil.save_fig(ffig)
+
+    return ax
+
+
 def bars(x, y, ylim=None, xlim=None, xlab=None, ylab=None, title=None,
          ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """Plot bar plot."""
