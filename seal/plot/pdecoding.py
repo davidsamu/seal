@@ -240,6 +240,9 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
 
             for v, col in zip(res.keys(), cols):
                 vres = res[v]
+                if vres is None:
+                    continue
+
                 Scores = vres['Scores']
                 Coefs = vres['Coefs']
 
@@ -323,7 +326,6 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
                                                 subw=8, subh=6,
                                                 create_axes=True)
     # Do plotting per recording and task.
-    print('\nPlotting results across different number of units included...')
     for irec, rec in enumerate(recs):
         if verbose:
             print('\n' + rec)
@@ -446,14 +448,17 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     for n_most_DS, rt_res in dict_rt_res.items():
         # Get accuracy scores.
         dScores = {(rec, task): res[vkey]['Scores'].mean()
-                   for (rec, task), res in rt_res.items()}
+                   for (rec, task), res in rt_res.items()
+                   if res[vkey] is not None}
         allScores[n_most_DS] = pd.concat(dScores, axis=1).T
         # Get number of units.
         allnunits[n_most_DS] = {(rec, task): res[vkey]['nunits']
-                                for (rec, task), res in rt_res.items()}
+                                for (rec, task), res in rt_res.items()
+                                if res[vkey] is not None}
         # Get # values (for baseline plotting.)
         all_nvals = pd.DataFrame({(rec, task): res[vkey]['nclasses']
-                                 for (rec, task), res in rt_res.items()})
+                                 for (rec, task), res in rt_res.items()
+                                 if res[vkey] is not None})
         un_nvals = all_nvals.unstack().unique()
         if len(un_nvals) > 1:
             print('Found multiple # of classes to decode: {}'.format(un_nvals))

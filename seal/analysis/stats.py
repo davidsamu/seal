@@ -185,3 +185,15 @@ def prd_in_window(t, tmin, tmax, tlen, tdim=None):
     TW = pd.Series([tstart, tend], index=['tstart', 'tend'])
 
     return TW
+
+
+def perm_pval(score, perm_scores):
+    """
+    Calculate p-value of original score agains a vector of permuted scores.
+
+    Based on Def 1 of Ojala and Garriga. Permutation Tests for Studying
+    Classifier Performance. The Journal of Machine Learning Research (2010)
+    """
+
+    pval = (np.sum(perm_scores >= score)+1) / (len(perm_scores)+1)
+    return pval

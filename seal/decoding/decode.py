@@ -15,8 +15,9 @@ from quantities import deg
 
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import permutation_test_score
 
-from seal.analysis import direction
+from seal.analysis import direction, stats
 from seal.decoding import decutil
 from seal.util import util, ua_query, constants
 
@@ -48,7 +49,7 @@ def fit_LRCV(LRCV, X, y):
     return classes, C, score
 
 
-def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
+def run_logreg(X, y, n_perm=0, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
                multi_class=None, solver=None, class_weight='balanced'):
     """
     Run logistic regression with number of cross-validation folds (ncv) and
@@ -71,22 +72,23 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
     nclasspars = 1 if binary else nclasses
 
     # Init results.
-    score = np.nan * np.zeros(ncv)
-    coef = np.nan * np.zeros((nclasspars, nfeatures))
-    C = np.nan
-    score_shfld = np.nan * np.zeros((n_pshfl, ncv))
+    res = [('score', np.nan * np.zeros(ncv)), ('class_names', class_names),
+           ('coef', np.nan * np.zeros((nclasspars, nfeatures))), ('C', np.nan),
+           ('perm_mean', np.nan), ('perm_std', np.nan), ('perm_p', np.nan),
+           ('psdo_mean', np.nan), ('psdo_std', np.nan), ('psdo_p', np.nan)]
+    res = util.series_from_tuple_list(res)
 
     # Check that there's at least two classes.
     if nclasses < 2:
         if verbose:
             warnings.warn('Number of different values in y is less then 2!')
-        return score, coef, C, class_names, score_shfld
+        return res
 
     # Check that we have enough trials to split into folds during CV.
     if np.any(vcounts < ncv):
         if verbose:
             warnings.warn('Not enough trials to split into folds during CV')
-        return score, coef, C, class_names, score_shfld
+        return res
 
     # Init LogRegCV parameters.
     if multi_class is None:
@@ -109,15 +111,30 @@ def run_logreg(X, y, n_pshfl=0, cv_obj=None, ncv=5, Cs=None,
 
     # Fit logistic regression.
     class_names, C, score = fit_LRCV(LRCV, X, y)
+    res['C'] = C
+    res['score'] = score
 
     # Coefficients (weights) of features by predictors.
     coef = LRCV.coef_
+    res['coef'] = coef
+
+    # Run permutation testing.
+    if n_perm > 0:
+        r = permutation_test_score(LRCV, X, y, scoring='accuracy', cv=cv_obj,
+                                   n_permutations=n_perm, random_state=seed)
+        _, perm_scores, perm_p = r
+        res['perm_mean'] = perm_scores.mean()
+        res['perm_std'] = perm_scores.std()
+        res['perm_p'] = perm_p
 
     # Run decoding on rate matrix with trials shuffled within units.
-    score_shfld = np.array([fit_LRCV(LRCV, pop_shfl(X, y), y)[2]
-                            for i in range(n_pshfl)])
+    shfld_scores = np.array([fit_LRCV(LRCV, pop_shfl(X, y), y)[2]
+                             for i in range(n_pshfl)]).mean(1)
+    res['psdo_mean'] = shfld_scores.mean()
+    res['psdo_std'] = shfld_scores.std()
+    res['psdo_p'] = stats.perm_pval(score.mean(), shfld_scores)
 
-    return score, coef, C, class_names, score_shfld
+    return res
 
 
 # %% Utility functions for model fitting.
@@ -169,8 +186,8 @@ def separate_by_cond(X, vcond):
 
 # %% Wrappers to run decoding over time and different stimulus periods.
 
-def run_logreg_across_time(rates, vfeat, vzscore_by=None,
-                           n_pshfl=0, corr_trs=None, ncv=5, Cs=10):
+def run_logreg_across_time(rates, vfeat, vzscore_by=None, n_perm=0,
+                           n_pshfl=0, corr_trs=None, ncv=5, Cs=None):
     """Run logistic regression analysis across trial time."""
 
     # Correct and error trials and targets.
@@ -195,13 +212,16 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None,
         if vzscore_by is not None:  # z-score by condition level
             rtmat = zscore_by_cond(rtmat, vzscore_by)
 
-        corr_rates, err_rates = [rtmat.loc[trs] for trs in [corr_trs, err_trs]]
-        LRparams.append((corr_rates, corr_feat, n_pshfl, None, ncv, Cs))
+        corr_rates, err_rates = [rtmat.loc[trs]
+                                 for trs in [corr_trs, err_trs]]
+        LRparams.append((corr_rates, corr_feat, n_perm,
+                         n_pshfl, None, ncv, Cs))
         t_uids.append(rtmat.columns)
 
     # Run logistic regression at each time point.
     res = zip(*util.run_in_pool(run_logreg, LRparams))
-    lScores, lCoefs, lC, lClasses, lShfldScore = res
+    (lScores, lClasses, lCoefs, lC, lPermMean,
+     lPermStd, lPermP, lPsdoMean, lPsdoStd, lPsdoP) = res
 
     # Put results into series and dataframes.
     tvec = rates.columns
@@ -214,19 +234,25 @@ def run_logreg_across_time(rates, vfeat, vzscore_by=None,
                                 index=lClasses[i]).unstack()
                 for i, t in enumerate(tvec)}
     Coefs = pd.concat(coef_ser, axis=1)
-    # Population shuffled score.
-    if n_pshfl and ncv:
-        ShfldScore = np.array(lShfldScore).reshape(-1, n_pshfl*ncv)
-        ShfldScore = pd.DataFrame.from_records(ShfldScore, index=tvec).T
-    else:
-        ShfldScore = None
+    # Permutation test results.
+    PermMean, PermStd, PermP = [pd.Series(list(r), index=tvec)
+                                for r in [lPermMean, lPermStd, lPermP]]
+    # Population shuffling results.
+    PsdoMean, PsdoStd, PsdoP = [pd.Series(list(r), index=tvec)
+                                for r in [lPsdoMean, lPsdoStd, lPsdoP]]
 
-    return Scores, Coefs, C, ShfldScore
+    # Collect results.
+    res = [('Scores', Scores), ('Coefs', Coefs), ('C', C),
+           ('PermMean', PermMean), ('PermStd', PermStd), ('PermP', PermP),
+           ('PsdoMean', PsdoMean), ('PsdoStd', PsdoStd), ('PsdoP', PsdoP)]
+    res = util.series_from_tuple_list(res)
+
+    return res
 
 
 def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
                     even_by, PDD_offset, PPDc, PADc, prd, ref_ev, nrate,
-                    n_pshfl, sep_err_trs, ncv, Cs, tstep):
+                    n_perm, n_pshfl, sep_err_trs, ncv, Cs, tstep):
     """Run logistic regression analysis on population for time period."""
 
     # Init.
@@ -273,7 +299,7 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
-    dec_res = run_logreg_across_time(rates, vfeat, vzscore_by,
+    dec_res = run_logreg_across_time(rates, vfeat, vzscore_by, n_perm,
                                      n_pshfl, corr_trs, ncv, Cs)
 
     # Add number of trials and classes to results.
@@ -282,13 +308,17 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     return res
 
 
-def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
+def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
                 sep_err_trs, ncv, Cs, tstep, PPDc, PADc):
     """Run population decoding on multiple periods across given trials."""
 
-    lScores, lCoefs, lC, lShfldScores = [], [], [], []
-    stims = prd_pars.index
+    # Init.
+    r = {'Scores': [], 'Coefs': [], 'C': [],
+         'PermMean': [], 'PermStd': [], 'PermP': [],
+         'PsdoMean': [], 'PsdoStd': [], 'PsdoP': []}
     lntrs, lncls = [], []
+
+    stims = prd_pars.index
     for stim in stims:
         # print('    ' + stim)
 
@@ -301,7 +331,8 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         # Run decoding.
         res = run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
                               even_by, PDD_offset, PPDc, PADc, prd, ref_ev,
-                              nrate, n_pshfl, sep_err_trs, ncv, Cs, tstep)
+                              nrate, n_perm, n_pshfl, sep_err_trs, ncv, Cs,
+                              tstep)
 
         # Collect results.
         dec_res, ntrs, ncls = res
@@ -309,14 +340,13 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
         lncls.append(ncls)
         if dec_res is None:
             continue
-        Scores, Coefs, C, ShfldScores = dec_res
-        lScores.append(Scores)
-        lCoefs.append(Coefs)
-        lC.append(C)
-        lShfldScores.append(ShfldScores)
+
+        # Extract recording results.
+        r = {resname: rres + [dec_res[resname]]
+             for resname, rres in r.items()}
 
     # No successfully decoded stimulus period.
-    if not len(lScores):
+    if not len(r['Scores']):
         print('No stimulus period decoding finished successfully.')
         return
 
@@ -326,22 +356,21 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_pshfl,
     truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
                      for stim in stims]
 
-    res = [util.concat_stim_prd_res(r, tshifts, truncate_prds,
-                                    rem_all_nan_units, rem_any_nan_times)
-           for r in (lScores, lCoefs, lC, lShfldScores)]
-    Scores, Coefs, C, ShfldScores = res
+    res = {rname: util.concat_stim_prd_res(rr, tshifts, truncate_prds,
+                                           rem_all_nan_units,
+                                           rem_any_nan_times)
+           for rname, rr in r.items()}
 
-    # Prepare results.
-    res_dict = {'Scores': Scores, 'Coefs': Coefs, 'C': C,
-                'ShfldScores': ShfldScores, 'prd_pars': prd_pars,
-                'nunits': len(uids), 'ntrials': lntrs, 'nclasses': lncls}
+    # Add # trials and # classes.
+    res['ntrials'] = lntrs
+    res['nclasses'] = lncls
 
-    return res_dict
+    return res
 
 
 def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
                    even_by, PDD_offset, res_dir, nrate, tstep, ncv, Cs,
-                   n_pshfl, sep_err_trs, n_most_DS, PPDres):
+                   n_perm, n_pshfl, sep_err_trs, n_most_DS, PPDres):
     """Run decoding across tasks and recordings."""
 
     print('\nDecoding: ' + util.format_feat_name(feat))
@@ -351,8 +380,8 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
                                    even_by, PDD_offset)
 
     fres = decutil.res_fname(res_dir, 'results', tasks, feat, nrate, ncv, Cs,
-                             n_pshfl, sep_err_trs, sep_by, zscore_by, even_by,
-                             PDD_offset, n_most_DS, tstep)
+                             n_perm, n_pshfl, sep_err_trs, sep_by, zscore_by,
+                             even_by, PDD_offset, n_most_DS, tstep)
     rt_res = {}
     for rec in recs:
         print('\n' + rec)
@@ -393,8 +422,8 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
             tr_res = {}
             for v, trs in ltrs.items():
                 tr_res[v] = run_pop_dec(UA, rec, task, uids, trs, prd_pars,
-                                        nrate, n_pshfl, sep_err_trs, ncv, Cs,
-                                        tstep, PPDc, PADc)
+                                        nrate, n_perm, n_pshfl, sep_err_trs,
+                                        ncv, Cs, tstep, PPDc, PADc)
             rt_res[(rec, task)] = tr_res
 
     # Save results.
