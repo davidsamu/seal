@@ -53,7 +53,9 @@ def plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.01, color='b', lw=4,
                    band_kws=band_kws, ax=ax)
 
     # Add bars for significance periods.
-    sign_prds = stats.periods(pval <= pth)
+    # Two tailed test: p >= 1-pth also counts as significant!
+    tsign = pd.concat([pval <= pth, pval >= 1-pth], axis=1).any(axis=1)
+    sign_prds = stats.periods(tsign)
     putil.plot_signif_prds(sign_prds, color=color,
                            linewidth=lw, ax=ax)
 
