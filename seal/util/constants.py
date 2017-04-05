@@ -10,8 +10,9 @@ Definition of generic constants (not specific to any experiment/task).
 import numpy as np
 import pandas as pd
 
-from seal.util import kernels
 from quantities import ms, deg, cm
+
+from seal.util import kernels
 
 
 # %% Stimulus constants.

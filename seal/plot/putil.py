@@ -18,7 +18,6 @@ from matplotlib import collections as mc
 
 import seaborn as sns
 
-from seal.analysis import stats
 from seal.util import util
 
 

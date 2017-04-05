@@ -295,7 +295,6 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     corr_trs = TrData.correct[vfeat.index] if sep_err_trs else None
 
     # Run decoding.
-    rates = rates.iloc[:, :2]# REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
     dec_res = run_logreg_across_time(rates, vfeat, vzscore_by, n_perm,
                                      n_pshfl, corr_trs, ncv, Cs)
 

@@ -11,14 +11,13 @@ import warnings
 import pickle
 import datetime
 import functools
-
 import string
-import numpy as np
-import scipy as sp
-import pandas as pd
 import multiprocessing as mp
 from collections import Iterable
 
+import numpy as np
+import scipy as sp
+import pandas as pd
 from quantities import Quantity
 
 from seal.util import constants
