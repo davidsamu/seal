@@ -425,9 +425,11 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
             # Decode feature in each period.
             tr_res = {}
             for v, trs in ltrs.items():
-                tr_res[v] = run_pop_dec(UA, rec, task, uids, trs, prd_pars,
-                                        nrate, n_perm, n_pshfl, sep_err_trs,
-                                        ncv, Cs, tstep, PPDc, PADc)
+                res = run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate,
+                                  n_perm, n_pshfl, sep_err_trs, ncv, Cs,
+                                  tstep, PPDc, PADc)
+                if not util.is_null(res):
+                    tr_res[v] = res
             rt_res[(rec, task)] = tr_res
 
     # Save results.

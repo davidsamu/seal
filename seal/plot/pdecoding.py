@@ -188,9 +188,10 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
 
             # Init data.
             res = rt_res[(rec, task)]
-            cols = sns.color_palette('hls', len(res.keys()))
+            vals = [v for v in res.keys() if not util.is_null(res[v])]
+            cols = sns.color_palette('hls', len(vals))
             lnunits, lntrs, lncls,  = [], [], []
-            for v, col in zip(res.keys(), cols):
+            for v, col in zip(vals, cols):
                 # Basic results.
                 vres = res[v]
                 Scores = vres['Scores']
