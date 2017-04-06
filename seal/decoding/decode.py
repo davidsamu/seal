@@ -298,6 +298,9 @@ def run_prd_pop_dec(UA, rec, task, stim, uids, trs, feat, zscore_by,
     dec_res = run_logreg_across_time(rates, vfeat, vzscore_by, n_perm,
                                      n_pshfl, corr_trs, ncv, Cs)
 
+    if dec_res is None:
+        return
+
     # Add # units, trials and classes to results.
     nunits = len(dec_res['Coefs'].index.get_level_values(0).unique())
     ncls = len(dec_res['Coefs'].index.get_level_values(1).unique())
@@ -334,10 +337,12 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
                               nrate, n_perm, n_pshfl, sep_err_trs, ncv, Cs,
                               tstep)
 
+        if res is None:
+            continue
+
         # Extract decording results.
-        if res['dec_res'] is not None:
-            r = {resname: rres + [res['dec_res'][resname]]
-                 for resname, rres in r.items()}
+        r = {resname: rres + [res['dec_res'][resname]]
+             for resname, rres in r.items()}
 
         # Collect parameters.
         nunits[stim] = res['nunits']
