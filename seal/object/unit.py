@@ -165,7 +165,7 @@ class Unit:
         # Everything is in seconds below!
 
         if 'abs_times' in TPLCell._fieldnames:
-            abs_times = TPLCell.TPLCell.abs_times
+            abs_times = TPLCell.abs_times
             anchor_evts = [('S1 on', abs_times.end_of_spont),
                            ('S1 off', abs_times.end_of_sample),
                            ('S2 on', abs_times.end_of_delay),
