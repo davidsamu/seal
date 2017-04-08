@@ -623,7 +623,9 @@ class Unit:
     def add_rate(self, name, kernel, step):
         """Calculate and add specified firing rate estimate to unit."""
 
-        self._Rates[name] = Rate(name, kernel, self._Spikes.get_spikes(), step)
+        trs = self.TrData.index
+        self._Rates[name] = Rate(name, kernel, self._Spikes.get_spikes(trs),
+                                 step)
 
     def get_time_rates(self, trs=None, t1s=None, t2s=None, tr_time_idx=False):
         """Return rates within time window in given trials."""
