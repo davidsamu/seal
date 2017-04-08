@@ -72,7 +72,7 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
                                           subw=6, subh=4, create_axes=True)
 
     for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
-        print(rec, task)
+        print('{} / {}: {} - {}'.format(i_rt+1, len(u_rt_grpby), rec, task))
 
         # Create matrix of included trials of recording & task of units.
         ch_idxs = rt_utids.index.droplevel(3).droplevel(0)

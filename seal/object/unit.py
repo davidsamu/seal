@@ -87,11 +87,12 @@ class Unit:
 
         # %% Waveforms.
 
-        wfs = TPLCell.Waves
-        if wfs.ndim == 1:  # there is only a single spike: extend it to matrix
-            wfs = np.reshape(wfs, (1, len(wfs)))
-        wf_sampl_t = float(sampl_prd) * np.arange(wfs.shape[1])
-        self.Waveforms = pd.DataFrame(wfs, columns=wf_sampl_t)
+        if 'Waves' in TPLCell._fieldnames:
+            wfs = TPLCell.Waves
+            if wfs.ndim == 1:  # there is only a single spike
+                wfs = np.reshape(wfs, (1, len(wfs)))  # extend it to matrix
+                wf_sampl_t = float(sampl_prd) * np.arange(wfs.shape[1])
+                self.Waveforms = pd.DataFrame(wfs, columns=wf_sampl_t)
 
         # %% Spike params.
 
@@ -163,14 +164,22 @@ class Unit:
         # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
-        S1dur = float(constants.stim_dur['S1'].rescale(s))
-        S2dur = float(constants.stim_dur['S2'].rescale(s))
-        iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
-        iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
-        anchor_evts = [('S1 on', TPLCell.Timestamps[iS1off]-S1dur),
-                       ('S1 off', TPLCell.Timestamps[iS1off]),
-                       ('S2 on', TPLCell.Timestamps[iS2on]),
-                       ('S2 off', TPLCell.Timestamps[iS2on]+S2dur)]
+        if 'abs_times' in TPLCell._fieldnames:
+            abs_times = TPLCell.TPLCell.abs_times
+            anchor_evts = [('S1 on', abs_times.end_of_spont),
+                           ('S1 off', abs_times.end_of_sample),
+                           ('S2 on', abs_times.end_of_delay),
+                           ('S2 off', abs_times.end_of_test)]
+        else:
+            S1dur = float(constants.stim_dur['S1'].rescale(s))
+            S2dur = float(constants.stim_dur['S2'].rescale(s))
+            iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
+            iS2on = TPLCell.Patterns.matchedPatterns[:, 3]-1
+            ts = TPLCell.Timestamps
+            anchor_evts = [('S1 on', ts[iS1off]-S1dur),
+                           ('S1 off', ts[iS1off]),
+                           ('S2 on', ts[iS2on]),
+                           ('S2 off', ts[iS2on]+S2dur)]
         anchor_evts = pd.DataFrame.from_items(anchor_evts)
 
         # Align trial events to S1 onset.
@@ -192,9 +201,13 @@ class Unit:
         TrialParams = pd.DataFrame()
 
         # Add start time, end time and length of each trials.
-        tstamps = TPLCell.Timestamps
-        tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
-                             in TPLCell.Info.successfull_trials_indices]) * s
+        if 'tr_times' in TPLCell._fieldnames:
+            tr_times = TPLCell.tr_times
+        else:
+            tstamps = TPLCell.Timestamps
+            tr_times = np.array([(tstamps[i1-1], tstamps[i2-1]) for i1, i2
+                                 in TPLCell.Info.successfull_trials_indices])
+        tr_times = tr_times * s
         for colname, col in [('TrialStart', tr_times[:, 0]),
                              ('TrialStop', tr_times[:, 1]),
                              ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
