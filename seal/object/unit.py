@@ -165,22 +165,13 @@ class Unit:
         # Watch out: indexing starting with 1 in TPLCell (Matlab)!
         # Everything is in seconds below!
 
-<<<<<<< Updated upstream
-        if 'abs_times' in TPLCell._fieldnames:
-            abs_times = TPLCell.abs_times
-            anchor_evts = [('S1 on', abs_times.end_of_spont),
-                           ('S1 off', abs_times.end_of_sample),
-                           ('S2 on', abs_times.end_of_delay),
-                           ('S2 off', abs_times.end_of_test)]
-=======
         if 'rel_times' in TPLCell._fieldnames:
             rel_times = TPLCell.rel_times
-            anchor_evts = [('S1 on', rel_times['S1 on']),
-                           ('S1 off', rel_times['S1 off']),
-                           ('S2 on', rel_times['S2 on']),
-                           ('S2 off', rel_times['S2 off'])]
+            anchor_evts = [('S1 on', rel_times.S1_on),
+                           ('S1 off', rel_times.S1_off),
+                           ('S2 on', rel_times.S2_on),
+                           ('S2 off', rel_times.S2_off)]
             anchor_evts = pd.DataFrame.from_items(anchor_evts)
->>>>>>> Stashed changes
         else:
             # Use absolute times.
             S1dur = float(constants.stim_dur['S1'].rescale(s))
@@ -205,7 +196,7 @@ class Unit:
 
         # Update saccade (end of recording) if info available.
         if ('rel_times' in TPLCell._fieldnames and
-            'saccade' in TPLCell.rel_times):
+            'saccade' in TPLCell.rel_times._fieldnames):
             evts['saccade'] = TPLCell.rel_times.saccade
 
         # Add dimension to timestamps (ms).
@@ -260,11 +251,13 @@ class Unit:
 
         # Trials spikes, aligned to S1 onset.
         if 'RelTrialSpikes' in TPLCell._fieldnames:
-            TrSpikes = TPLCell.RelTrialSpikes
+            RelTrSpikes = TPLCell.RelTrialSpikes
         else:
             TrSpikes = TPLCell.TrialSpikes
-        spk_trains = [(spk_train - abs_S1_onset[i]) * s
-                      for i, spk_train in enumerate(TrSpikes)]
+            RelTrSpikes = [(spk_train - abs_S1_onset[i])  # align to S1 on
+                           for i, spk_train in enumerate(TrSpikes)]
+
+        spk_trains = [spk_train * s for spk_train in RelTrSpikes]  # add dim
         t_starts = self.ev_times('fixate')  # start of trial
         t_stops = self.ev_times('saccade')  # end of trial
         self._Spikes = Spikes(spk_trains, t_starts, t_stops)
