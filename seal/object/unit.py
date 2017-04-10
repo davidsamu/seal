@@ -166,14 +166,15 @@ class Unit:
         # Everything is in seconds below!
 
         if 'rel_times' in TPLCell._fieldnames:
+            # Use relative times aligned to trial start (single-unit data).
             rel_times = TPLCell.rel_times
             anchor_evts = [('S1 on', rel_times.S1_on),
                            ('S1 off', rel_times.S1_off),
                            ('S2 on', rel_times.S2_on),
                            ('S2 off', rel_times.S2_off)]
-            anchor_evts = pd.DataFrame.from_items(anchor_evts)
+
         else:
-            # Use absolute times.
+            # Use absolute times (multi-unit data).
             S1dur = float(constants.stim_dur['S1'].rescale(s))
             S2dur = float(constants.stim_dur['S2'].rescale(s))
             iS1off = TPLCell.Patterns.matchedPatterns[:, 2]-1
@@ -183,11 +184,12 @@ class Unit:
                            ('S1 off', ts[iS1off]),
                            ('S2 on', ts[iS2on]),
                            ('S2 off', ts[iS2on]+S2dur)]
-            anchor_evts = pd.DataFrame.from_items(anchor_evts)
 
-            # Align trial events to S1 onset.
-            abs_S1_onset = anchor_evts['S1 on']  # this is also used below!
-            anchor_evts = anchor_evts.subtract(abs_S1_onset, axis=0)
+        anchor_evts = pd.DataFrame.from_items(anchor_evts)
+
+        # Align trial events to S1 onset.
+        S1_onset = anchor_evts['S1 on']  # this is also used below!
+        anchor_evts = anchor_evts.subtract(S1_onset, axis=0)
 
         # Add additional trial events, relative to anchor events.
         evts = [(evt, anchor_evts[rel]+float(offset.rescale(s)))
@@ -197,7 +199,7 @@ class Unit:
         # Update saccade (end of recording) if info available.
         if ('rel_times' in TPLCell._fieldnames and
             'saccade' in TPLCell.rel_times._fieldnames):
-            evts['saccade'] = TPLCell.rel_times.saccade
+            evts['saccade'] = TPLCell.rel_times.saccade - S1_onset
 
         # Add dimension to timestamps (ms).
         for evt in evts:
@@ -216,7 +218,7 @@ class Unit:
             tr_times = tr_times * s
             for name, col in [('TrialStart', tr_times[:, 0]),
                               ('TrialStop', tr_times[:, 1]),
-                              ('TrialLength', tr_times[:, 1] - tr_times[:, 0])]:
+                              ('TrialLength', tr_times[:, 1]-tr_times[:, 0])]:
                 util.add_quant_col(TrialParams, col, name)
 
         # Add trial period lengths to trial params.
@@ -250,14 +252,8 @@ class Unit:
         # %% Spikes.
 
         # Trials spikes, aligned to S1 onset.
-        if 'RelTrialSpikes' in TPLCell._fieldnames:
-            RelTrSpikes = TPLCell.RelTrialSpikes
-        else:
-            TrSpikes = TPLCell.TrialSpikes
-            RelTrSpikes = [(spk_train - abs_S1_onset[i])  # align to S1 on
-                           for i, spk_train in enumerate(TrSpikes)]
-
-        spk_trains = [spk_train * s for spk_train in RelTrSpikes]  # add dim
+        spk_trains = [(spk_train - S1_onset[i]) * s  # align to S1 on
+                      for i, spk_train in enumerate(TPLCell.TrialSpikes)]
         t_starts = self.ev_times('fixate')  # start of trial
         t_stops = self.ev_times('saccade')  # end of trial
         self._Spikes = Spikes(spk_trains, t_starts, t_stops)
@@ -815,7 +811,7 @@ class Unit:
         return TW, resp_stats, PD, DSI, tune_pars, tune_res
 
     def test_DS(self, stims=['S1', 'S2']):
-        """Test unit's direction selectivit."""
+        """Test unit's direction selectivity."""
 
         if not self.n_inc_trials():
             return
