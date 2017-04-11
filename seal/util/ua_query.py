@@ -84,7 +84,7 @@ def get_a_unit(UA, rec, task, levels=None):
     """Query units for recording and task in UA."""
 
     # Check if there's any unit in task of recording.
-    utids = UA.utids(tasks=[task], recs=[rec], levels)
+    utids = UA.utids([task], [rec], levels)
     if not len(utids):
         warnings.warn('No unit found for given task and recording.')
         return

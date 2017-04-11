@@ -220,8 +220,8 @@ def format_offsets(offsets):
 def format_uid(uid):
     """Format unit ID (recording, channel, unit idx) triple as string."""
 
-    rec, ch, idx = uid
-    uid_str = '{}_Ch{}_{}'.format(rec, ch, idx)
+    subj, date, elec, ch, idx = uid
+    uid_str = '{}_{}{}_Ch{}_{}'.format(subj, date, elec, ch, idx)
 
     return uid_str
 
