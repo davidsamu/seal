@@ -50,7 +50,7 @@ class Unit:
 
         # Prepare session params.
         fname_pars = util.params_from_fname(TPLCell.File)
-        subj, date, elec = fname_pars[['monkey', 'date', 'probe']]
+        subj, date, elec = fname_pars[['subj', 'date', 'elec']]
         task, task_idx, sortno = fname_pars[['task', 'idx', 'sortno']]
         [ch, ux] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
@@ -141,8 +141,9 @@ class Unit:
         # Recode correct/incorrect answer column.
         corr_ans = trpars['subjectAnswer']
         if len(corr_ans.unique()) > 2:
+            corr_ans_vals = ', '.join([str(v) for v in corr_ans.unique()])
             warnings.warn(('More than 2 unique values for correct answer: ' +
-                           corr_ans.unique()))
+                           corr_ans_vals))
         corr_ans = corr_ans == corr_ans.max()  # higher value is correct!
         Answer['correct'] = corr_ans
 

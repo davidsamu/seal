@@ -17,10 +17,10 @@ from seal.plot import putil
 
 
 # Path to RF mapping tables.
-monkeys = ['201', '202']
+subjects = ['201', '202']
 fbase = '/home/upf/Research/data/RF mapping/'
-fRF = pd.Series([fbase + mky + '_RF_all_sessions.xlsx' for mky in monkeys],
-                index=monkeys)
+fRF = pd.Series([fbase + subj + '_RF_all_sessions.xlsx' for subj in subjects],
+                index=subjects)
 
 
 # %% Misc functions.
@@ -29,8 +29,8 @@ def get_RF_mapping_results(recs, best_rec=True):
     """Return RF mapping results for given set of recordings."""
 
     # Import RF mapping result table.
-    allRFres = {monkey: pd.read_excel(fname)
-                for monkey, fname in fRF.iteritems()}
+    allRFres = {subj: pd.read_excel(fname)
+                for subj, fname in fRF.iteritems()}
     allRFres = pd.concat(allRFres)
 
     # Select best RF mapping for each recording.

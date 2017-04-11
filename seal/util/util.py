@@ -130,13 +130,13 @@ def params_from_fname(fname, nchar_date=6):
 
     # Remove extension and split into parts by '_' underscore character.
     froot = os.path.splitext(fname)[0]
-    [monkey, dateprobe, taskidx, sortno] = froot.split('_')
-    date, probe = [dateprobe[:nchar_date], dateprobe[nchar_date:].upper()]
+    [subj, date_elec, taskidx, sortno] = froot.split('_')
+    date, elec = [date_elec[:nchar_date], date_elec[nchar_date:].upper()]
     task, idx = taskidx[:-1], int(taskidx[-1])
 
     # Return in Series.
-    index = ['monkey', 'date', 'probe', 'taskidx', 'task', 'idx', 'sortno']
-    name_fields = pd.Series([monkey, date, probe, taskidx, task, idx, sortno],
+    index = ['subj', 'date', 'elec', 'taskidx', 'task', 'idx', 'sortno']
+    name_fields = pd.Series([subj, date, elec, taskidx, task, idx, sortno],
                             index=index)
 
     return name_fields

@@ -42,7 +42,7 @@ QC_THs = pd.DataFrame.from_items([('MT', [200*ms, 20]),
 # Constants related to unit exclusion.
 min_SNR = 1.0           # min. SNR
 max_ISIvr = 1.0         # max. ISI violation ratio (%)
-min_n_trs = 50          # min. number of trials (in case monkey quit)
+min_n_trs = 50          # min. number of trials (in case subject quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
 
@@ -447,7 +447,7 @@ def test_rejection(u):
     # Extremely high ISI violation ratio (ISIvr).
     test_passed['ISI'] = qm['ISIvr'] < max_ISIvr
 
-    # Insufficient total number of trials (monkey quit).
+    # Insufficient total number of trials (subject quit).
     test_passed['NTotalTrs'] = qm['NTrialsTotal'] > min_n_trs
 
     # Insufficient amount of included trials.
