@@ -7,8 +7,6 @@ Class representing a (spike sorted) unit (single or multi).
 
 import warnings
 
-from datetime import datetime as dt
-
 import numpy as np
 import pandas as pd
 from quantities import s, ms, us, deg, Hz
@@ -52,24 +50,21 @@ class Unit:
 
         # Prepare session params.
         fname_pars = util.params_from_fname(TPLCell.File)
-        subj, date, probe = fname_pars[['monkey', 'date', 'probe']]
+        subj, date, elec = fname_pars[['monkey', 'date', 'probe']]
         task, task_idx, sortno = fname_pars[['task', 'idx', 'sortno']]
-        [chan, un] = TPLCell.ChanUnit
+        [ch, ux] = TPLCell.ChanUnit
         sampl_prd = (1 / (TPLCell.Info.Frequency * Hz)).rescale(us)
         pinfo = [p.tolist() if isinstance(p, np.ndarray)
                  else p for p in TPLCell.PInfo]
-        sess_date = dt.date(dt.strptime(date, '%m%d%y'))
-        recording = subj + '_' + util.date_to_str(sess_date)
 
         # Assign session params.
         sp_list = [('task', task),
                    ('task #', task_idx),
-                   ('subject', subj),
-                   ('date', sess_date),
-                   ('recording', recording),
-                   ('probe', probe),
-                   ('channel #', chan),
-                   ('unit #', un),
+                   ('subj', subj),
+                   ('date', date),
+                   ('elec', elec),
+                   ('ch', ch),
+                   ('ux', ux),
                    ('sort #', sortno),
                    ('filepath', TPLCell.Filename),
                    ('filename', TPLCell.File),
@@ -322,12 +317,11 @@ class Unit:
 
         self.Name = name
         if name is None:  # set name to session, channel and unit parameters
-            params = self.SessParams[['task', 'recording', 'probe',
-                                      'channel #', 'unit #', 'sort #']]
-            task, rec, probe, chan, un, isort = params
-            subj, date = rec.split('_')
-            self.Name = (' '.join([task, subj, date, probe]) +
-                         ' Ch{:02}/{} ({})'.format(chan, un, isort))
+            params = self.SessParams[['subj', 'date', 'elec',  'ch',
+                                      'ux', 'sort #', 'task']]
+            subj, date, elec, ch, ux, isort, task = params
+            self.Name = (' '.join([task, subj, date, elec]) +
+                         ' Ch{:02}/{} ({})'.format(ch, ux, isort))
 
     def name_to_fname(self):
         """Return filename compatible name string."""
@@ -347,15 +341,15 @@ class Unit:
         self.Name = idx_str + self.Name
 
     def get_uid(self):
-        """Return (recording, channel #, unit #) index triple."""
+        """Return unit ID."""
 
-        uid = self.SessParams[['recording', 'channel #', 'unit #']]
+        uid = self.SessParams[constants.uid_names]
         return uid
 
     def get_utid(self):
-        """Return (recording, channel #, unit #, task) index quadruple."""
+        """Return unit - task ID."""
 
-        utid = self.SessParams[['recording', 'channel #', 'unit #', 'task']]
+        utid = self.SessParams[constants.utid_names]
         return utid
 
     def get_unit_params(self, rem_dims=True):
@@ -784,7 +778,11 @@ class Unit:
         # Get direction response values and stats.
         stim_resp = self.get_stim_resp_vals(stim, 'Dir', t1s+TW.tstart,
                                             t1s+TW.tend)
-        resp_stats = util.calc_stim_resp_stats(stim_resp, constants.all_dirs)
+        all_dirs = constants.all_dirs
+        if ('single unit' in self.SessParams and
+            self.SessParams['single unit']):
+            all_dirs = None
+        resp_stats = util.calc_stim_resp_stats(stim_resp, all_dirs)
 
         # Convert each result to Numpy array.
         dirs = np.array(resp_stats.index) * deg

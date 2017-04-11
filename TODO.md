@@ -24,13 +24,3 @@ unit
   - add type information: suppressive?, broad spiking? motor? etc
 
 
-decoding
---------
-  - extend with error trial analysis
-  - choice probability
-
-
-unitarray
----------
-  - remove support for indexed tasks for simplicity
-

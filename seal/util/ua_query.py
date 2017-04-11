@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from seal.util import kernels, util
+from seal.util import kernels, util, constants
 from seal.object import unitarray
 
 
@@ -55,7 +55,7 @@ def get_DSInfo_table(UA, utids=None, stim='S2'):
     DSInfo = pd.DataFrame.from_items(DSInfo, columns=['PD', 'DSI'],
                                      orient='index')
     DSInfo.index = pd.MultiIndex.from_tuples(DSInfo.index,
-                                             names=unitarray.utid_names)
+                                             names=constants.utid_names)
 
     return DSInfo
 
@@ -80,11 +80,11 @@ def select_n_most_DS_units(UA, utids, n):
     return n_utids
 
 
-def get_a_unit(UA, rec, task):
+def get_a_unit(UA, rec, task, levels=None):
     """Query units for recording and task in UA."""
 
     # Check if there's any unit in task of recording.
-    utids = UA.utids(tasks=[task], recs=[rec])
+    utids = UA.utids(tasks=[task], recs=[rec], levels)
     if not len(utids):
         warnings.warn('No unit found for given task and recording.')
         return
@@ -96,23 +96,23 @@ def get_a_unit(UA, rec, task):
     return u
 
 
-def get_trial_params(UA, rec, task):
+def get_trial_params(UA, rec, task, levels=None):
     """Return trial param table for a given recording-task pair."""
 
-    u = get_a_unit(UA, rec, task)
+    u = get_a_unit(UA, rec, task, levels)
     TrParams = u.TrData
 
     return TrParams
 
 
-def get_prd_times(UA, rec, task, prd, ref_ev, trs=None):
+def get_prd_times(UA, rec, task, prd, ref_ev, trs=None, levels=None):
     """Return timing of period across given trials."""
 
     if trs is None:
-        TrParams = get_trial_params(UA, rec, task)
+        TrParams = get_trial_params(UA, rec, task, levels)
         trs = np.arange(len(TrParams.index))
 
-    u = get_a_unit(UA, rec, task)
+    u = get_a_unit(UA, rec, task, levels)
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
     ref_ts = u.ev_times(ref_ev, trs)
 
@@ -120,10 +120,10 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None):
 
 
 def get_rate_matrix(UA, rec, task, uids, prd, ref_ev, nrate, trs=None,
-                    tstep=None):
+                    tstep=None, levels=None):
     """Return rate matrix across units and periods."""
 
-    t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs)
+    t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs, levels)
     rates = {u.Name: u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, tstep)
              for u in UA.iter_thru([task], uids)}
     rates = pd.concat(rates)
@@ -131,18 +131,18 @@ def get_rate_matrix(UA, rec, task, uids, prd, ref_ev, nrate, trs=None,
     return rates
 
 
-def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None):
+def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None, levels=None):
     """Return spike times of units during given recording, task and trials."""
 
     # Get timings of interval requested.
-    t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs)
+    t1s, t2s, ref_ts = get_prd_times(UA, rec, task, prd, ref_ev, trs, levels)
 
     # Query spike events across units and trails.
     spike_dict = {tuple(u.get_utid()): u._Spikes.get_spikes(trs, t1s, t2s,
                                                             ref_ts)
                   for u in UA.iter_thru([task], uids)}
     Spikes = pd.concat(spike_dict, axis=1).T
-    Spikes.index.set_names(unitarray.utid_names, inplace=True)
+    Spikes.index.set_names(constants.utid_names, inplace=True)
 
     return Spikes
 
@@ -186,10 +186,10 @@ def test_DS_frecs(frecs):
         util.write_objects({'UnitArr': UA}, frec)
 
 
-def test_DS(UA):
+def test_DS(UA, retest=False):
     """Test DS if it has not been tested yet."""
 
-    [u.test_DS() for u in UA.iter_thru() if not len(u.DS)]
+    [u.test_DS() for u in UA.iter_thru() if (not len(u.DS) or not retest)]
 
 
 def exclude_low_DS(UA, dsi_th=0.3, stims=None):
@@ -220,7 +220,7 @@ def exclude_low_DS(UA, dsi_th=0.3, stims=None):
     return UA
 
 
-def rename_task(UA, task, newtask):
+def rename_task(UA, task, new_task):
     """Rename task in UnitArray and Units."""
 
     if newtask in UA.tasks():
@@ -229,9 +229,9 @@ def rename_task(UA, task, newtask):
     else:
         # Rename task in Units.
         for u in UA.iter_thru(tasks=[task]):
-            u.SessParams['task'] = newtask
+            u.SessParams['task'] = new_task
             u.set_name()
         # Rename task in UnitArray.
-        UA.Units = UA.Units.rename(columns={task: newtask})
+        UA.Units = UA.Units.rename(columns={task: new_task})
 
     return UA

@@ -81,7 +81,7 @@ def max_DS(dirs, resp):
     """DS based on maximum rate only (legacy method)."""
 
     # Preferred and anti-preferred direction.
-    PD = dirs[np.argmax(resp)]   # direction with maximal response
+    PD = dirs[np.nanargmax(resp)]   # direction with maximal response
     AD = anti_dir(PD)
 
     # Coarse PD and AD.
@@ -245,7 +245,7 @@ def coarse_dir(origd, dirs):
     """Return direction from list that is closest to provided one."""
 
     deg_diffs = np.array([deg_diff(d, origd) for d in dirs])
-    cd = dirs[np.argmin(deg_diffs)]
+    cd = dirs[np.nanargmin(deg_diffs)]
 
     return cd
 

@@ -33,13 +33,14 @@ def get_selection_params(u, UnTrSel=None):
         return None, None, None
 
     # Init.
-    rec, ch, idx, task = u.get_utid()
+    subj, date, elec, ch, ux, task = u.get_utid()
     ntrials = len(u.TrialParams.index)
 
     # Find unit in selection table.
-    row = UnTrSel.ix[((UnTrSel.recording == rec) & (UnTrSel.channel == ch) &
-                      (UnTrSel['unit index'] == idx) & (UnTrSel.task == task))]
-    uname = 'rec {}, ch {}, idx {}, task {}'.format(rec, ch, idx, task)
+    row = UnTrSel.ix[((UnTrSel.subj == subj) & (UnTrSel.date == date) &
+                      (UnTrSel.elec == elec) & (UnTrSel.ch == ch) &
+                      (UnTrSel.ux == ux) & (UnTrSel.task == task))]
+    uname = '{}/{}/{}/{}/{}/{}'.format(subj, date, elec, ch, ux, task)
 
     # Unit not in table.
     if not len(row.index):

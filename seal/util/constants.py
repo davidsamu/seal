@@ -43,6 +43,13 @@ stim_params = pd.DataFrame({('S1', 'Dir'): ('markS1Dir', deg, int),
 stim_feats = ('Dir', 'Loc', 'LocX', 'LocY', 'Rng', 'Size')
 
 
+# %% Unit identification constants (UID).
+
+uid_names = ['subj', 'date', 'elec', 'ch', 'ux']
+utid_names = uid_names + ['task']
+rec_levels = ['subj', 'date']
+
+
 # %% Experiment constants.
 
 def to_report(task):

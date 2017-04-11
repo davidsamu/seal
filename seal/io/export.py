@@ -24,22 +24,21 @@ def export_unit_trial_selection(UA, fname):
     """Export unit and trial selection as Excel table."""
 
     # Gather selection dataframe.
-    columns = ['recording', 'channel', 'unit index', 'task', 'unit included',
-               'first included trial', 'last included trial']
-    SelectDF = pd.DataFrame(columns=columns)
-
+    dselect = {}
     for i, u in enumerate(UA.iter_thru(excl=True)):
-        rec, ch, un, task = u.get_utid()
-        inc = int(not u.is_excluded())
+        iselect = u.get_utid()
+        iselect['unit included'] = int(not u.is_excluded())
         inc_trs = u.inc_trials()
         ftr, ltr = 0, 0
         if len(inc_trs):
             ftr, ltr = inc_trs.min()+1, inc_trs.max()+1
-        SelectDF.loc[i] = [rec, ch, un, task, inc, ftr, ltr]
+        iselect['first included trial'] = ftr
+        iselect['last included trial'] = ltr
+        dselect[i] = iselect
 
-    # Sort table to facilitate reading by recording.
-    SelectDF.sort_values(['recording', 'channel', 'unit index', 'task'],
-                         inplace=True)
+    # Sort table to help reading by recording.
+    SelectDF = pd.concat(dselect, axis=1).T
+    SelectDF.sort_values(constants.utid_names, inplace=True)
     SelectDF.index = range(1, len(SelectDF.index)+1)
 
     # Write out selection dataframe.

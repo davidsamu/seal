@@ -7,14 +7,11 @@ Class representing an array of units.
 """
 
 
+import warnings
+
 import pandas as pd
-
 from seal.object import unit
-
-
-# Constants.
-uid_names = ['rec', 'ch', 'unit']
-utid_names = ['rec', 'ch', 'unit', 'task']
+from seal.util import constants
 
 
 class UnitArray:
@@ -111,14 +108,15 @@ class UnitArray:
     def get_unit_by_utid(self, utid):
         """Return unit of given task and uid."""
 
-        u = self.Units.loc[[utid[:3]], utid[3]][0]
+        nuid = len(constants.uid_names)
+        u = self.Units.loc[[utid[:nuid]], utid[nuid]][0]
         return u
 
     def get_unit_by_name(self, uname):
         """Return unit of specific name."""
 
         task, subj, date, elec, chun, isort = uname.split()
-        uid = (subj+'_'+date, int(chun[2:4]), int(chun[-1]))
+        uid = (subj, date, elec, int(chun[2:4]), int(chun[-1]))
         u = self.get_unit(uid, task)
 
         return u
@@ -137,23 +135,104 @@ class UnitArray:
     def n_tasks(self):
         """Return number of tasks."""
 
-        nsess = len(self.tasks())
-        return nsess
+        ntasks = len(self.tasks())
+        return ntasks
 
-    def recordings(self):
-        """Return list of recordings."""
+    def get_param_vals(self, param):
+        """Return all values of given uid parameter."""
 
         if not len(self.Units):
             return []
 
-        recordings = self.Units.index.get_level_values('rec').unique()
-        return recordings
+        if param not in self.Units.index.names:
+            warnings.warn('Unknown UID parameter requested: ' + param)
+            return []
 
-    def n_recordings(self):
-        """Return number of recordings."""
+        par_vals = self.Units.index.get_level_values(param).unique()
 
-        n_recordings = len(self.recordings())
-        return n_recordings
+        return par_vals
+
+    def get_all_param_val_combs(self, params=None, as_list=False):
+        """Return all value combinations of given uid parameters."""
+
+        if not len(self.Units):
+            return []
+
+        if params is None:
+            params = constants.uid_names
+
+        for param in params:
+            if param not in self.Units.index.names:
+                warnings.warn('Unknown UID parameter requested: ' + param)
+                return []
+
+        pval_combs = self.Units.reset_index().set_index(params).index
+        if as_list:
+            pval_combs = pval_combs.tolist()
+
+        return pval_combs
+
+    def get_unique_param_val_combs(self, params=None, as_list=True):
+        """Return unique value combinations of given uid parameters."""
+
+        pval_combs = self.get_all_param_val_combs(params, as_list=False)
+        if not len(pval_combs):
+            return pval_combs
+
+        unique_pval_combs = pval_combs.unique()
+
+        if as_list:
+            unique_pval_combs = unique_pval_combs.tolist()
+
+        return unique_pval_combs
+
+    def recordings(self, params=None, as_list=True):
+        """
+        Return all recordings: (subject, date) pairs. Optionally, recordings
+        can be defined by more/other parameters, e.g. subject, date, electrode.
+        """
+
+        if params is None:
+            params = constants.re
+
+        recs = self.get_unique_param_val_combs(params, as_list=as_list)
+        return recs
+
+    def subjects(self):
+        """Return list of subjects."""
+
+        subjects = self.get_param_vals('subj')
+        return subjects
+
+    def n_subjects(self):
+        """Return number of subjects."""
+
+        nsubj = len(self.subjects())
+        return nsubj
+
+    def dates(self):
+        """Return list of dates."""
+
+        dates = self.get_param_vals('date')
+        return dates
+
+    def electrodes(self):
+        """Return list of electrodes."""
+
+        elecs = self.get_param_vals('elec')
+        return elecs
+
+    def channels(self):
+        """Return list of channels."""
+
+        chs = self.get_param_vals('ch')
+        return chs
+
+    def uxs(self):
+        """Return list of unit indexes."""
+
+        uxs = self.get_param_vals('ux')
+        return uxs
 
     def n_units(self):
         """Return number of units (# of rows of UnitArray)."""
@@ -161,9 +240,10 @@ class UnitArray:
         nunits = len(self.Units)
         return nunits
 
-    def uids(self, recs=None, drop_rec=False, as_series=False):
+    def uids(self, recs=None, levels=None, drop_levels=False, as_series=False):
         """
-        Return uids [(rec, ch, ix) triples] from given recordings.
+        Return uids [(subj, date, elec, ch, ux) quintets] from given
+        recordings [list of (subj, date) pairs].
         No check for missing or excluded units is performed!
         """
 
@@ -171,20 +251,23 @@ class UnitArray:
             return []
 
         # Init.
+        if levels is None:
+            levels = constants.rec_levels
         if recs is None:
-            recs = self.recordings()
+            recs = self.recordings(params=levels)
 
         # Select rows of recordings.
-        rec_rows = self.Units.index.get_level_values('rec').isin(recs)
+        irec_rows = self.get_all_param_val_combs(levels).isin(recs)
 
         # Get uids of rows.
-        uids = self.Units.index[rec_rows]
+        uids = self.Units.index[irec_rows]
 
         # Remove levels values not in index any more.
         uids = pd.MultiIndex.from_tuples(uids.tolist(), names=uids.names)
 
-        if drop_rec:
-            uids = uids.droplevel('rec')
+        if drop_levels:
+            for level in levels:
+                uids = uids.droplevel(level)
 
         # Convert to Series.
         if as_series:
@@ -192,11 +275,11 @@ class UnitArray:
 
         return uids
 
-    def utids(self, tasks=None, recs=None, miss=False, excl=False,
-              as_series=False):
+    def utids(self, tasks=None, recs=None, levels=None,
+              miss=False, excl=False, as_series=False):
         """
-        Return utids [(rec, ch, ix, task) quadruples] for units with data
-        available across required tasks and from given recordings (optional).
+        Return utids [(subj, date, elec, ch, ux, task) sextets] for units with
+        data available across given tasks and from given recordings (optional).
         """
 
         # Init.
@@ -204,12 +287,13 @@ class UnitArray:
             tasks = self.tasks()
 
         # Get all uids of requested recordings.
-        uids = self.uids(recs, drop_rec=False)
+        uids = self.uids(recs, levels, drop_levels=False)
 
         # Query utids.
         utids = [u.get_utid() for u in self.iter_thru(tasks, uids, miss, excl)]
 
         # Format as MultiIndex.
+        utid_names = constants.utid_names
         if len(utids):
             utids = pd.MultiIndex.from_tuples(utids, names=utid_names)
         else:
@@ -223,7 +307,7 @@ class UnitArray:
 
         return utids
 
-    def n_units_per_rec_task(self, recs=None, tasks=None,
+    def n_units_per_rec_task(self, recs=None, tasks=None, levels=None,
                              empty=False, excluded=False):
         """
         Return number of units for all pairs of recording-task combinations
@@ -232,7 +316,7 @@ class UnitArray:
         """
 
         if recs is None:
-            recs = self.recordings()
+            recs = self.recordings(levels)
         if tasks is None:
             tasks = self.tasks()
 
@@ -240,18 +324,18 @@ class UnitArray:
         nUnits = pd.Series(0, index=MI_rec_tasks, dtype=int)
         for rec in recs:
             for task in tasks:
-                nUnits[rec, task] = len(self.utids([task], [rec]))
+                nUnits[rec, task] = len(self.utids([task], [rec], levels))
 
         return nUnits
 
-    def rec_task_order(self):
+    def rec_task_order(self, levels=None):
         """Return original recording task order."""
 
-        tasks, recs = self.tasks(), self.recordings()
-        task_order = pd.DataFrame(index=recs, columns=tasks)
+        tasks, recs = self.tasks(), self.recordings(levels)
+        task_order = pd.DataFrame(index=pd.MultiIndex(recs), columns=tasks)
 
         for rec in recs:
-            uids = list(self.uids([rec]))
+            uids = list(self.uids([rec], levels))
             for task in tasks:
                 ulist = list(self.iter_thru([task], uids, excl=True))
                 if not len(ulist):  # no non-empty unit in task recording
@@ -273,7 +357,7 @@ class UnitArray:
         # This ensures that channels and units are consistent across
         # tasks (along rows) by inserting extra null units where necessary.
         uids = [u.get_uid() for u in task_units]
-        midx = pd.MultiIndex.from_tuples(uids, names=uid_names)
+        midx = pd.MultiIndex.from_tuples(uids, names=constants.uid_names)
         task_df = pd.DataFrame(task_units, columns=[task_name], index=midx)
         self.Units = pd.concat([self.Units, task_df], axis=1, join='outer')
 
@@ -295,7 +379,7 @@ class UnitArray:
 
         # Reformat index.
         self.Units.index = pd.MultiIndex.from_tuples(self.Units.index,
-                                                     names=uid_names)
+                                                     names=constants.uid_names)
 
         # Replace missing (nan) values with empty Unit objects.
         self.Units = self.Units.fillna(unit.Unit())
@@ -310,26 +394,26 @@ class UnitArray:
         if clean_array:
             self.clean_array()
 
-    def remove_recording(self, rec, tasks=None, clean_array=True):
+    def remove_recording(self, rec, tasks=None, levels=None, clean_array=True):
         """Remove a recording across all or selected tasks."""
 
         if tasks is None:
             tasks = self.tasks()
 
-        for uid in self.uids([rec]):
+        for uid in self.uids([rec], levels):
             for task in tasks:
                 self.remove_unit(uid, task, False)
 
         if clean_array:
             self.clean_array()
 
-    def remove_task(self, task, recs=None, clean_array=True):
+    def remove_task(self, task, recs=None, levels=None, clean_array=True):
         """Remove a task across all or selected recordings."""
 
         if recs is None:
-            recs = self.recordings()
+            recs = self.recordings(levels)
 
-        for uid in self.uids(recs):
+        for uid in self.uids(recs, levels):
             self.remove_unit(uid, task, False)
 
         if clean_array:

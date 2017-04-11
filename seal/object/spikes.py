@@ -43,7 +43,7 @@ class Spikes:
         self.spk_trains = pd.Series(index=np.arange(n_trs), dtype=object)
         for i in self.spk_trains.index:
 
-            # This also removes spikes outside of time window.
+            # Remove spikes outside of time window.
             t_start, t_stop = self.t_starts[i], self.t_stops[i]
             spk_tr = util.values_in_window(spk_trains[i], t_start, t_stop)
             self.spk_trains[i] = SpikeTrain(spk_tr, t_start=t_start,
@@ -93,6 +93,8 @@ class Spikes:
             t1, t2, tr = t1s[itr], t2s[itr], ref_ts[itr]
             spk_tr = util.values_in_window(self.spk_trains[itr], t1, t2)
             spk_tr, t1, t2 = spk_tr-tr, t1-tr, t2-tr  # align to reference time
+            # Need to check range once again to deal with rounding errors.
+            spk_tr = util.values_in_window(spk_tr, t1, t2)
             spk_trains[itr] = SpikeTrain(spk_tr, t_start=t1, t_stop=t2)
 
         return spk_trains

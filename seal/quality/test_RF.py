@@ -66,12 +66,13 @@ def get_RF_mapping_results(recs, best_rec=True):
 def get_unit_results(u, RFres):
     """Return RF mapping results of given unit."""
 
-    rec, ch, idx, task = u.get_utid()
+    subj, date, elec, ch, ux, task = u.get_utid()
+    rec = subj + '_' + date
     uidx = (RFres.recording == rec) & (RFres.channel == ch)
     rfres = RFres.loc[uidx].squeeze()
 
     uRFres = rfres[['cntr_x', 'cntr_y', 'FWHM', 'R2']]
-    uRFres.name = (rec, ch, idx, task)
+    uRFres.name = (rec, ch, ux, task)
 
     return uRFres
 
