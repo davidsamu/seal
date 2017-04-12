@@ -64,8 +64,11 @@ def ROC(x, y, n_perm=None, clf=None):
     idx = np.logical_and(~np.isnan(x), ~np.isnan(y))
     x, y = np.array(x[idx]), np.array(y[idx])
 
-    # Insufficient sample size.
-    if min(len(x), len(y)) < min_sample_size:
+    # Insufficient sample size or not exactly two values to classify.
+    n_yvals = len(np.unique(y))
+    if (min(len(x), len(y)) < min_sample_size) or (n_yvals != 2):
+        if n_yvals > 2:
+            print('More than two values to classify:' + str(np.unique(y)))
         return np.nan, None
 
     # Format x into array of arrays.
@@ -100,7 +103,7 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     # Merge rates and create and target vector.
     rates = pd.concat([rates1, rates2])
     target_vec = pd.Series(len(rates.index)*[1], index=rates.index)
-    target_vec[rates2.index] = 0  # y values have to be 0 and 1 for above code!
+    target_vec[rates2.index] = 0  # all y values have to be 0/1 for ROC
 
     # Default classifier.
     if clf is None:
@@ -114,7 +117,7 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
     return roc_res
 
 
-def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, t_step, n_perm,
+def run_unit_ROC_over_time(u, prd, ref_ev, trs_list, nrate, tstep, n_perm,
                            verbose):
     """Run ROC analysis of unit over time. Suitable for parallelization."""
 
@@ -124,22 +127,22 @@ def run_unit_ROC_over_time(u, prd, ref, trs_list, nrate, t_step, n_perm,
 
     # Set up params: trials, time period and rates.
     t1s, t2s = u.pr_times(prd, concat=False)
-    ref_ts = u.ev_times(ref)
+    ref_ts = u.ev_times(ref_ev)
 
     # Calculate AROC on rates.
-    rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, t_step)
+    rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, tstep)
                       for trs in trs_list]
     aroc_res = run_ROC_over_time(rates1, rates2, n_perm)
 
     return aroc_res
 
 
-def run_group_ROC_over_time(ulist, trs_list, prd, ref, n_perm=None,
+def run_group_ROC_over_time(ulist, trs_list, prd, ref_ev, n_perm=None,
                             nrate=None, tstep=None, verbose=True):
     """Run ROC over list of units over time."""
 
     # Run unit-wise AROC test in pool.
-    params = [(u, prd, ref, trs_list[i], nrate, tstep, n_perm, verbose)
+    params = [(u, prd, ref_ev, trs_list[i], nrate, tstep, n_perm, verbose)
               for i, u in enumerate(ulist)]
     aroc_res = util.run_in_pool(run_unit_ROC_over_time, params)
 
