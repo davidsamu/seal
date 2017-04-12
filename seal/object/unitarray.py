@@ -193,7 +193,7 @@ class UnitArray:
         """
 
         if params is None:
-            params = constants.re
+            params = constants.rec_levels
 
         recs = self.get_unique_param_val_combs(params, as_list=as_list)
         return recs
