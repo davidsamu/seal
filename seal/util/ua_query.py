@@ -147,16 +147,22 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None, levels=None):
     return Spikes
 
 
-def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None):
+def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
+                       only_pd=None, stim=None, index='name'):
     """Return mean rates per unit at each time during period in DataFrame."""
 
     mrates = {}
     for u in UA.iter_thru(tasks):
         t1s, t2s = u.pr_times(prd, concat=False)
         ref_ts = u.ev_times(ref_ev) if ref_ev is not None else t1s
-        trs = u.inc_trials()
+        trs = (u.dir_pref_trials('S2', [stim]).iloc[0] if only_pd == 'pref'
+               else u.dir_anti_trials('S2', [stim]).iloc[0] if only_pd == 'anti'
+               else u.inc_trials())
         rates = u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts)
-        mrates[u.Name] = rates.mean()
+        idx = (u.Name if index == 'name'
+               else tuple(u.get_uid()) if index == 'uid'
+               else tuple(u.get_utid()))
+        mrates[idx] = rates.mean()
     rates = pd.concat(mrates, axis=1).T
 
     if max_len is not None:
@@ -223,7 +229,7 @@ def exclude_low_DS(UA, dsi_th=0.3, stims=None):
 def rename_task(UA, task, new_task):
     """Rename task in UnitArray and Units."""
 
-    if newtask in UA.tasks():
+    if new_task in UA.tasks():
         # Go with original task if exists.
         UA.remove_task(task)
     else:

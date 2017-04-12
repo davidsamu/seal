@@ -82,7 +82,6 @@ def ROC(x, y, n_perm=None, clf=None):
     pvalue = None
     if n_perm is not None and n_perm > 0:
 
-        # TODO: is this the best CV type?
         cv = StratifiedKFold(n_folds)
 
         # Test significance of classification with cross-validated permutation.

@@ -411,6 +411,14 @@ def hide_legend(ax=None):
         ax.legend().set_visible(False)
 
 
+def hide_legend_title(ax=None):
+    """Hide title of legend."""
+
+    ax = axes(ax)
+    if ax.legend_ is not None:
+        ax.legend_.set_title(None)
+
+
 # %% Functions to set/hide ticks and spines.
 
 def set_spines(ax=None, bottom=True, left=True, top=False, right=False):
