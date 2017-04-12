@@ -86,8 +86,8 @@ class Unit:
             wfs = TPLCell.Waves
             if wfs.ndim == 1:  # there is only a single spike
                 wfs = np.reshape(wfs, (1, len(wfs)))  # extend it to matrix
-                wf_sampl_t = float(sampl_prd) * np.arange(wfs.shape[1])
-                self.Waveforms = pd.DataFrame(wfs, columns=wf_sampl_t)
+            wf_sampl_t = float(sampl_prd) * np.arange(wfs.shape[1])
+            self.Waveforms = pd.DataFrame(wfs, columns=wf_sampl_t)
 
         # %% Spike params.
 
