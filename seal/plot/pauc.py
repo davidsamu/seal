@@ -7,7 +7,10 @@ Functions to plot area under the curve (AUC) values over time.
 """
 
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
+from seal.util import util
 from seal.plot import putil, pplot
 
 
@@ -73,3 +76,46 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
 
     # Save plot.
     putil.save_fig(ffig, dpi=300)
+
+
+def plot_ROC_mean(d_faroc, t1=None, t2=None, colors=None, ylab='AROC',
+                  ffig=None):
+    """Plot mean ROC curves over given period."""
+
+    # Import results.
+    d_aroc = {}
+    for name, faroc in d_faroc.items():
+        aroc = util.read_objects(faroc, 'aroc')
+        d_aroc[name] = aroc.unstack().T
+
+    # Format results.
+    laroc = pd.DataFrame(pd.concat(d_aroc), columns=['aroc'])
+    laroc['task'] = laroc.index.get_level_values(0)
+    laroc['time'] = laroc.index.get_level_values(1)
+    laroc['unit'] = laroc.index.get_level_values(2)
+    laroc.index = np.arange(len(laroc.index))
+
+    # Init figure.
+    fig = putil.figure(figsize=(6, 6))
+    ax = sns.tsplot(laroc, time='time', value='aroc', unit='unit',
+                    condition='task', color=colors)
+
+    # Highlight stimulus periods.
+    putil.plot_periods(ax=ax)
+
+    # Plot mean results.
+    [ax.lines[i].set_linewidth(3) for i in range(len(ax.lines))]
+
+    # Add chance level line.
+    putil.add_chance_level(ax=ax, alpha=0.8, color='k')
+    ax.lines[-1].set_linewidth(1.5)
+
+    # Format plot.
+    xlab = 'Time since S1 onset (ms)'
+    putil.set_labels(ax, xlab, ylab)
+    putil.set_limits(ax, [t1, t2])
+    putil.set_spines(ax, bottom=True, left=True, top=False, right=False)
+    putil.set_legend(ax, loc=0)
+
+    # Save plot.
+    putil.save_fig(ffig, fig, ytitle=1.05, w_pad=15)

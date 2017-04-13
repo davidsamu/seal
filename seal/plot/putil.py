@@ -18,7 +18,7 @@ from matplotlib import collections as mc
 
 import seaborn as sns
 
-from seal.util import util
+from seal.util import util, constants
 
 
 # %% Matplotlib setup and some plotting constants.
@@ -151,11 +151,13 @@ def highlight_axes(ax=None, color='red', alpha=0.5, **kwargs):
     ax.add_artist(rect)
 
 
-def plot_periods(prds, alpha=0.10, color='grey', ax=None, **kwargs):
+def plot_periods(prds=None, alpha=0.10, color='grey', ax=None, **kwargs):
     """Highlight segments (periods)."""
 
     if prds is None:
-        return
+        # Both periods with default timing.
+        prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
+                for stim in constants.stim_dur.index]
 
     ax = axes(ax)
     xmin, xmax = ax.get_xlim()
