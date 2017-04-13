@@ -21,7 +21,7 @@ Example:
 
 # Task naming convention
 
-This is the *TT* part of the filename above. It composed of the following keywords, all case sensitive (i.e. *dd* must be all lowercase, not capitalised *Dd* or uppercase *DD*, similarly, *Rem* must be capitalised, not lower- or uppercase).
+This is the *TT* part of the filename above. It composed of the following keywords, all case sensitive (i.e. *dd* must be all lowercase, NOT capitalised *Dd* or uppercase *DD*; similarly, *Rem* must be capitalised, not lower- or uppercase).
 
 - 1st part: main task (stimulus feature to be reported), all lowercase!
   - *com*: combined (direction and location)
