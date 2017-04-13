@@ -211,13 +211,16 @@ def heatmap(mat, vmin=None, vmax=None, cmap=None, cbar=True, cbar_ax=None,
     return ax
 
 
-def plot_task_violin(res, tasks, x, y, npval=None, pth=0.01, color='grey',
-                     ylim=None, ylab=None, ffig=None):
-    """Plot results on violin plots."""
+def plot_group_violin(res, x, y, groups=None, npval=None, pth=0.01,
+                      color='grey', ylim=None, ylab=None, ffig=None):
+    """Plot group-wise results on violin plots."""
 
-    # Test difference from zero in each task.
-    ttest_res = {task: sp.stats.ttest_1samp(tres[y], 0)
-                 for task, tres in res.groupby(x)}
+    if groups is None:
+        groups = res['group'].unique()
+
+    # Test difference from zero in each groups.
+    ttest_res = {group: sp.stats.ttest_1samp(gres[y], 0)
+                 for group, gres in res.groupby(x)}
     ttest_res = pd.DataFrame.from_dict(ttest_res, 'index')
 
     # Binarize significance test.
@@ -228,9 +231,9 @@ def plot_task_violin(res, tasks, x, y, npval=None, pth=0.01, color='grey',
     fig = putil.figure()
     ax = putil.axes()
     putil.add_baseline(ax=ax)
-    sns.violinplot(x=x, y=y, data=res, inner=None, order=tasks, ax=ax)
+    sns.violinplot(x=x, y=y, data=res, inner=None, order=groups, ax=ax)
     sns.swarmplot(x=x, y=y, hue='is_sign', data=res, color=color,
-                  order=tasks, hue_order=[True, False], ax=ax)
+                  order=groups, hue_order=[True, False], ax=ax)
     putil.set_labels(ax, ylab=ylab)
     putil.set_limits(ax, ylim=ylim)
     putil.hide_legend(ax)
@@ -238,17 +241,17 @@ def plot_task_violin(res, tasks, x, y, npval=None, pth=0.01, color='grey',
     # Add annotations.
     ymin, ymax = ax.get_ylim()
     ylvl = ymax
-    for i, task in enumerate(tasks):
-        tres = res.loc[res.task == task]
+    for i, group in enumerate(groups):
+        gres = res.loc[res.group == group]
         # Mean.
         mean_str = 'Mean:\n' if i == 0 else '\n'
-        mean_str += '{:.2f}'.format(tres[y].mean())
+        mean_str += '{:.2f}'.format(gres[y].mean())
         # Non-zero test of distribution.
-        str_pval = util.format_pvalue(ttest_res.loc[task, 'pvalue'])
+        str_pval = util.format_pvalue(ttest_res.loc[group, 'pvalue'])
         mean_str += '\n({})'.format(str_pval)
         # Stats on difference from baseline.
-        nnonsign, ntot = (~tres.is_sign).sum(), len(tres)
-        npos, nneg = [sum(tres.is_sign & (tres.direction == d))
+        nnonsign, ntot = (~gres.is_sign).sum(), len(gres)
+        npos, nneg = [sum(gres.is_sign & (gres.direction == d))
                       for d in (1, -1)]
         sign_to_report = [('+', npos), ('=', nnonsign), ('-', nneg)]
         nsign_str = ''
