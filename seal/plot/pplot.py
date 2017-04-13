@@ -234,7 +234,7 @@ def plot_group_violin(res, x, y, groups=None, npval=None, pth=0.01,
     sns.violinplot(x=x, y=y, data=res, inner=None, order=groups, ax=ax)
     sns.swarmplot(x=x, y=y, hue='is_sign', data=res, color=color,
                   order=groups, hue_order=[True, False], ax=ax)
-    putil.set_labels(ax, ylab=ylab)
+    putil.set_labels(ax, xlab='', ylab=ylab)
     putil.set_limits(ax, ylim=ylim)
     putil.hide_legend(ax)
 
@@ -257,7 +257,7 @@ def plot_group_violin(res, x, y, groups=None, npval=None, pth=0.01,
         nsign_str = ''
         for symb, n in sign_to_report:
             prc = str(int(round(100*n/ntot)))
-            nsign_str += '\n{} {:>3} / {} ({:>2}%)'.format(symb, int(n),
+            nsign_str += '{} {:>3} / {} ({:>2}%)\n'.format(symb, int(n),
                                                            ntot, prc)
         lbl = '{}\n\n{}'.format(mean_str, nsign_str)
         ax.text(i, ylvl, lbl, fontsize='smaller', va='bottom', ha='center')

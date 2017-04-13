@@ -68,6 +68,8 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
     putil.rot_xtick_labels(ax, rot=0, ha='center')
     putil.sparsify_tick_labels(ax, 'y', istart=ylbl_freq-1, freq=ylbl_freq,
                                reverse=True)
+    putil.hide_tick_marks(ax)
+    putil.hide_spines(ax)
 
     # Plot events.
     if events is not None:
