@@ -23,7 +23,7 @@ class Spikes:
         """Create a Spikes instance."""
 
         # Create empty instance.
-        self.spikes = None
+        self.spikes_trains = None
         self.t_starts = None
         self.t_stops = None
 
