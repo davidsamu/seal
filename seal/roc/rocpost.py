@@ -109,6 +109,9 @@ def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet', ffig=None):
     events = pd.DataFrame(columns=['time', 'label'])
     for stim in prd_pars.index:
         ton, toff = prd_pars.loc[stim, ['stim_start', 'stim_stop']]
+        # Skip stimuli without overlap with results.
+        if aroc.columns.max() <= ton or aroc.columns.min() >= toff:
+            continue
         ion, ioff = [int(np.where(np.array(aroc.columns) == t)[0])
                      for t in (ton, toff)]
         events.loc[stim+' on'] = (ion, stim+' on')
@@ -123,14 +126,20 @@ def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet', ffig=None):
 def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
                      prd_pars, offsets, res_dir, prefix, btw_str, pth=0.05,
                      min_len=30*ms, vth_hi=0.7, vth_lo=0.3, cmaps=['coolwarm'],
-                     merge_hi_lo=False, flip_aroc_vals=False):
+                     merge_hi_lo=False, flip_aroc_vals=False,
+                     t1=None, t2=None):
     """Plot heatmap sorted by timing of first significant period."""
+
+    # Init time period to be plotted.
+    t1 = float(t1.rescale(ms)) if t1 is not None else aroc.columns.min()
+    t2 = float(t2.rescale(ms)) if t2 is not None else aroc.columns.max()
 
     # For each period.
     for sort_prd in sort_prds:
 
         if sort_prd == 'unsorted':
-            aroc_sorted = aroc
+            aroc_sorted = aroc.copy()
+            pval_sorted = pval.copy()
         else:
             tmin, tmax = constants.fixed_tr_prds.loc[sort_prd]
 
@@ -144,13 +153,19 @@ def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
 
             # Sort AROC matrix.
             aroc_sorted = aroc.loc[sres.index]
+            pval_sorted = pval.loc[sres.index]
 
+        # Flip values < 0.5 around 0.5 (all values v: 0.5 <= v <= 1).
         if flip_aroc_vals:
             idx = aroc_sorted < 0.5
             aroc_sorted[idx] = 1 - aroc_sorted[idx]
 
-        # Replot heatmap with sorted units.
-        nunits = len(aroc)
+        # Truncate results to period requested.
+        aroc_sorted = aroc_sorted.ix[:, t1:t2]
+        pval_sorted = pval_sorted.ix[:, t1:t2]
+
+        # Plot heatmap with sorted units.
+        nunits = len(aroc_sorted)
         title = rocutil.aroc_fig_title(btw_str, task, nunits,
                                        offsets, sort_prd)
         for cmap in cmaps:

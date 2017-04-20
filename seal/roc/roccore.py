@@ -57,7 +57,7 @@ def ROC(x, y, n_perm=None, clf=None):
     """
     Perform ROC analysis with optional permutation test.
 
-    y values have to be 0 and 1 for calc_auc!
+    y values have to be 0 and 1 for calc_auc()!
     """
 
     # Remove NaN values.
