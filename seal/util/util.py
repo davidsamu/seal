@@ -586,6 +586,25 @@ def add_quant_col(df, col, colname):
     df[colname] = add_dim_to_series(df[colname], col.units)
 
 
+# %% Functions to reshape Pandas objects.
+
+def melt_table(df, colnames, add_cols=[], reindex=True):
+    """Melt DataFrame, typically before for plotting it with Seaborn."""
+
+    # Melt DataFrame.
+    ldf = pd.DataFrame(df.unstack(), columns=colnames)
+
+    # Add levels of MultiIndex as columns.
+    for name, lvl in add_cols:
+        ldf[name] = ldf.index.get_level_values(lvl)
+
+    # Replace original MultiIndex with integer indexing.
+    if reindex:
+        ldf.index = np.arange(len(ldf.index))
+
+    return ldf
+
+
 # %% Functions to init and handle analysis of multiple stimulus periods.
 
 def add_stim_to_feat(feat, stims):

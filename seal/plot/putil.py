@@ -267,6 +267,23 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
     ax.plot(xy, xy, color=color, ls=ls, transform=transform)
 
 
+def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
+    """Put heights of bars as labels to top or botton of pars."""
+
+    # Use all patches by default.
+    if bar_patches is None:
+        bar_patches = ax.patches
+
+    frm_str = '{:.' + str(ndigit) + 'f}'
+
+    for p in bar_patches:
+        height = p.get_height()
+        x = p.get_x() + p.get_width()/2.
+        y = height if vpos == 'top' else 0
+        lbl = frm_str.format(height)
+        ax.text(x, y, lbl, ha='center', va='bottom')
+
+
 # %% Functions to adjust position of plot decorators
 # (significance lines, event labels and markers, etc.).
 
