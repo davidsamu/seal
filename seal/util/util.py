@@ -89,9 +89,6 @@ def write_table(df, writer, **kwargs):
 def save_sheets(list_dfs, sheet_names, fname):
     """Save each DataFrame from list into separate sheet of Excel document."""
 
-    if sheet_names is None:
-        sheet_names = len(list_dfs) * [None]
-
     # Init writer.
     writer = pd.ExcelWriter(fname)
     create_dir(writer.path)
@@ -103,10 +100,10 @@ def save_sheets(list_dfs, sheet_names, fname):
     writer.save()
 
 
-def write_excel(df, fname):
+def write_excel(df, sheet_name, fname):
     """Export DataFrame into Excel document."""
 
-    save_sheets([df], None, fname)
+    save_sheets([df], [sheet_name], fname)
 
 
 def get_latest_file(dir_name, ext='.data'):
