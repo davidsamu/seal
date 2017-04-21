@@ -80,8 +80,8 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
     putil.save_fig(ffig, dpi=300)
 
 
-def plot_ROC_mean(d_faroc, t1=None, t2=None, colors=None, ylab='AROC',
-                  ffig=None):
+def plot_ROC_mean(d_faroc, t1=None, t2=None, ylim=None, colors=None,
+                  ylab='AROC', ffig=None):
     """Plot mean ROC curves over given period."""
 
     # Import results.
@@ -115,7 +115,7 @@ def plot_ROC_mean(d_faroc, t1=None, t2=None, colors=None, ylab='AROC',
     # Format plot.
     xlab = 'Time since S1 onset (ms)'
     putil.set_labels(ax, xlab, ylab)
-    putil.set_limits(ax, [t1, t2])
+    putil.set_limits(ax, [t1, t2], ylim)
     putil.set_spines(ax, bottom=True, left=True, top=False, right=False)
     putil.set_legend(ax, loc=0)
 

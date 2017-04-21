@@ -24,3 +24,7 @@ unit
   - add type information: suppressive?, broad spiking? motor? etc
 
 
+QC
+--
+  - export unit detailed exclusion table with results on for each test
+  - revisit and revise PCF unit exclusion criteria
