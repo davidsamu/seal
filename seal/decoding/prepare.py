@@ -5,6 +5,8 @@ Functions to prepare data for decoding analysis.
 @author: David Samu
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -30,24 +32,25 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
     # Init.
     if utids is None:
         utids = UA.utids(as_series=True)
-    u_rt_grpby = utids.groupby(level=['rec', 'task'])
+    u_rt_grpby = utids.groupby(level=['subj', 'date', 'task'])
 
     # Unit info frame.
     UInc = pd.Series(False, index=utids.index)
 
     # Included trials by unit.
-    IncTrs = pd.Series([(UA.get_unit(utid[:3], utid[3]).inc_trials())
+    IncTrs = pd.Series([(UA.get_unit(utid[:-1], utid[-1]).inc_trials())
                         for utid in utids], index=utids.index)
 
     # Result DF.
     rec_task = pd.MultiIndex.from_tuples([rt for rt, _ in u_rt_grpby],
-                                         names=['rec', 'task'])
-    cols = ['units', 'nunits', 'nallunits', '% remaining units',
+                                         names=['subj', 'date', 'task'])
+    cols = ['elec', 'units', 'nunits', 'nallunits', '% remaining units',
             'trials', 'ntrials', 'nalltrials', '% remaining trials']
     RecInfo = pd.DataFrame(index=rec_task, columns=cols)
-    rt_utids = [utids.xs((r, t), level=('rec', 'task')) for r, t in rec_task]
+    rt_utids = [utids.xs((s, d, t), level=('subj', 'date', 'task'))
+                for s, d, t in rec_task]
     RecInfo.nallunits = [len(utids) for utids in rt_utids]
-    rt_ulist = [UA.get_unit(utids[0][:3], utids[0][3]) for utids in rt_utids]
+    rt_ulist = [UA.get_unit(utids[0][:-1], utids[0][-1]) for utids in rt_utids]
     RecInfo.nalltrials = [int(u.QualityMetrics['NTrialsTotal'])
                           for u in rt_ulist]
 
@@ -71,12 +74,20 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
     fig, gsp, axs = putil.get_gs_subplots(nrow=len(rec_task), ncol=3,
                                           subw=6, subh=4, create_axes=True)
 
-    for i_rt, ((rec, task), rt_utids) in enumerate(u_rt_grpby):
-        print('{} / {}: {} - {}'.format(i_rt+1, len(u_rt_grpby), rec, task))
+    for i_rt, ((subj, date, task), rt_utids) in enumerate(u_rt_grpby):
+        print('{} / {}: {} - {} {}'.format(i_rt+1, len(u_rt_grpby), subj,
+                                           date, task))
+
+        # Init electrode.
+        elecs = rt_utids.index.get_level_values('elec').unique()
+        if len(elecs) != 1:
+            warnings.warn('More than one electrode?')
+        elec = elecs[0]
+        RecInfo.loc[(subj, date, task), 'elec'] = elec
 
         # Create matrix of included trials of recording & task of units.
-        ch_idxs = rt_utids.index.droplevel(3).droplevel(0)
-        n_alltrs = RecInfo.nalltrials[(rec, task)]
+        ch_idxs = rt_utids.index.droplevel(-1).droplevel(2).droplevel(1).droplevel(0)
+        n_alltrs = RecInfo.nalltrials[(subj, date, task)]
         IncTrsMat = pd.DataFrame(np.zeros((len(ch_idxs), n_alltrs), dtype=int),
                                  index=ch_idxs, columns=np.arange(n_alltrs)+1)
         for ch_idx, utid in zip(ch_idxs, rt_utids):
@@ -84,7 +95,7 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
 
         # Plot included/excluded trials after preprocessing.
         ax = axs[i_rt, 0]
-        ylab = '{} {}'.format(rec, task)
+        ylab = '{} {} {}'.format(subj, date, task)
         title = ('Included (green) and excluded (red) trials'
                  if i_rt == 0 else None)
         plot_inc_exc_trials(IncTrsMat, ax, title, ytitle, ylab=ylab)
@@ -180,7 +191,8 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
             n_tr_exc = IncTrsMat.shape[1] - n_tr_rem
 
             # Add to UnitInfo dataframe
-            rt_utids = [(rec, ch, ui, task) for ch, ui in rem_uids]
+            rt_utids = [(subj, date, elec, ch, ui, task)
+                        for ch, ui in rem_uids]
             UInc[rt_utids] = True
 
         # Highlight selected point in middle plot.
@@ -210,7 +222,7 @@ def select_units_trials(UA, utids=None, fres=None, ffig=None):
         plot_inc_exc_trials(RemTrsMat, ax, title=title, ylab='')
 
         # Add remaining units and trials to RecInfo.
-        rt = (rec, task)
+        rt = (subj, date, task)
         RecInfo.loc[rt, ('units', 'nunits')] = list(rem_uids), len(rem_uids)
         cov_trs = RemTrsMat.loc[list(rem_uids)].all()
         inc_trs = pd.Int64Index(np.where(cov_trs)[0])
@@ -246,7 +258,7 @@ def PD_across_units(UA, UInc, utids=None, fres=None, ffig=None):
     if utids is None:
         utids = UA.utids(as_series=True)
     tasks = utids.index.get_level_values('task').unique()
-    recs = utids.index.get_level_values('rec').unique()
+    recs = util.get_subj_date_pairs(utids)
 
     # Get DS info frame.
     DSInfo = ua_query.get_DSInfo_table(UA, utids)
@@ -258,13 +270,14 @@ def PD_across_units(UA, UInc, utids=None, fres=None, ffig=None):
         for task in tasks:
 
             # Init.
-            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3])
+            rt = rec + (task,)
+            rtDSInfo = DSInfo.xs(rt, level=[0, 1, -1])
             if rtDSInfo.empty:
                 continue
 
             # Calculate population PD and population DSI.
             res = direction.calc_PPD(rtDSInfo.loc[rtDSInfo.include])
-            dPPDres[(rec, task)] = res
+            dPPDres[rt] = res
 
     PPDres = pd.DataFrame(dPPDres).T
 
@@ -286,17 +299,18 @@ def PD_across_units(UA, UInc, utids=None, fres=None, ffig=None):
         for it, task in enumerate(tasks):
 
             # Init.
-            rtDSInfo = DSInfo.xs((rec, task), level=[0, 3])
+            rt = rec + (task,)
+            rtDSInfo = DSInfo.xs(rt, level=[0, 1, -1])
             ax = axs[ir, it]
             if rtDSInfo.empty:
                 ax.set_axis_off()
                 continue
-            PDSI, PPD, PPDc, PADc = PPDres.loc[(rec, task)]
+            PDSI, PPD, PPDc, PADc = PPDres.loc[rt]
 
             # Plot PD - DSI on polar plot.
             sPPDc, sPADc = [int(v) if not np.isnan(v) else v
                             for v in (PPDc, PADc)]
-            title = ('{} {}\n'.format(rec, task) +
+            title = (' '.join(rt) + '\n' +
                      'PPDc = {}$^\circ$ - {}$^\circ$'.format(PPDc, PADc) +
                      ', PDSI = {:.2f}'.format(PDSI))
             PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
@@ -338,11 +352,9 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
     par_str = util.format_to_fname(str(tr_par))
     if utids is None:
         utids = UA.utids(as_series=True)
-    recs, tasks = [RecInfo.index.get_level_values(v).unique()
-                   for v in ('rec', 'task')]
-    # Reorder recordings and tasks.
-    recs = [rec for rec in UA.recordings() if rec in recs]
-    tasks = [task for task in UA.tasks() if task in tasks]
+    recs = util.get_subj_date_pairs(utids)
+    tasks = RecInfo.index.get_level_values('task').unique()
+    tasks = [task for task in UA.tasks() if task in tasks]  # reorder tasks
 
     # Init plotting.
     putil.set_style('notebook', 'darkgrid')
@@ -353,15 +365,15 @@ def plot_trial_type_distribution(UA, RecInfo, utids=None, tr_par=('S1', 'Dir'),
         for it, task in enumerate(tasks):
 
             ax = axs[ir, it]
-
-            if (rec, task) not in RecInfo.index:
+            rt = rec + (task,)
+            if rt not in RecInfo.index:
                 ax.set_axis_off()
                 continue
 
             # Get includecd trials and their parameters.
-            inc_trs = RecInfo.loc[(rec, task), 'trials']
-            utid = utids.xs([rec, task], level=('rec', 'task'))[0]
-            TrData = UA.get_unit(utid[:3], utid[3]).TrData.loc[inc_trs]
+            inc_trs = RecInfo.loc[rt, 'trials']
+            utid = utids.xs(rt, level=('subj', 'date', 'task'))[0]
+            TrData = UA.get_unit(utid[:-1], utid[-1]).TrData.loc[inc_trs]
 
             # Create DF to plot.
             anw_df = TrData[[tr_par, 'correct']].copy()

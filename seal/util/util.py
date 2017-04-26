@@ -252,7 +252,7 @@ def get_n_cores():
 
 
 def run_in_pool(f, params, nCPU=None):
-    """Run a function in parallel pool."""
+    """Run a function parallel with a list of parameters on local processor."""
 
     if nCPU is None:  # set number of cores
         nCPU = get_n_cores() - 1
@@ -586,7 +586,16 @@ def add_quant_col(df, col, colname):
     df[colname] = add_dim_to_series(df[colname], col.units)
 
 
-# %% Functions to reshape Pandas objects.
+# %% Functions to handle Pandas objects.
+
+def get_subj_date_pairs(data):
+    """
+    Return unique (subject, date) pairs from MultiIndex index of DF or Series.
+    """
+
+    sd_pairs = data.reset_index().set_index(['subj', 'date']).index.unique()
+    return sd_pairs
+
 
 def melt_table(df, colnames, add_cols=[], reindex=True):
     """Melt DataFrame, typically before for plotting it with Seaborn."""

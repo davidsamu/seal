@@ -91,7 +91,7 @@ def get_a_unit(UA, rec, task, levels=None):
 
     # Extract first unit.
     utid = utids[0]
-    u = UA.get_unit(utid[:3], utid[3])
+    u = UA.get_unit(utid[:-1], utid[-1])
 
     return u
 
@@ -195,7 +195,7 @@ def test_DS_frecs(frecs):
 def test_DS(UA, retest=False):
     """Test DS if it has not been tested yet."""
 
-    [u.test_DS() for u in UA.iter_thru() if (not len(u.DS) or not retest)]
+    [u.test_DS() for u in UA.iter_thru() if (not len(u.DS) or retest)]
 
 
 def exclude_low_DS(UA, dsi_th=0.3, stims=None):

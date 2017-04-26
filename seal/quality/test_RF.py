@@ -166,7 +166,7 @@ def plot_RF_results(RF_res, stims, fdir, sup_title):
 
     # Plot RF coverage and rate during S1 on regression plot for each
     # recording and task.
-    tasks = RF_res.index.get_level_values(3).unique()
+    tasks = RF_res.index.get_level_values(-1).unique()
     for vname, ylim in [('mean_rate', [0, None]), ('max_rate', [0, None]),
                         ('mDSI', [0, 1])]:
         fig, gs, axes = putil.get_gs_subplots(nrow=len(stims), ncol=len(tasks),
@@ -178,7 +178,7 @@ def plot_RF_results(RF_res, stims, fdir, sup_title):
                 # Plot regression plot.
                 ax = axes[istim, itask]
                 scov, sval = [stim + '_' + name for name in ('cover', vname)]
-                df = RF_res.xs(task, level=3)
+                df = RF_res.xs(task, level=-1)
                 sns.regplot(scov, sval, df, color=colors[itask], ax=ax)
                 # Add unit labels.
                 uids = df.index.droplevel(0)

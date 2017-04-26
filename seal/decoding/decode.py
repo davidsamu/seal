@@ -388,12 +388,13 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
                              even_by, PDD_offset, n_most_DS, tstep)
     rt_res = {}
     for rec in recs:
-        print('\n' + rec)
+        print('\n' + ' '.join(rec))
         for task in tasks:
+            rt = rec + (task,)
 
             # Skip recordings that are missing or undecodable.
-            if (((rec, task) not in RecInfo.index) or
-                not RecInfo.loc[(rec, task), 'nunits']):
+            if ((rt not in RecInfo.index) or
+                not RecInfo.loc[rt, 'nunits']):
                 continue
 
             # Let's not decode saccade and correct/incorrect for passive task.
@@ -402,19 +403,19 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
 
             # Init.
             print('  ' + task)
-            rt_res[(rec, task)] = {}
+            rt_res[rt] = {}
 
             # Init units, trials and trial params.
-            recinfo = RecInfo.loc[(rec, task)]
-            uids = [(rec, ic, iu) for ic, iu in recinfo.units]
+            recinfo = RecInfo.loc[rt]
+            uids = [rec + (ic, iu) for ic, iu in recinfo.units]
             inc_trs = recinfo.trials
-            PPDc, PADc = PPDres.loc[(rec, task), ('PPDc', 'PADc')]
+            PPDc, PADc = PPDres.loc[rt, ('PPDc', 'PADc')]
 
             # Select n most DS units (or all if n_most_DS is 0).
             utids = [uid + (task, ) for uid in uids]
             n_most_DS_utids = ua_query.select_n_most_DS_units(UA, utids,
                                                               n_most_DS)
-            uids = [utid[:3] for utid in n_most_DS_utids]
+            uids = [utid[:-1] for utid in n_most_DS_utids]
 
             # Split by value condition (optional).
             TrData = ua_query.get_trial_params(UA, rec, task)
