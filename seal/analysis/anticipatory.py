@@ -91,11 +91,53 @@ def test_anticipation(ulists, nrate):
     return fit_res
 
 
-def plot_slope_diffs_btw_groups(fit_res, prd, res_dir):
+def plot_mean_rates(mRates, aa_res_dir, tasks=None, xlim=None):
+    """Plot mean rates across tasks."""
+
+    # Init.
+    if tasks is None:
+        tasks = mRates.keys()
+
+    # Plot mean activity.
+    lRates = []
+    for task in tasks:
+        lrates = pd.DataFrame(mRates[task].unstack(), columns=['rate'])
+        lrates['task'] = task
+        lRates.append(lrates)
+    lRates = pd.concat(lRates)
+    lRates['time'] = lRates.index.get_level_values(0)
+    lRates['unit'] = lRates.index.get_level_values(1)
+
+    # Plot as time series.
+    putil.set_style('notebook', 'white')
+    fig = putil.figure()
+    ax = putil.axes()
+
+    sns.tsplot(lRates, time='time', value='rate',
+               unit='unit', condition='task', ax=ax)
+
+    putil.plot_periods(ax=ax)
+
+    # Set legend.
+    handles, labels = ax.get_legend_handles_labels()
+    labels = ['{} (n = {})'.format(lbl, len(mRates[lbl])) for lbl in labels]
+    ax.legend(handles, labels)
+
+    putil.set_labels(ax, xlab='time since S1 onset')
+    putil.set_limits(ax, xlim=xlim)
+
+    # Save plot.
+    ffig = aa_res_dir + 'aa_curves.png'
+    putil.save_fig(ffig, fig)
+
+
+def plot_slope_diffs_btw_groups(fit_res, prd, res_dir, groups=None,
+                                figsize=None):
     """Plot differences in slopes between group pairs."""
 
     # Test pair-wise difference from each other.
-    groups = fit_res['group'].unique()
+    if groups is None:
+        groups = fit_res['group'].unique()
     empty_df = pd.DataFrame(np.nan, index=groups, columns=groups)
     pw_diff_v = empty_df.copy()
     pw_diff_p = empty_df.copy()
@@ -115,7 +157,7 @@ def plot_slope_diffs_btw_groups(fit_res, prd, res_dir):
                   for v in (diff, -diff)]
         pw_diff_a.loc[grp1, grp2] = a1
     # Plot and save figure of mean pair-wise difference.
-    fig = putil.figure(figsize=(4, 4))
+    fig = putil.figure(figsize=figsize)
     sns.heatmap(pw_diff_v, annot=pw_diff_a, fmt='', linewidths=0.5, cbar=False)
     title = 'Mean difference in {} slopes (sp/s / s)'.format(prd)
     putil.set_labels(title=title)

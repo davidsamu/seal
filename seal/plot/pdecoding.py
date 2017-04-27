@@ -74,7 +74,7 @@ def plot_scores(ax, Scores, Perm=None, Psdo=None, nvals=None, prds=None,
     if not util.is_null(Perm) and not Perm.isnull().all().all():
         x, pval = Perm.columns, Perm.loc['pval']
         ymean, ystd = Perm.loc['mean'], Perm.loc['std']
-        plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.1, lw=6,
+        plot_mean_std_sdiff(x, ymean, ystd, pval, pth=0.01, lw=6,
                             color=perm_col, ax=ax)
         lgn_patches.append(putil.get_artist('permuted', perm_col))
 
@@ -310,6 +310,7 @@ def plot_score_multi_rec(recs, stims, res_dir, par_kws):
         # Concatenate accuracy scores from every recording.
         all_lScores = pd.concat(dict_lScores)
         all_lScores['rec'] = all_lScores.index.get_level_values(0)
+        all_lScores['rec'] = all_lScores['rec'].str.join(' ')  # format label
         all_lScores.index = np.arange(len(all_lScores.index))
 
         # Plot decoding results.
