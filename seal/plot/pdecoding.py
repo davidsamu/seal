@@ -105,6 +105,7 @@ def plot_scores(ax, Scores, Perm=None, Psdo=None, nvals=None, prds=None,
         putil.plot_periods(prds, ax=ax)
 
     # Set axis limits.
+    xlim = xlim if xlim is not None else tlim
     putil.set_limits(ax, xlim, ylim)
 
     # Format plot.
@@ -131,6 +132,7 @@ def plot_weights(ax, Coefs, prds=None, xlim=None, xlab=tlab,
     putil.plot_periods(prds, ax=ax)
 
     # Set axis limits.
+    xlim = xlim if xlim is not None else tlim
     putil.set_limits(ax, xlim)
 
     # Format plot.
@@ -210,7 +212,7 @@ def plot_scores_weights(recs, stims, res_dir, par_kws):
             if len(uni_lnunits) > 1 and verbose:
                 print('Different number of units found.')
             nunits = uni_lnunits[0]
-            title = '{} {}, {} units'.format(rec, task, nunits)
+            title = '{} {}, {} units'.format(' '.join(rec), task, nunits)
             putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle=1.04)
 
             # Add chance level line.
@@ -427,7 +429,8 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
 
             # Plot decoding results.
             nnunits = len(all_lScores['n_most_DS'].unique())
-            title = '{} {}, {} sets of units'.format(rec, task, nnunits)
+            title = '{} {}, {} sets of units'.format(' '.join(rec), task,
+                                                     nnunits)
             ytitle = 1.0
             prds = [[stim] + list(constants.fixed_tr_prds.loc[stim])
                     for stim in stims]
@@ -564,6 +567,9 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
 
             # Add stimulus periods.
             putil.plot_periods(prds, ax=ax_scr)
+
+            # Set axis limits.
+            putil.set_limits(ax_scr, tlim)
 
             # Format plot.
             title = ('{} most DS units'.format(n_most_DS)

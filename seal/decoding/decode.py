@@ -322,8 +322,9 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
     nunits, ntrs, ncls = pd.Series(), pd.Series(), pd.Series()
 
     stims = prd_pars.index
+    tshifts, truncate_prds = [], []
     for stim in stims:
-        # print('    ' + stim)
+        print('    ' + stim)
 
         # Get params.
         pars_names = ['prd', 'ref_ev', 'feat', 'sep_by',
@@ -349,6 +350,11 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
         ntrs[stim] = res['ntrs']
         ncls[stim] = res['ncls']
 
+        # Update concatenation params.
+        tshifts.append(prd_pars.stim_start[stim])
+        truncate_prds.append(list(prd_pars.loc[stim, ['prd_start',
+                                                      'prd_stop']]))
+
     # No successfully decoded stimulus period.
     if not len(r['Scores']):
         print('No stimulus period decoding finished successfully.')
@@ -356,10 +362,6 @@ def run_pop_dec(UA, rec, task, uids, trs, prd_pars, nrate, n_perm, n_pshfl,
 
     # Concatenate stimulus-specific results.
     rem_all_nan_units, rem_any_nan_times = True, True
-    tshifts = list(prd_pars.stim_start)
-    truncate_prds = [list(prd_pars.loc[stim, ['prd_start', 'prd_stop']])
-                     for stim in stims]
-
     res = {rn: util.concat_stim_prd_res(rr, tshifts, truncate_prds,
                                         rem_all_nan_units, rem_any_nan_times)
            for rn, rr in r.items()}
@@ -403,11 +405,12 @@ def dec_recs_tasks(UA, RecInfo, recs, tasks, feat, stims, sep_by, zscore_by,
 
             # Init.
             print('  ' + task)
-            rt_res[rt] = {}
+            rt_res[(rec, task)] = {}
 
             # Init units, trials and trial params.
             recinfo = RecInfo.loc[rt]
-            uids = [rec + (ic, iu) for ic, iu in recinfo.units]
+            elec = recinfo.elec
+            uids = [rec + (elec, ic, iu) for ic, iu in recinfo.units]
             inc_trs = recinfo.trials
             PPDc, PADc = PPDres.loc[rt, ('PPDc', 'PADc')]
 
