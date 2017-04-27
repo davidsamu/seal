@@ -15,12 +15,20 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import permutation_test_score
 
 from seal.util import util
+from seal.roc import rocutil, rocpost
 
 
 # Some analysis constants.
 min_sample_size = 10
 n_folds = 5
 n_jobs = 1  # or util.get_n_cores() - 1
+
+
+# DataFrame containing analysis params per feature to analyze.
+feat_pars = {'DS': ('pref_anti_dirs', 'pref and anti dirs', None, None),
+             # 'CE': ('S_D_trials', 'S and D trials', 1900*ms, None)}
+             'CE': ('S_D_trials', 'S and D trials', None, None)}
+feat_pars = pd.DataFrame(feat_pars, index=('prefix', 'btw_str', 't1', 't2')).T
 
 
 # %% Core ROC analysis functions.
@@ -198,3 +206,63 @@ def calc_AROC(ulist, trs_list, prd_pars, n_perm, nrate, tstep, fres,
         util.write_objects(aroc_res, fres)
 
     return aroc, pval
+
+
+# %% ROC misc functions.
+
+def run_ROC(ulist, trs_list, nrate, tstep, n_perm, offsets, prd_pars,
+            ares_dir):
+
+    # Calculate and save AROC results.
+    fres = rocutil.aroc_res_fname(ares_dir, nrate, tstep, n_perm, offsets)
+    calc_AROC(ulist, trs_list, prd_pars, n_perm, nrate, tstep, fres)
+
+
+def plot_ROC(nrate, task, sort_prds, prd_pars, tstep, n_perm, offsets, prefix,
+             btw_str, pth, min_len, vth_hi, vth_lo, cmaps,  merge_hi_lo,
+             flip_aroc_vals, ares_dir, t1=None, t2=None):
+
+    # Plot AROC matrix sorted by different periods.
+    res = rocutil.load_aroc_res(ares_dir, nrate, tstep, n_perm, offsets)
+    aroc, pval = res['aroc'], res['pval']
+
+    # Plot results on heatmap.
+    rocpost.plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm,
+                             sort_prds, prd_pars, offsets, ares_dir,
+                             prefix, btw_str, pth, min_len, vth_hi, vth_lo,
+                             cmaps, merge_hi_lo, flip_aroc_vals, t1, t2)
+
+
+def run_plot_feat_ROC(task, feat, feat_params, sort_prds, prd_pars, stims,
+                      tstep, nrate, n_perm, offsets, pth, min_len, nlist,
+                      ulist, runroc, plotroc, vth_hi, vth_lo, cmaps,
+                      merge_hi_lo, flip_aroc_vals, aroc_res_dir,
+                      t1=None, t2=None):
+    """Run and plot ROC run on given feature."""
+
+    ares_dir = aroc_res_dir + '{}/{}/'.format(feat, nlist)
+    prefix, btw_str, t1, t2 = feat_params.loc[feat]
+
+    if runroc:
+
+        # Collect trials to use.
+        if feat == 'DS':
+            trs_list = {stim: [u.dir_pref_anti_trials(stim, [stim], offsets)
+                        for u in ulist] for stim in stims}
+        elif feat == 'CE':
+            trs_list = {stim: [u.S_D_trials('S2', offsets)
+                        for u in ulist] for stim in stims}
+        else:
+            print('Unknown feature to run ROC on: ', feat)
+            return
+
+        # Run ROC.
+        run_ROC(ulist, trs_list, nrate, tstep, n_perm, offsets, prd_pars,
+                ares_dir)
+
+    if plotroc:
+
+        # Plot ROC results.
+        plot_ROC(nrate, task, sort_prds, prd_pars, tstep, n_perm, offsets,
+                 prefix, btw_str, pth, min_len, vth_hi, vth_lo, cmaps,
+                 merge_hi_lo, flip_aroc_vals, ares_dir, t1, t2)
