@@ -29,6 +29,20 @@ def create_UA_from_recs(frecs, ua_name='UA'):
 
 # %% Query methods.
 
+def get_unit_param(UA, pname):
+    """Return given parameter for each unit in UnitArray."""
+
+    unit_pars = UA.unit_params()
+
+    if pname not in unit_pars.columns:
+        warnings.warn('Parameter not found in unit params table: ' + pname)
+        return
+
+    unit_par = unit_pars[pname]
+
+    return unit_par
+
+
 def get_DSInfo_table(UA, utids=None, stim='S2'):
     """Return data frame with direction selectivity information."""
 

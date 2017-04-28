@@ -389,8 +389,6 @@ class Unit:
             upars = upars.append(util.get_scalar_vals(pdf_melt.value,
                                                       rem_dims))
 
-        upars.drop_duplicates(inplace=True)
-
         return upars
 
     def update_included_trials(self, tr_inc):

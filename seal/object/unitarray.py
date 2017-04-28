@@ -452,6 +452,9 @@ class UnitArray:
     def unit_params(self):
         """Return unit parameters in DataFrame."""
 
-        unit_params = [u.get_unit_params() for u in self.iter_thru()]
-        unit_params = pd.DataFrame(unit_params, columns=unit_params[0].keys())
+        unit_params = {tuple(u.get_utid()): u.get_unit_params()
+                       for u in self.iter_thru()}
+        unit_params = pd.DataFrame(unit_params).T
+        unit_params.index.names = constants.utid_names
+
         return unit_params
