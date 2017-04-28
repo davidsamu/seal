@@ -32,18 +32,26 @@ def create_UA_from_recs(frecs, ua_name='UA'):
 def get_unit_param(UA, pname):
     """Return given parameter for each unit in UnitArray."""
 
+    # Query all parameters.
     unit_pars = UA.unit_params()
 
+    # Check if column is available.
     if pname not in unit_pars.columns:
         warnings.warn('Parameter not found in unit params table: ' + pname)
         return
 
+    # Select column.
     unit_par = unit_pars[pname]
+
+    # Try to convert it to numeric.
+    num_par = pd.to_numeric(unit_par)
+    if not num_par.isnull().all():
+        unit_par = num_par
 
     return unit_par
 
 
-def get_DSInfo_table(UA, utids=None, stim='S2'):
+def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='max'):
     """Return data frame with direction selectivity information."""
 
     # Init.
@@ -61,7 +69,7 @@ def get_DSInfo_table(UA, utids=None, stim='S2'):
             continue
 
         # Get DS info.
-        PD = u.DS.PD.cPD[(stim, 'max')]
+        PD = u.DS.PD.cPD[(stim, ds_type)]
         DSI = u.DS.DSI.mDS[stim]
 
         DSInfo.append((utid, (PD, DSI)))
