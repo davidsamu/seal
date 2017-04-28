@@ -173,6 +173,7 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
                        only_pd=None, stim=None, index='name'):
     """Return mean rates per unit at each time during period in DataFrame."""
 
+    # Query mean rates.
     mrates = {}
     for u in UA.iter_thru(tasks):
         t1s, t2s = u.pr_times(prd, concat=False)
@@ -187,6 +188,10 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
         mrates[idx] = rates.mean()
     rates = pd.concat(mrates, axis=1).T
 
+    # Add unit index level names.
+    rates.index.names = constants.utid_names
+
+    # Truncate to requested maximum length.
     if max_len is not None:
         rates = rates.loc[:, rates.columns <= max_len]
 

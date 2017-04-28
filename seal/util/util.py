@@ -588,24 +588,39 @@ def add_quant_col(df, col, colname):
 
 # %% Functions to handle Pandas objects.
 
+def get_mi_level_combs(data, level_names):
+    """Return combination of level values from MultiIndex-ed data."""
+
+    lvl_vals = data.reset_index().set_index(level_names).index
+
+    return lvl_vals
+
+
 def get_subj_date_pairs(data):
     """
     Return unique (subject, date) pairs from MultiIndex index of DF or Series.
     """
 
-    sd_pairs = data.reset_index().set_index(['subj', 'date']).index.unique()
+    sd_pairs = get_mi_level_combs(data, ['subj', 'date']).unique()
+
     return sd_pairs
 
 
-def melt_table(df, colnames, add_cols=[], reindex=True):
+def melt_table(df, colnames, add_cols=[], reindex=True, unstack=True):
     """Melt DataFrame, typically before for plotting it with Seaborn."""
 
     # Melt DataFrame.
-    ldf = pd.DataFrame(df.unstack(), columns=colnames)
+    ldf = df.unstack() if unstack else df.stack()
+    ldf = pd.DataFrame(ldf, columns=colnames)
 
     # Add levels of MultiIndex as columns.
     for name, lvl in add_cols:
-        ldf[name] = ldf.index.get_level_values(lvl)
+        if is_iterable(lvl):
+            col = pd.Index(get_mi_level_combs(ldf, lvl))
+        else:
+            col = ldf.index.get_level_values(lvl)
+
+        ldf[name] = col
 
     # Replace original MultiIndex with integer indexing.
     if reindex:
