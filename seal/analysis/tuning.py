@@ -110,23 +110,25 @@ def fit_gaus_curve(x, y, y_err=None, lower_bounds=None, upper_bounds=None,
 
 # %% Miscullaneous functions.
 
-def gen_fit_curve(f, stim_min, stim_max, n=100, **f_kwargs):
+def gen_fit_curve(f, stim_min, stim_max, n=100, **f_kws):
     """Generate data points for plotting fitted tuning curve."""
 
     # Sample stimulus values uniformaly within interval.
     xfit = np.linspace(stim_min, stim_max, n)
 
     # Generate response values using tuning curve fit.
-    yfit = f(xfit, **f_kwargs)
+    yfit = f(xfit, **f_kws)
 
-    return xfit, yfit
+    fit = pd.Series(yfit, index=xfit)
+
+    return fit
 
 
-def calc_R2_RMSE(x, y, f, **f_kwargs):
+def calc_R2_RMSE(x, y, f, **f_kws):
     """Calculate root mean squared error and R-squared value of fit."""
 
     # Init.
-    n, nparams = x.size, len(f_kwargs)
+    n, nparams = x.size, len(f_kws)
 
     # Not enough data samples.
     if nparams >= n:
@@ -134,7 +136,7 @@ def calc_R2_RMSE(x, y, f, **f_kwargs):
 
     # Calculate
     ymean = np.mean(y)
-    yfit = f(x, **f_kwargs)
+    yfit = f(x, **f_kws)
     resid = y - yfit
 
     # R-squared.

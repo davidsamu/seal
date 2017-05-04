@@ -587,10 +587,14 @@ def set_max_n_ticks(ax=None, max_n_ticks=5, axis='both'):
     ax.locator_params(axis=axis, nbins=max_n_ticks-1)
 
 
-def sparsify_tick_labels(ax=None, axis='x', freq=10, istart=0, reverse=False):
+def sparsify_tick_labels(fig, ax=None, axis='x', freq=10, istart=0,
+                         reverse=False):
     """Sparsify tick labels on y axis by keeping only every n-th label."""
 
     ax = axes(ax)
+
+    # Must draw the canvas first to position the ticks.
+    fig.canvas.draw()
 
     all_lbls = ax.get_xticklabels() if axis is 'x' else ax.get_yticklabels()
     fset_lbls = set_xtick_labels if axis is 'x' else set_ytick_labels
