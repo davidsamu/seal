@@ -91,7 +91,8 @@ def test_anticipation(ulists, nrate):
     return fit_res
 
 
-def plot_mean_rates(mRates, aa_res_dir, tasks=None, xlim=None):
+def plot_mean_rates(mRates, aa_res_dir, tasks=None, task_lbls=None,
+                    xlim=None, ci=68):
     """Plot mean rates across tasks."""
 
     # Init.
@@ -108,23 +109,22 @@ def plot_mean_rates(mRates, aa_res_dir, tasks=None, xlim=None):
     lRates['time'] = lRates.index.get_level_values(0)
     lRates['unit'] = lRates.index.get_level_values(1)
 
+    if task_lbls is not None:
+        lRates.task.replace(task_lbls, inplace=True)
+
     # Plot as time series.
     putil.set_style('notebook', 'white')
     fig = putil.figure()
     ax = putil.axes()
 
-    sns.tsplot(lRates, time='time', value='rate',
-               unit='unit', condition='task', ax=ax)
+    sns.tsplot(lRates, time='time', value='rate', unit='unit',
+               condition='task', ci=ci, ax=ax)
 
     putil.plot_periods(ax=ax)
 
-    # Set legend.
-    handles, labels = ax.get_legend_handles_labels()
-    labels = ['{} (n = {})'.format(lbl, len(mRates[lbl])) for lbl in labels]
-    ax.legend(handles, labels)
-
     putil.set_labels(ax, xlab='time since S1 onset')
     putil.set_limits(ax, xlim=xlim)
+    putil.hide_legend_title(ax)
 
     # Save plot.
     ffig = aa_res_dir + 'aa_curves.png'

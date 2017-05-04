@@ -56,6 +56,8 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
                      title='AROC over time', ffig=None):
     """Plot ROC AUC of list of units on heatmap."""
 
+    fig = putil.figure()
+
     # Plot heatmap.
     yticklabels = np.arange(len(aroc_mat.index)) + 1
     ax = pplot.heatmap(aroc_mat, vmin=0, vmax=1, cmap=cmap, xlab=xlab,
@@ -66,8 +68,8 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
     xlbls[aroc_mat.columns % xlbl_freq != 0] = ''
     putil.set_xtick_labels(ax, lbls=xlbls)
     putil.rot_xtick_labels(ax, rot=0, ha='center')
-    putil.sparsify_tick_labels(ax, 'y', istart=ylbl_freq-1, freq=ylbl_freq,
-                               reverse=True)
+    putil.sparsify_tick_labels(fig, ax, 'y', istart=ylbl_freq-1,
+                               freq=ylbl_freq, reverse=True)
     putil.hide_tick_marks(ax)
     putil.hide_spines(ax)
 

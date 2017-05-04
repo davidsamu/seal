@@ -189,7 +189,10 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
     rates = pd.concat(mrates, axis=1).T
 
     # Add unit index level names.
-    rates.index.names = constants.utid_names
+    names = ['name'] if index == 'name' else (constants.uid_names
+                                              if index == 'uid' else
+                                              constants.uitd_names)
+    rates.index.names = names
 
     # Truncate to requested maximum length.
     if max_len is not None:
