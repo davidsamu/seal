@@ -35,8 +35,8 @@ NTR_WINDOW = 20      # number of trials to average when detecting signal drift
 # Quality control thresholds per brain region.
 # Minimum window length and firing rate of task related activity.
 QC_THs = pd.DataFrame.from_items([('MT', [200*ms, 20]),
-                                  ('PFC', [100*ms, 10]),
-                                  ('MT/PFC', [100*ms, 10])], orient='index',
+                                  ('PFC', [100*ms, 5]),
+                                  ('MT/PFC', [100*ms, 5])], orient='index',
                                  columns=['wndw_len', 'minFR'])
 
 # Constants related to unit exclusion.

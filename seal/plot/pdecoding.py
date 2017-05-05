@@ -479,7 +479,8 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
 
 def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                            list_n_most_DS, list_min_nunits,
-                           n_boot=1e4, ci=95):
+                           n_boot=1e4, ci=95,
+                           tasks=None, task_labels=None, add_title=True):
     """Test and plot results combined across sessions."""
 
     # Init.
@@ -543,18 +544,21 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                 continue
 
             # Prepare data.
-            dtasks = nScores.index.get_level_values(1).unique()  # in data
+            if tasks is None:
+                tasks = nScores.index.get_level_values(1).unique()  # in data
             dScores = {task: pd.DataFrame(nScores.xs(task, level=1).unstack(),
                                           columns=['accuracy'])
-                       for task in dtasks}
+                       for task in tasks}
             lScores = pd.concat(dScores, axis=0)
             lScores['time'] = lScores.index.get_level_values(1)
             lScores['task'] = lScores.index.get_level_values(0)
             lScores['rec'] = lScores.index.get_level_values(2)
             lScores.index = np.arange(len(lScores.index))
+            lScores.task.replace(task_labels, inplace=True)
 
             # Add altered task names for legend plotting.
-            nrecs = {task: len(nScores.xs(task, level=1)) for task in dtasks}
+            nrecs = {task_labels[task]: len(nScores.xs(task, level=1))
+                     for task in tasks}
             my_format = lambda x: '{} (n={})'.format(x, nrecs[x])
             lScores['task_nrecs'] = lScores['task'].apply(my_format)
 
@@ -579,6 +583,7 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                       if (min_nunits > 1 and len(list_min_nunits) > 1) else '')
             ytitle = 1.0
             putil.set_labels(ax_scr, tlab, ylab_scr, title, ytitle)
+            putil.hide_legend_title(ax_scr)
 
     # Match axes across decoding plots.
     [putil.sync_axes(axs_scr[inmost, :], sync_y=True)
@@ -587,8 +592,11 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     # Save plots.
     list_n_most_DS_str = [str(i) if i != 0 else 'all' for i in list_n_most_DS]
     par_kws['n_most_DS'] = ', '.join(list_n_most_DS_str)
-    title = decutil.fig_title(res_dir, **par_kws)
-    title += '\n{}% CE with {} bootstrapped subsamples'.format(ci, int(n_boot))
+    title = ''
+    if add_title:
+        title = decutil.fig_title(res_dir, **par_kws)
+        title += '\n{}% CE with {} bootstrapped subsamples'.format(ci,
+                                                                   int(n_boot))
     fs_title = 'large'
     w_pad, h_pad = 3, 3
 
