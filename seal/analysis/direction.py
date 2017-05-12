@@ -219,7 +219,7 @@ def pol2cart(rho, phi):
 def deg_mod(d, max_d=360*deg):
     """Converts cirulcar value (degree) into modulo interval."""
 
-    if np.isnan(d):
+    if np.isnan(d).all():
         return d
 
     d = d.rescale(deg)
@@ -230,7 +230,7 @@ def deg_mod(d, max_d=360*deg):
 def anti_dir(d):
     """Return anti-preferred (opposite) direction."""
 
-    if np.isnan(d):
+    if np.isnan(d).all():
         return d
 
     anti_d = deg_mod(d+180*deg)
@@ -250,7 +250,7 @@ def deg_diff(d1, d2):
 def coarse_dir(origd, dirs):
     """Return direction from list that is closest to provided one."""
 
-    if np.isnan(origd):
+    if np.isnan(origd).all():
         return origd
 
     deg_diffs = np.array([deg_diff(d, origd) for d in dirs])
