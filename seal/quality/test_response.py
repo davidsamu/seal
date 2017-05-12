@@ -112,7 +112,6 @@ def plot_response(f_sealcombined, resp_plot_dir,
     # Read in Units.
     print('  Reading in UnitArray...')
     UA = util.read_objects(f_sealcombined, 'UnitArr')
-    UA.clean_array(keep_excl=False)
 
     # Test stimulus response to all directions.
     if plot_DR:
