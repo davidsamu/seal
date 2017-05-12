@@ -13,7 +13,7 @@ from quantities import ms, Hz
 from elephant.statistics import instantaneous_rate
 from elephant.kernels import RectangularKernel
 
-from seal.util import util
+from seal.util import util, kernels
 
 
 class Rate:
@@ -73,7 +73,7 @@ class Rate:
 
         # Rectangular kernel.
         if isinstance(self.kernel, RectangularKernel):
-            width = util.rect_width_from_sigma(sigma)
+            width = kernels.rect_width_from_sigma(sigma)
             return width
 
         # Any other, e.g. Gaussian, kernel.

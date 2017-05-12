@@ -122,6 +122,11 @@ def get_trial_params(UA, rec, task, levels=None):
     """Return trial param table for a given recording-task pair."""
 
     u = get_a_unit(UA, rec, task, levels)
+
+    # No unit with given task-recording pair.
+    if u is None:
+        return None
+
     TrParams = u.TrData
 
     return TrParams
@@ -135,6 +140,10 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None, levels=None):
         trs = np.arange(len(TrParams.index))
 
     u = get_a_unit(UA, rec, task, levels)
+    # No unit with given task-recording pair.
+    if u is None:
+        return None, None, None
+
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
     ref_ts = u.ev_times(ref_ev, trs)
 
@@ -191,7 +200,7 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
     # Add unit index level names.
     names = ['name'] if index == 'name' else (constants.uid_names
                                               if index == 'uid' else
-                                              constants.uitd_names)
+                                              constants.utid_names)
     rates.index.names = names
 
     # Truncate to requested maximum length.

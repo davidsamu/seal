@@ -797,18 +797,6 @@ def normalize(v, nmin=0, nmax=1):
     return vnorm
 
 
-def fano_factor(v):
-    """Calculate Fano factor of vector of spike counts."""
-
-    varv, meanv = np.var(v),  np.mean(v)
-
-    if meanv == 0:
-        return np.nan
-
-    fanofac = varv / meanv
-    return fanofac
-
-
 def pearson_r(v1, v2):
     """Calculate Pearson's r and p value."""
 
