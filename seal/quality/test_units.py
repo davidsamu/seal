@@ -16,9 +16,8 @@ import pandas as pd
 from seal.io import export
 from seal.util import util
 from seal.object import unitarray
-from seal.quality import test_sorting
+from seal.quality import test_sorting, test_stability
 from seal.plot import putil, pquality
-from seal.quality import test_stability
 
 # Figure size constants
 subw = 7
@@ -83,6 +82,7 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
     UnTrSel = pd.read_excel(fselection) if (fselection is not None) else None
 
     # For each unit over all tasks.
+    d_QC_tests = {}
     for uid in UA.uids():
 
         # Init figure.
@@ -98,6 +98,9 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
             u = UA.get_unit(uid, task)
             include, first_tr, last_tr = get_selection_params(u, UnTrSel)
             res = test_sorting.test_qm(u, include, first_tr, last_tr)
+
+            if res is not None:
+                d_QC_tests[uid + (task,)] = res.pop('QC_tests')
 
             # Plot QC results.
             if plot_qm:
@@ -132,6 +135,11 @@ def quality_test(UA, ftempl=None, plot_qm=False, fselection=None):
                 title = uid_str.replace('_', ' ')
                 ffig = ftempl.format(uid_str)
                 putil.save_fig(ffig, fig, title, w_pad=15)
+
+    # Collect QC test results.
+    QC_tests = pd.DataFrame(d_QC_tests).T
+
+    return QC_tests
 
 
 def report_unit_exclusion_stats(UA, fname):

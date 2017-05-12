@@ -20,7 +20,7 @@ def task_TPL_to_Seal(f_tpl, f_seal, task, rec_info):
 
     # TPLCell data not iterable, i.e. empty (?).
     if not hasattr(TPLCells, '__iter__') or not len(TPLCells):
-        print('  TPLCell data is empty in ', f_tpl)
+        print('Error: TPLCell data is empty in ', f_tpl)
         return
 
     # Create UnitArray (list of units) from TPLCell structures.
@@ -40,7 +40,7 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_info, excl_tasks=[]):
     """Convert TPLCell data to Seal data in recording folder."""
 
     if not os.path.exists(tpl_dir):
-        print('  Mssing TPLCell folder: ', tpl_dir)
+        print('Error: Mssing TPLCell folder: ', tpl_dir)
         return
 
     # Query available TPLCell data files.
@@ -66,7 +66,7 @@ def rec_TPL_to_Seal(tpl_dir, seal_dir, rec_info, excl_tasks=[]):
     tasks = tasks[tasks.index[to_include]]
 
     if not len(tasks):
-        print('  No TPLCell object found in ' + tpl_dir)
+        print('Error: No TPLCell object found in ' + tpl_dir)
         return
 
     # Create units for each task.

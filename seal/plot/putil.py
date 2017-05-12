@@ -76,15 +76,17 @@ def get_unit_info_title(u, fullname=False):
              ('mWfDur', 'Wf dur: {:.0f} $\mu$s'),
              ('Fac/Sup', '{}'),
              ('mFR', 'mean rate: {:.1f} sp/s'),
-             ('baseline', 'baseline rate: {:.1f} sp/s')]
+             ('baseline', 'baseline rate: {:.1f} sp/s'),
+             ('included', 'included')]
     fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
              for meas, f in fpars]
     fvals = util.series_from_tuple_list(fvals)
 
     # Create info lines.
 
-    # Start with unit name.
+    # Start with unit name and 'excluded' tag if unit is excluded from task.
     header = upars.Name if fullname else upars.task
+    header += ' [excluded]' if u.is_excluded() else ''
     info_lines = '\n\n{}\n\n\n\n'.format(header)
 
     # Add stimulus parameters.
