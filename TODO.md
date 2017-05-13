@@ -26,4 +26,5 @@ unit
 
 QC
 --
+  - drift detection: change from baseline period to something else? S1 or S2?
   - revisit and revise PCF unit exclusion criteria
