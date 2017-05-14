@@ -11,6 +11,7 @@ import scipy as sp
 import pandas as pd
 import seaborn as sns
 
+from seal.analysis import stats
 from seal.util import util
 from seal.plot import putil
 
@@ -158,6 +159,43 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
     putil.save_fig(ffig)
+
+    return ax
+
+
+def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ylbl=None,
+             fig=None, ax=None, ffig=None):
+    """Plot mean of two categorical dataset."""
+
+    # Init.
+    if fig is None and ax is None:
+        fig = putil.figure()
+    if ax is None:
+        ax = putil.axes()
+    if fstats is None:
+        fstats = stats.mann_whithney_u_test
+
+    # Plot means as bars.
+    sns.barplot(x=x, y=y, data=df, ax=ax)
+
+    # Add significance bar.
+    if add_stats:
+        v1, v2 = [grp[y] for name, grp in df.groupby(x)]
+        _, pval = fstats(v1, v2)
+        pval_str = util.format_pvalue(pval)
+        if bar_ylvl is None:
+            bar_ylvl = 1.05 * max(v1.mean()+v1.sem(), v2.mean()+v2.sem())
+        lines([0.1, 0.9], [bar_ylvl, bar_ylvl], color='grey', ax=ax)
+        ax.text(0.5, 1.01*bar_ylvl, pval_str, fontsize='medium',
+                va='bottom', ha='center')
+
+    # Format plot.
+    sns.despine()
+    putil.hide_legend_title(ax)
+    putil.set_labels(ax, '', ylbl)
+    putil.sparsify_tick_labels(fig, ax, 'y', freq=2)
+    # Save plot.
+    putil.save_fig(ffig, fig)
 
     return ax
 

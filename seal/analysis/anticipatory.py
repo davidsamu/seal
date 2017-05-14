@@ -19,7 +19,9 @@ from seal.util import util
 from seal.plot import putil
 
 
-def calc_unit_anticipation(u, nrate, prd, t1_offset, t2_offset, max_len):
+# %% Core methods to calculate anticipatory activity.
+
+def regr_unit_anticipation(u, nrate, prd, t1_offset, t2_offset, max_len):
     """Calculate anticipatory results for unit."""
 
     # Init.
@@ -52,6 +54,8 @@ def calc_unit_anticipation(u, nrate, prd, t1_offset, t2_offset, max_len):
     return fit_res
 
 
+# %% Misc and wrapper functions.
+
 def test_prd_anticipation(ulists, nrate, prd, t1_offset, t2_offset, max_len):
     """Tests anticipatory activity before given stimulus."""
 
@@ -60,7 +64,7 @@ def test_prd_anticipation(ulists, nrate, prd, t1_offset, t2_offset, max_len):
     for gname, ulist in ulists.items():
         params = [(u,  nrate, prd, t1_offset, t2_offset, max_len)
                   for i, u in enumerate(ulist)]
-        fit_res = util.run_in_pool(calc_unit_anticipation, params)
+        fit_res = util.run_in_pool(regr_unit_anticipation, params)
         d_res[gname] = pd.DataFrame(fit_res, index=ulist.index)
 
     # Format results.
@@ -84,8 +88,8 @@ def test_anticipation(ulists, nrate):
                                         ('max_len', [700*ms, 700*ms])],
                                        ['fixation', 'delay'], 'index').T
 
-    fit_res = {prd: test_prd_anticipation(ulists, nrate, prd, t1off, t2off,
-                                          max_len)
+    fit_res = {prd: test_prd_anticipation(ulists, nrate, prd,
+                                          t1off, t2off, max_len)
                for prd, (t1off, t2off, max_len) in prd_pars.iterrows()}
 
     return fit_res
@@ -113,7 +117,7 @@ def plot_mean_rates(mRates, aa_res_dir, tasks=None, task_lbls=None,
         lRates.task.replace(task_lbls, inplace=True)
 
     # Plot as time series.
-    putil.set_style('notebook', 'white')
+    putil.set_style('notebook', 'whitegrid')
     fig = putil.figure()
     ax = putil.axes()
 

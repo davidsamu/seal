@@ -51,7 +51,7 @@ def get_unit_param(UA, pname):
     return unit_par
 
 
-def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='max'):
+def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='mean'):
     """Return data frame with direction selectivity information."""
 
     # Init.
@@ -231,10 +231,11 @@ def test_DS_frecs(frecs):
         util.write_objects({'UnitArr': UA}, frec)
 
 
-def test_DS(UA, retest=False):
+def test_DS(UA, retest=False, excl=True):
     """Test DS if it has not been tested yet."""
 
-    [u.test_DS() for u in UA.iter_thru() if (not len(u.DS) or retest)]
+    [u.test_DS() for u in UA.iter_thru(excl=excl)
+     if (not len(u.DS) or retest)]
 
 
 def exclude_low_DS(UA, dsi_th=0.3, stims=None):
