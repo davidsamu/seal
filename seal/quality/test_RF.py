@@ -140,8 +140,9 @@ def RF_coverage_analysis(UA, stims, fRF_res=None):
             for i, stimloc in enumerate(stim_locs):
                 # Set names.
                 postfix = '_'+str(i+1) if i > 0 else ''
-                dname, cname = ['{}_{}{}'.format(stim, nm, postfix) for nm in
-                                ('dist', 'cover')]
+                dname, cname, oname = ['{}_{}{}'.format(stim, nm, postfix)
+                                       for nm in ('dist', 'cover',
+                                                  'RF_cntr_cov')]
                 # Calc distance.
                 dist = sp.spatial.distance.euclidean([x, y], stimloc)
                 uRF_res[dname] = dist
@@ -149,6 +150,8 @@ def RF_coverage_analysis(UA, stims, fRF_res=None):
                 isa = intersect_area(dist, RF_rad, stim_rad)
                 RF_area = np.pi * RF_rad**2
                 uRF_res[cname] = isa/RF_area
+                # Check whether stimulus overlaps with RF center.
+                uRF_res[oname] = dist <= stim_rad
             # Get average rate during each stimulus.
             stim_rates = u.get_prd_rates(stim, add_latency=True)
             # Mean across trials.
