@@ -17,15 +17,17 @@ from seal.plot import putil, pplot
 from seal.util import util, constants, ua_query
 from seal.analysis import direction
 
-# Constants.
-min_n_units = 5           # minimum number of units to keep (0: off)
-min_n_trs_per_unit = 5    # minimum number of trials per unit to keep (0: off)
-
 
 # %% Unit and trial selection.
 
-def select_units_trials(UA, utids=None, fres=None, ffig=None):
-    """Select optimal set of units and trials for population decoding."""
+def select_units_trials(UA, utids=None, fres=None, ffig=None,
+                          min_n_units=5, min_n_trs_per_unit=5):
+    """
+    Select optimal set of units and trials for population decoding.
+
+    min_n_units: minimum number of units to keep (0: off)
+    min_n_trs_per_unit: minimum number of trials per unit to keep (0: off)
+    """
 
     print('Selecting optimal set of units and trials for decoding...')
 

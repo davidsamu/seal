@@ -51,7 +51,7 @@ def get_unit_param(UA, pname):
     return unit_par
 
 
-def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='mean'):
+def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted'):
     """Return data frame with direction selectivity information."""
 
     # Init.

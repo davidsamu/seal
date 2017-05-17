@@ -53,10 +53,10 @@ def plot_auc_over_time(auc, tvec, prds=None, evts=None, xlim=None, ylim=None,
 
 def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
                      ylbl_freq=10, xlab='time', ylab='unit index',
-                     title='AROC over time', ffig=None):
+                     title='AROC over time', ffig=None, fig=None):
     """Plot ROC AUC of list of units on heatmap."""
 
-    fig = putil.figure()
+    fig = putil.figure(fig)
 
     # Plot heatmap.
     yticklabels = np.arange(len(aroc_mat.index)) + 1

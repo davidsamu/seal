@@ -98,7 +98,8 @@ def sort_by_time(aroc, pval, tmin, tmax, merge_hi_lo=False, fout=None,
 
 # %% Plot AROC results.
 
-def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet', ffig=None):
+def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet',
+                      ffig=None, fig=None):
     """Plot AROC result matrix (units by time points) on heatmap."""
 
     # Init plotting.
@@ -120,14 +121,14 @@ def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet', ffig=None):
     # Plot on heatmap and save figure.
     pauc.plot_auc_heatmap(aroc, cmap=cmap, events=events,
                           xlbl_freq=500, ylbl_freq=25, xlab=xlab, ylab=ylab,
-                          title=title, ffig=ffig)
+                          title=title, ffig=ffig, fig=fig)
 
 
 def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
                      prd_pars, offsets, res_dir, prefix, btw_str, pth=0.05,
                      min_len=30*ms, vth_hi=0.7, vth_lo=0.3, cmaps=['coolwarm'],
                      merge_hi_lo=False, flip_aroc_vals=False,
-                     t1=None, t2=None):
+                     t1=None, t2=None, title=None, fig=None):
     """Plot heatmap sorted by timing of first significant period."""
 
     # Init time period to be plotted.
@@ -166,9 +167,10 @@ def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
 
         # Plot heatmap with sorted units.
         nunits = len(aroc_sorted)
-        title = rocutil.aroc_fig_title(btw_str, task, nunits,
-                                       offsets, sort_prd)
+        if title is None:
+            title = rocutil.aroc_fig_title(btw_str, task, nunits,
+                                           offsets, sort_prd)
         for cmap in cmaps:
             ffig = rocutil.aroc_fig_fname(res_dir, prefix, offsets,
                                           cmap, sort_prd)
-            plot_AROC_heatmap(aroc_sorted, prd_pars, title, cmap, ffig)
+            plot_AROC_heatmap(aroc_sorted, prd_pars, title, cmap, ffig, fig)
