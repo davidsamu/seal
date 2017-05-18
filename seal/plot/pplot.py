@@ -216,8 +216,8 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
     return ax
 
 
-def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ylbl=None,
-             fig=None, ax=None, ffig=None):
+def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
+             ci=68, ylbl=None, fig=None, ax=None, ffig=None):
     """Plot mean of two categorical dataset."""
 
     # Init.
@@ -229,11 +229,11 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ylbl=None,
         fstats = stats.mann_whithney_u_test
 
     # Plot means as bars.
-    sns.barplot(x=x, y=y, data=df, ax=ax)
+    sns.barplot(x=x, y=y, data=df, ci=ci, ax=ax)
 
     # Add significance bar.
     if add_stats:
-        v1, v2 = [grp[y] for name, grp in df.groupby(x)]
+        v1, v2 = [np.array(grp[y]) for name, grp in df.groupby(x)]
         _, pval = fstats(v1, v2)
         pval_str = util.format_pvalue(pval)
         if bar_ylvl is None:
