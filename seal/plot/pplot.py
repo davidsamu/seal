@@ -38,22 +38,33 @@ def sign_hist(v, pvals=None, pth=0.01, bins=None, scol='g', nscol='k',
     return ax
 
 
-def sign_scatter(v1, v2, pvals=None, pth=0.01, scol='g', nscol='k', ax=None):
+def sign_scatter(v1, v2, pvals=None, pth=0.01, scol='g', nscol='k',
+                 id_line=False, fit_reg=False, ax=None):
     """Plot scatter plot with significant points highlighted."""
 
     # Init.
     ax = putil.axes(ax)
-    vsig = pvals < pth
     s_pars = (True, scol, {'alpha': 1.0})
     ns_pars = (False, nscol, {'alpha': 0.8})
 
+    # Binarize significance stats.
+    vsig = (pvals < pth if pvals is not None
+            else pd.Series(True, index=v1.index))
+
     # Plot significant and non-significant points.
     for b, c, a in [ns_pars, s_pars]:
-        sns.regplot(v1.loc[vsig==b], v2.loc[vsig==b], fit_reg=False,
-                 color=c, scatter_kws=a, ax=ax)
+        if (vsig==b).any():
+            sns.regplot(v1.loc[vsig==b], v2.loc[vsig==b], fit_reg=fit_reg,
+                        color=c, scatter_kws=a, ax=ax)
 
     # Format plot.
     sns.despine(ax=ax)
+
+    # Add identity line.
+    if id_line:
+        v_max = max(ax.get_xlim()[1], ax.get_ylim()[1])
+        putil.set_limits(ax, [0, v_max], [0, v_max])
+        putil.add_identity_line(ax=ax, equal_xy=True)
 
     return ax
 

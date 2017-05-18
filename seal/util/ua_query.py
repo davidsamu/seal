@@ -51,7 +51,8 @@ def get_unit_param(UA, pname):
     return unit_par
 
 
-def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted'):
+def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted',
+                     pd_type='coarsed'):
     """Return data frame with direction selectivity information."""
 
     # Init.
@@ -69,7 +70,10 @@ def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted'):
             continue
 
         # Get DS info.
-        PD = u.DS.PD.cPD[(stim, ds_type)]
+        if pd_type == 'coarsed':
+            PD = u.DS.PD.cPD[(stim, ds_type)]
+        else:
+            PD = u.DS.PD.PD[(stim, ds_type)]
         DSI = u.DS.DSI.mDS[stim]
 
         DSInfo.append((utid, (PD, DSI)))
