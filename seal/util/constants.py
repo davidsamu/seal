@@ -122,6 +122,7 @@ tr_prds = [('whole trial', ('fixate', 'saccade')),  # ***
 
            # Delay sub-periods.
            ('early delay', ('S1 off', '1/3 delay')),
+           ('mid delay', ('1/3 delay', '2/3 delay')),  # **
            ('late delay', ('2/3 delay', 'S2 on')),
 
            # Baseline activity period.

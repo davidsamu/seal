@@ -272,6 +272,8 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
 def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
     """Put heights of bars as labels to top or botton of pars."""
 
+    ax = axes(ax)
+
     # Use all patches by default.
     if bar_patches is None:
         bar_patches = ax.patches
@@ -284,6 +286,16 @@ def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
         y = height if vpos == 'top' else 0
         lbl = frm_str.format(height)
         ax.text(x, y, lbl, ha='center', va='bottom')
+
+
+def add_downward_arrow(ax, x, ystart, length, head_width=1,
+                       head_length=1, fc='k', ec='k', **kwargs):
+    """Add downward pointing arrow."""
+
+    ax = axes(ax)
+
+    ax.arrow(x, ystart, 0, -length, head_width=head_width,
+             head_length=head_length, fc=fc, ec=ec, **kwargs)
 
 
 # %% Functions to adjust position of plot decorators
