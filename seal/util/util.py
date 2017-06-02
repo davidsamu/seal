@@ -588,12 +588,22 @@ def add_quant_col(df, col, colname):
 
 # %% Functions to handle Pandas objects.
 
-def get_mi_level_combs(data, level_names):
+def get_mi_level_combs(data, level_names=None):
     """Return combination of level values from MultiIndex-ed data."""
+
+    if level_names is None:
+        level_names = data.index.names
 
     lvl_vals = data.reset_index().set_index(level_names).index
 
     return lvl_vals
+
+
+def multiindex_to_index(data):
+    """Returns multiindex as collapsed index vector."""
+
+    index = pd.Index(get_mi_level_combs(data))
+    return index
 
 
 def get_subj_date_pairs(data):
@@ -795,18 +805,6 @@ def normalize(v, nmin=0, nmax=1):
     vnorm = (nmax - nmin) * vnorm + nmin
 
     return vnorm
-
-
-def fano_factor(v):
-    """Calculate Fano factor of vector of spike counts."""
-
-    varv, meanv = np.var(v),  np.mean(v)
-
-    if meanv == 0:
-        return np.nan
-
-    fanofac = varv / meanv
-    return fanofac
 
 
 def pearson_r(v1, v2):

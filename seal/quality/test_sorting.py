@@ -34,14 +34,18 @@ NTR_WINDOW = 20      # number of trials to average when detecting signal drift
 
 # Quality control thresholds per brain region.
 # Minimum window length and firing rate of task related activity.
+<<<<<<< HEAD
 QC_THs = pd.DataFrame.from_items([('MT', [200*ms, 20]),
+=======
+QC_THs = pd.DataFrame.from_items([('MT', [200*ms, 10]),
+>>>>>>> master
                                   ('PFC', [100*ms, 5]),
                                   ('MT/PFC', [100*ms, 5])], orient='index',
                                  columns=['wndw_len', 'minFR'])
 
 # Constants related to unit exclusion.
 min_SNR = 1.0           # min. SNR
-max_ISIvr = 1.0         # max. ISI violation ratio (%)
+max_ISIvr = 1.5         # max. ISI violation ratio (%)
 min_n_trs = 50          # min. number of trials (in case subject quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
@@ -279,7 +283,7 @@ def calc_baseline_rate(u):
     return base_rate
 
 
-def test_task_relatedness(u, p_th=0.01):
+def test_task_relatedness(u, p_th=0.05):
     """Test if unit has any task related activity."""
 
     # Init.
@@ -350,7 +354,7 @@ def test_task_relatedness(u, p_th=0.01):
     u.PrdParTests.p_th = p_th
 
     # Is there any task- (stimulus-parameter-) related period?
-    has_min_rate = (u.PrdParTests.mean_rate > minFR).any()
+    has_min_rate = (u.PrdParTests.mean_rate >= minFR).any()
     is_task_related = u.PrdParTests.sign.any()
 
     return has_min_rate, is_task_related
@@ -421,13 +425,15 @@ def test_qm(u, include=None, first_tr=None, last_tr=None):
     u.QualityMetrics['task_related'] = is_task_related
 
     # Run unit exclusion test.
+    QC_tests = test_rejection(u)
     if include is None:
-        include = test_rejection(u)
+        include = QC_tests['include']
     u.set_excluded(not include)
 
     # Return all results (for plotting).
     res = {'bs_stats': bs_stats, 'stab_prd_res': stab_prd_res,
-           'prd_inc': prd_inc, 'tr_inc': tr_inc, 'spk_inc': spk_inc}
+           'prd_inc': prd_inc, 'tr_inc': tr_inc, 'spk_inc': spk_inc,
+           'QC_tests': QC_tests}
 
     return res
 
@@ -436,31 +442,31 @@ def test_rejection(u):
     """Check whether unit is to be rejected from analysis."""
 
     qm = u.QualityMetrics
-    test_passed = pd.Series()
+    QC_tests = pd.Series()
 
     # Insufficient receptive field coverage.
     # th_passed.append(qm['RC_coverage'] < min_RF_coverage)
 
     # Extremely low waveform consistency (SNR).
-    test_passed['SNR'] = qm['SNR'] > min_SNR
+    QC_tests['SNR'] = qm['SNR'] > min_SNR
 
     # Extremely high ISI violation ratio (ISIvr).
-    test_passed['ISI'] = qm['ISIvr'] < max_ISIvr
+    QC_tests['ISI'] = qm['ISIvr'] < max_ISIvr
 
     # Insufficient total number of trials (subject quit).
-    test_passed['NTotalTrs'] = qm['NTrialsTotal'] > min_n_trs
+    QC_tests['NTotalTrs'] = qm['NTrialsTotal'] > min_n_trs
 
     # Insufficient amount of included trials.
     inc_trs_ratio = 100 * qm['NTrialsInc'] / qm['NTrialsTotal']
-    test_passed['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_ratio
+    QC_tests['IncTrsRatio'] = inc_trs_ratio > min_inc_trs_ratio
 
     # Extremely low unit activity (FR).
-    test_passed['has_min_rate'] = qm['has_min_rate']
+    QC_tests['has_min_rate'] = qm['has_min_rate']
 
     # Not task-related.
-    test_passed['task_related'] = qm['task_related']
+    QC_tests['task_related'] = qm['task_related']
 
     # Include unit if all criteria met.
-    include = test_passed.all()
+    QC_tests['include'] = QC_tests.all()
 
-    return include
+    return QC_tests

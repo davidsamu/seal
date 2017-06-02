@@ -843,13 +843,13 @@ class Unit:
         self.DS['PD'] = PD
         self.DS['TP'] = TP
 
-    def pref_dir(self, stim='S1', method='max', pd_type='cPD'):
+    def pref_dir(self, stim='S1', method='weighted', pd_type='cPD'):
         """Return preferred direction."""
 
         pdir = self.DS['PD'].loc[(stim, method), pd_type]
         return pdir
 
-    def anti_pref_dir(self, stim='S1', method='max', pd_type='cAD'):
+    def anti_pref_dir(self, stim='S1', method='weighted', pd_type='cAD'):
         """Return anti-preferred direction."""
 
         adir = self.DS['PD'].loc[(stim, method), pd_type]

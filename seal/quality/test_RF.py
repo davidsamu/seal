@@ -25,18 +25,23 @@ fRF = pd.Series([fbase + subj + '_RF_all_sessions.xlsx' for subj in subjects],
 
 # %% Misc functions.
 
-def get_RF_mapping_results(recs, best_rec=True):
+def get_RF_mapping_results(recs, fRF_res=None, best_rec=True):
     """Return RF mapping results for given set of recordings."""
 
     # Import RF mapping result table.
+    if fRF_res is None:
+        fRF_res = fRF
+
     allRFres = {subj: pd.read_excel(fname)
-                for subj, fname in fRF.iteritems()}
+                for subj, fname in fRF_res.iteritems()}
     allRFres = pd.concat(allRFres)
 
     # Select best RF mapping for each recording.
     RFrecs = []
     for rec in recs:
 
+        if isinstance(rec, tuple):
+            rec = '{}_{}'.format(rec[0], rec[1])
         RF_rec_names = allRFres.RF_rec_name[allRFres.recording == rec].unique()
 
         # If no RF mapping results are available.
@@ -47,8 +52,8 @@ def get_RF_mapping_results(recs, best_rec=True):
         # Select single best RF recording.
         if best_rec:
             # Remove the ones containing the string 'Ipsi' or 'ipsi'.
-            RF_rec_names = [fRF for fRF in RF_rec_names
-                            if 'ipsi' not in fRF.lower()]
+            RF_rec_names = [fRF_rec for fRF_rec in RF_rec_names
+                            if 'ipsi' not in fRF_rec.lower()]
 
             # Select the RF recording with highest number of trials.
             ntrs = [allRFres.ntrials[allRFres.RF_rec_name == fRF].mean()
@@ -100,11 +105,11 @@ def intersect_area(d, r1, r2):
     return overlap
 
 
-def RF_coverage_analysis(UA, stims, fdir):
+def RF_coverage_analysis(UA, stims, fRF_res=None):
     """Relate unit activity to RF coverage."""
 
     # Init.
-    RFres = get_RF_mapping_results(UA.recordings())
+    RFres = get_RF_mapping_results(UA.recordings(), fRF_res)
     if RFres.empty:  # no RF mapping was done
         UA.RF_res = None
         return
@@ -114,7 +119,8 @@ def RF_coverage_analysis(UA, stims, fdir):
 
     # Prepare RF mapping and DS results.
     RF_res = []
-    for u in UA.iter_thru():
+    for u in UA.iter_thru(excl=True):
+        print(u.Name)
         # Get RF mapping results.
         uRF_res = get_unit_results(u, RFres)
         x, y, FWHM = uRF_res[['cntr_x', 'cntr_y', 'FWHM']]
@@ -134,8 +140,9 @@ def RF_coverage_analysis(UA, stims, fdir):
             for i, stimloc in enumerate(stim_locs):
                 # Set names.
                 postfix = '_'+str(i+1) if i > 0 else ''
-                dname, cname = ['{}_{}{}'.format(stim, nm, postfix) for nm in
-                                ('dist', 'cover')]
+                dname, cname, oname = ['{}_{}{}'.format(stim, nm, postfix)
+                                       for nm in ('dist', 'cover',
+                                                  'RF_cntr_cov')]
                 # Calc distance.
                 dist = sp.spatial.distance.euclidean([x, y], stimloc)
                 uRF_res[dname] = dist
@@ -143,6 +150,8 @@ def RF_coverage_analysis(UA, stims, fdir):
                 isa = intersect_area(dist, RF_rad, stim_rad)
                 RF_area = np.pi * RF_rad**2
                 uRF_res[cname] = isa/RF_area
+                # Check whether stimulus overlaps with RF center.
+                uRF_res[oname] = dist <= stim_rad
             # Get average rate during each stimulus.
             stim_rates = u.get_prd_rates(stim, add_latency=True)
             # Mean across trials.
@@ -163,6 +172,17 @@ def RF_coverage_analysis(UA, stims, fdir):
 
 def plot_RF_results(RF_res, stims, fdir, sup_title):
     """Plot receptive field results."""
+
+    # Plot distribution of coverage values.
+    putil.set_style('poster', 'white')
+    fig = putil.figure()
+    ax = putil.axes()
+    sns.distplot(RF_res.S1_cover, bins=np.arange(0, 1.01, 0.1),
+                 kde=False, rug=True, ax=ax)
+    putil.set_limits(ax, [0, 1])
+    fst = util.format_to_fname(sup_title)
+    ffig = fdir + fst + '_S1_coverage.png'
+    putil.save_fig(ffig, fig, sup_title)
 
     # Plot RF coverage and rate during S1 on regression plot for each
     # recording and task.
@@ -209,9 +229,6 @@ def plot_RF_results(RF_res, stims, fdir, sup_title):
 def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33):
     """Exclude units from UnitArray with low RF coverage."""
 
-    if RF_res is None:
-        RF_res = RF_coverage_analysis(UA)
-
     nstart = len(UA.utids())
     nnoRF = 0
     for u in UA.iter_thru():
@@ -219,14 +236,17 @@ def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33):
         # Get results of unit.
         utid = tuple(u.get_utid())
 
+        # TODO: this should be updated and removed, starting with MT mapping!
+        old_utid = ('{}_{}'.format(utid[0], utid[1]),) + utid[3:]
+
         # No RF mapping result for recording or for unit.
-        if RF_res is None or utid not in RF_res.index:
+        if RF_res is None or old_utid not in RF_res.index:
             u.set_excluded(exc_unmapped)
             nnoRF += 1
             continue
 
         # Exclude unit if coverage with RF is low for both stimuli.
-        uRFres = RF_res.loc[utid]
+        uRFres = RF_res.loc[old_utid]
 
         if uRFres['S1_cover'] < cov_th and uRFres['S1_cover'] < cov_th:
             u.set_excluded(True)
@@ -241,4 +261,4 @@ def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33):
         print('{}/{} ({}%) of units '.format(nnoRF, nstart, pnoRF) +
               'had no RF mapping data {} excluded.'.format(snorf))
 
-    return UA
+    return

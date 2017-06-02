@@ -76,15 +76,17 @@ def get_unit_info_title(u, fullname=False):
              ('mWfDur', 'Wf dur: {:.0f} $\mu$s'),
              ('Fac/Sup', '{}'),
              ('mFR', 'mean rate: {:.1f} sp/s'),
-             ('baseline', 'baseline rate: {:.1f} sp/s')]
+             ('baseline', 'baseline rate: {:.1f} sp/s'),
+             ('included', 'included')]
     fvals = [(meas, f.format(upars[meas]) if meas in upars else 'N/A')
              for meas, f in fpars]
     fvals = util.series_from_tuple_list(fvals)
 
     # Create info lines.
 
-    # Start with unit name.
+    # Start with unit name and 'excluded' tag if unit is excluded from task.
     header = upars.Name if fullname else upars.task
+    header += ' [excluded]' if u.is_excluded() else ''
     info_lines = '\n\n{}\n\n\n\n'.format(header)
 
     # Add stimulus parameters.
@@ -270,6 +272,8 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
 def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
     """Put heights of bars as labels to top or botton of pars."""
 
+    ax = axes(ax)
+
     # Use all patches by default.
     if bar_patches is None:
         bar_patches = ax.patches
@@ -282,6 +286,16 @@ def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
         y = height if vpos == 'top' else 0
         lbl = frm_str.format(height)
         ax.text(x, y, lbl, ha='center', va='bottom')
+
+
+def add_downward_arrow(ax, x, ystart, length, head_width=1,
+                       head_length=1, fc='k', ec='k', **kwargs):
+    """Add downward pointing arrow."""
+
+    ax = axes(ax)
+
+    ax.arrow(x, ystart, 0, -length, head_width=head_width,
+             head_length=head_length, fc=fc, ec=ec, **kwargs)
 
 
 # %% Functions to adjust position of plot decorators

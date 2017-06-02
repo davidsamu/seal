@@ -35,7 +35,7 @@ def DR_plot(UA, ftempl=None, match_scales=True):
 
             # Plot DR of unit.
             res = (pselectivity.plot_DR_3x3(u, fig, sps)
-                   if not u.is_excluded() and u.to_plot() else None)
+                   if u.to_plot() else None)
             if res is not None:
                 ax_polar, rate_axs = res
                 task_rate_axs.extend(rate_axs)
@@ -76,7 +76,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=True):
             u = UA.get_unit(uid, task)
 
             res = (pselectivity.plot_selectivity(u, fig, sps)
-                   if not u.is_excluded() and u.to_plot() else None)
+                   if u.to_plot() else None)
             if res is not None:
                 ls_axs.extend(res[0])
                 ds_axs.extend(res[1])
@@ -112,7 +112,6 @@ def plot_response(f_sealcombined, resp_plot_dir,
     # Read in Units.
     print('  Reading in UnitArray...')
     UA = util.read_objects(f_sealcombined, 'UnitArr')
-    UA.clean_array(keep_excl=False)
 
     # Test stimulus response to all directions.
     if plot_DR:

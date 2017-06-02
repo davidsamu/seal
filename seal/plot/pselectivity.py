@@ -407,9 +407,11 @@ def plot_DR_3x3(u, fig=None, sps=None):
 
         # Add task name as title (to top center axes).
         if isp == 1:
-            putil.set_labels(draster_axs[0], title=u.get_task(),
-                             ytitle=1.10, title_kws={'loc': 'right'})
+            ttl = u.get_task() + (' [excluded]' if u.is_excluded() else '')
+            putil.set_labels(draster_axs[0], title=ttl, ytitle=1.10,
+                             title_kws={'loc': 'right'})
 
+        rate_axs.extend(drate_axs)
         rate_axs.extend(drate_axs)
 
     # Match scale of y axes.

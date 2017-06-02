@@ -55,10 +55,14 @@ def quality_control(rec_name, rec_data_dir, qc_dir, comb_data_dir,
         tUA = util.read_objects(ftask, 'UnitArr')
         UA.add_task(tasks[i], list(tUA.iter_thru()))
 
-    # Test unit quality, save result figures, add stats to units and
-    # exclude low quality trials and units.
+    # Test unit quality, save result figures, add stats to units,
+    # and exclude low quality trials and units.
     ftempl = qc_dir + 'QC_plots/{}.png'
-    test_units.quality_test(UA, ftempl, plot_qm, fselection)
+    QC_tests = test_units.quality_test(UA, ftempl, plot_qm, fselection)
+
+    # Export QC summary table.
+    fqctable = qc_dir + rec_name + '_QC_summary.xlsx'
+    util.write_excel(QC_tests, 'QC summary', fqctable)
 
     # Report unit exclusion stats.
     fname = qc_dir + rec_name + '_exclusion.log'

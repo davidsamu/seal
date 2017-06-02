@@ -218,10 +218,10 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
                         facecolor=col, edgecolor=col)
 
         # Update limits.
-        tmin, tmax, rmax = min(tvec), max(tvec), max(meanr+semr)
-        xmin = min(xmin, tmin) if xmin is not None else tmin
-        xmax = max(xmax, tmax) if xmax is not None else tmax
-        ymax = max(ymax, rmax) if ymax is not None else rmax
+        tmin, tmax, rmax = tvec.min(), tvec.max(), (meanr+semr).max()
+        xmin = np.min([xmin, tmin]) if xmin is not None else tmin
+        xmax = np.max([xmax, tmax]) if xmax is not None else tmax
+        ymax = np.max([ymax, rmax]) if ymax is not None else rmax
 
     # Set ticks, labels and axis limits.
     if xlim is None:

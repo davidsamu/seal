@@ -11,8 +11,62 @@ import scipy as sp
 import pandas as pd
 import seaborn as sns
 
+from seal.analysis import stats
 from seal.util import util
 from seal.plot import putil
+
+
+
+def sign_hist(v, pvals=None, pth=0.01, bins=None, scol='g', nscol='k',
+              ax=None):
+    """Plot histogram of significant and non-significant values stacked."""
+
+    # Init.
+    ax = putil.axes(ax)
+    vnonsig = pvals >= pth
+
+    # Plot all values and then non-significant values only.
+    sns.distplot(v, kde=False, bins=bins, color=scol, ax=ax)
+    sns.distplot(v[vnonsig], kde=False, bins=bins, color=nscol, ax=ax)
+
+    # Add vertical zero line.
+    ax.axvline(0, color='gray', lw=1, ls='dashed')
+
+    # Format plot.
+    sns.despine(ax=ax)
+
+    return ax
+
+
+def sign_scatter(v1, v2, pvals=None, pth=0.01, scol='g', nscol='k',
+                 id_line=False, fit_reg=False, ax=None):
+    """Plot scatter plot with significant points highlighted."""
+
+    # Init.
+    ax = putil.axes(ax)
+    s_pars = (True, scol, {'alpha': 1.0})
+    ns_pars = (False, nscol, {'alpha': 0.8})
+
+    # Binarize significance stats.
+    vsig = (pvals < pth if pvals is not None
+            else pd.Series(True, index=v1.index))
+
+    # Plot significant and non-significant points.
+    for b, c, a in [ns_pars, s_pars]:
+        if (vsig==b).any():
+            sns.regplot(v1.loc[vsig==b], v2.loc[vsig==b], fit_reg=fit_reg,
+                        color=c, scatter_kws=a, ax=ax)
+
+    # Format plot.
+    sns.despine(ax=ax)
+
+    # Add identity line.
+    if id_line:
+        v_max = max(ax.get_xlim()[1], ax.get_ylim()[1])
+        putil.set_limits(ax, [0, v_max], [0, v_max])
+        putil.add_identity_line(ax=ax, equal_xy=True)
+
+    return ax
 
 
 def scatter(x, y, is_sign=None, c='b', bc='w', alpha=0.5, xlim=None,
@@ -158,6 +212,43 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
     putil.save_fig(ffig)
+
+    return ax
+
+
+def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
+             ci=68, ylbl=None, fig=None, ax=None, ffig=None):
+    """Plot mean of two categorical dataset."""
+
+    # Init.
+    if fig is None and ax is None:
+        fig = putil.figure()
+    if ax is None:
+        ax = putil.axes()
+    if fstats is None:
+        fstats = stats.mann_whithney_u_test
+
+    # Plot means as bars.
+    sns.barplot(x=x, y=y, data=df, ci=ci, ax=ax)
+
+    # Add significance bar.
+    if add_stats:
+        v1, v2 = [np.array(grp[y]) for name, grp in df.groupby(x)]
+        _, pval = fstats(v1, v2)
+        pval_str = util.format_pvalue(pval)
+        if bar_ylvl is None:
+            bar_ylvl = 1.05 * max(v1.mean()+v1.sem(), v2.mean()+v2.sem())
+        lines([0.1, 0.9], [bar_ylvl, bar_ylvl], color='grey', ax=ax)
+        ax.text(0.5, 1.01*bar_ylvl, pval_str, fontsize='medium',
+                va='bottom', ha='center')
+
+    # Format plot.
+    sns.despine()
+    putil.hide_legend_title(ax)
+    putil.set_labels(ax, '', ylbl)
+    putil.sparsify_tick_labels(fig, ax, 'y', freq=2)
+    # Save plot.
+    putil.save_fig(ffig, fig)
 
     return ax
 

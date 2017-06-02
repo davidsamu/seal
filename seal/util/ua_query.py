@@ -51,7 +51,8 @@ def get_unit_param(UA, pname):
     return unit_par
 
 
-def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='max'):
+def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted',
+                     pd_type='coarsed'):
     """Return data frame with direction selectivity information."""
 
     # Init.
@@ -69,7 +70,10 @@ def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='max'):
             continue
 
         # Get DS info.
-        PD = u.DS.PD.cPD[(stim, ds_type)]
+        if pd_type == 'coarsed':
+            PD = u.DS.PD.cPD[(stim, ds_type)]
+        else:
+            PD = u.DS.PD.PD[(stim, ds_type)]
         DSI = u.DS.DSI.mDS[stim]
 
         DSInfo.append((utid, (PD, DSI)))
@@ -122,6 +126,11 @@ def get_trial_params(UA, rec, task, levels=None):
     """Return trial param table for a given recording-task pair."""
 
     u = get_a_unit(UA, rec, task, levels)
+
+    # No unit with given task-recording pair.
+    if u is None:
+        return None
+
     TrParams = u.TrData
 
     return TrParams
@@ -135,6 +144,10 @@ def get_prd_times(UA, rec, task, prd, ref_ev, trs=None, levels=None):
         trs = np.arange(len(TrParams.index))
 
     u = get_a_unit(UA, rec, task, levels)
+    # No unit with given task-recording pair.
+    if u is None:
+        return None, None, None
+
     t1s, t2s = u.pr_times(prd, trs, add_latency=False, concat=False)
     ref_ts = u.ev_times(ref_ev, trs)
 
@@ -191,7 +204,7 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
     # Add unit index level names.
     names = ['name'] if index == 'name' else (constants.uid_names
                                               if index == 'uid' else
-                                              constants.uitd_names)
+                                              constants.utid_names)
     rates.index.names = names
 
     # Truncate to requested maximum length.
@@ -222,10 +235,11 @@ def test_DS_frecs(frecs):
         util.write_objects({'UnitArr': UA}, frec)
 
 
-def test_DS(UA, retest=False):
+def test_DS(UA, retest=False, excl=True):
     """Test DS if it has not been tested yet."""
 
-    [u.test_DS() for u in UA.iter_thru() if (not len(u.DS) or retest)]
+    [u.test_DS() for u in UA.iter_thru(excl=excl)
+     if (not len(u.DS) or retest)]
 
 
 def exclude_low_DS(UA, dsi_th=0.3, stims=None):

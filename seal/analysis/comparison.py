@@ -54,6 +54,7 @@ def plot_CE_time_distribution(ulists, eff_t_res, eff_pars, aroc_res_dir,
         putil.set_labels(ax, 'effect timing (ms since S1 onset)', '', eff_lbl)
 
     # Format plots.
+    sns.despine(ax=ax)
     [ax.legend() for ax in axs]
     [putil.hide_tick_labels(ax, show_x_tick_lbls=True) for ax in axs]
     putil.sync_axes(axs, sync_y=True)
