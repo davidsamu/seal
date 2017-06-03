@@ -224,6 +224,14 @@ def add_rate(UA, name):
      if name not in u._Rates]
 
 
+def rem_rate(UA, name):
+    """Remove rate from units in UnitArray."""
+
+    for u in UA.iter_thru():
+        if name in u._Rates:
+            del u._Rates[name]
+
+
 def test_DS_frecs(frecs):
     """Test DS of list of recordings."""
 

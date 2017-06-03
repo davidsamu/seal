@@ -507,16 +507,16 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
         # Get accuracy scores.
         dScores = {(rec, task): res[vkey]['Scores'].mean()
                    for (rec, task), res in rt_res.items()
-                   if res[vkey] is not None}
+                   if (vkey in res) and (res[vkey] is not None)}
         allScores[n_most_DS] = pd.concat(dScores, axis=1).T
         # Get number of units.
         allnunits[n_most_DS] = {(rec, task): res[vkey]['nunits'].iloc[0]
                                 for (rec, task), res in rt_res.items()
-                                if res[vkey] is not None}
+                                if (vkey in res) and (res[vkey] is not None)}
         # Get # values (for baseline plotting.)
         all_nvals = pd.Series({(rec, task): res[vkey]['nclasses'].iloc[0]
                                for (rec, task), res in rt_res.items()
-                               if res[vkey] is not None})
+                               if (vkey in res) and (res[vkey] is not None)})
         un_nvals = all_nvals.unique()
         if len(un_nvals) > 1 and verbose:
             print('Found multiple # of classes to decode: {}'.format(un_nvals))
@@ -546,6 +546,8 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
             # Prepare data.
             if tasks is None:
                 tasks = nScores.index.get_level_values(1).unique()  # in data
+            if task_labels is None:
+                task_labels = {task: task for task in tasks}
             dScores = {task: pd.DataFrame(nScores.xs(task, level=1).unstack(),
                                           columns=['accuracy'])
                        for task in tasks}
