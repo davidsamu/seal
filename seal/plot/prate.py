@@ -19,7 +19,7 @@ from seal.plot import putil
 
 
 # Spike marker size for raster plots.
-wsp, hsp = 1, .8  # vertical bar
+wsp, hsp = 2, .8  # vertical bar
 
 
 def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None, max_len=None):
@@ -146,7 +146,7 @@ def raster(spk_trains, t_unit=ms, prds=None, c='b', xlim=None,
         # Spike markers are plotted in absolute size (figure coordinates).
         # ax.scatter(x, y, c=c, s=1.8, edgecolor=c, marker='|')
 
-        # Spike markers are plotted in relate size (axis coordinates)
+        # Spike markers are plotted in relative size (axis coordinates)
         patches = [Rectangle((xi-wsp/2, yi-hsp/2), wsp, hsp)
                    for xi, yi in zip(x, y)]
         collection = PatchCollection(patches, facecolor=c, edgecolor=c)

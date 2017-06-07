@@ -260,7 +260,8 @@ def plot_DR(u, sps, fig):
     if u.DS.empty:
         u.test_DS()
     stim = 'S2'  # testing S2, because S1 location can change btw tasks
-    pref_anti_dirs = [u.pref_dir(stim, 'max'), u.anti_pref_dir(stim, 'max')]
+    pref_anti_dirs = [u.pref_dir(stim, 'weighted'),
+                      u.anti_pref_dir(stim, 'weighted')]
     t1, t2 = u.DS.TW.loc[stim]
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
