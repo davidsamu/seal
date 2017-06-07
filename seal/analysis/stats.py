@@ -18,6 +18,16 @@ min_sample_size = 10
 
 # %% Basic statistical tests.
 
+def pearsonr(x, y):
+    """
+    Calculates a Pearson correlation coefficient and
+    the p-value for testing non-correlation.
+    """
+
+    r, p = sp.stats.pearsonr(x, y)
+    return r, p
+
+
 def t_test(x, y, paired=False, equal_var=False, nan_policy='propagate'):
     """
     Run t-test between two related (paired) or independent (unpaired) samples.

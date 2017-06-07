@@ -788,6 +788,15 @@ def get_cmap(cm_name='jet', **kwargs):
     return cmap
 
 
+def get_rgba_values(v, cm_name='jet', **kwargs):
+    """Return RGBA values for each scalar value in vector."""
+
+    cmap = get_cmap(cm_name, **kwargs)
+    v_rgba = [cmap(vi) for vi in v]
+
+    return v_rgba
+
+
 def get_colors(mpl_colors=False, as_cycle=True):
     """Return colour cycle."""
 

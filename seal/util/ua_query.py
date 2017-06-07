@@ -27,6 +27,14 @@ def create_UA_from_recs(frecs, ua_name='UA'):
     return UA
 
 
+def get_utid_from_unit_name(uname):
+    """Return utid from unit name."""
+
+    task, subj, date, elec, chun, isort = uname.split()[-6:]
+    utid = (subj, date, elec, int(chun[2:4]), int(chun[-1]), task)
+    return utid
+
+
 # %% Query methods.
 
 def get_unit_param(UA, pname):
