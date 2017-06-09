@@ -190,7 +190,7 @@ def get_spike_times(UA, rec, task, uids, prd, ref_ev, trs=None, levels=None):
     return Spikes
 
 
-def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
+def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, tmax=None,
                        only_pd=None, stim=None, index='name'):
     """Return mean rates per unit at each time during period in DataFrame."""
 
@@ -216,8 +216,8 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, max_len=None,
     rates.index.names = names
 
     # Truncate to requested maximum length.
-    if max_len is not None:
-        rates = rates.loc[:, rates.columns <= max_len]
+    if tmax is not None:
+        rates = rates.loc[:, rates.columns <= tmax]
 
     return rates
 

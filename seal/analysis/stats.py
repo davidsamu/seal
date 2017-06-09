@@ -18,6 +18,13 @@ min_sample_size = 10
 
 # %% Basic statistical tests.
 
+def sem(x):
+    """Calculates the standard error of the mean of vector x."""
+
+    s = sp.stats.sem(x)
+    return s
+
+
 def pearsonr(x, y):
     """
     Calculates a Pearson correlation coefficient and

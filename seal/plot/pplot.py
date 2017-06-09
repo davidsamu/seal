@@ -222,7 +222,7 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
 
     # Init.
     if fig is None and ax is None:
-        fig = putil.figure()
+        fig = putil.figure(figsize=(3, 3))
     if ax is None:
         ax = putil.axes()
     if fstats is None:
@@ -237,7 +237,8 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
         _, pval = fstats(v1, v2)
         pval_str = util.format_pvalue(pval)
         if bar_ylvl is None:
-            bar_ylvl = 1.05 * max(v1.mean()+v1.sem(), v2.mean()+v2.sem())
+            bar_ylvl = 1.05 * max(v1.mean()+stats.sem(v1),
+                                  v2.mean()+stats.sem(v2))
         lines([0.1, 0.9], [bar_ylvl, bar_ylvl], color='grey', ax=ax)
         ax.text(0.5, 1.01*bar_ylvl, pval_str, fontsize='medium',
                 va='bottom', ha='center')

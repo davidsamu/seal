@@ -120,7 +120,7 @@ def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet',
 
     # Plot on heatmap and save figure.
     pauc.plot_auc_heatmap(aroc, cmap=cmap, events=events,
-                          xlbl_freq=500, ylbl_freq=25, xlab=xlab, ylab=ylab,
+                          xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
                           title=title, ffig=ffig, fig=fig)
 
 
@@ -137,7 +137,6 @@ def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
 
     # For each period.
     for sort_prd in sort_prds:
-
         if sort_prd == 'unsorted':
             aroc_sorted = aroc.copy()
             pval_sorted = pval.copy()
@@ -167,10 +166,10 @@ def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
 
         # Plot heatmap with sorted units.
         nunits = len(aroc_sorted)
-        if title is None:
-            title = rocutil.aroc_fig_title(btw_str, task, nunits,
-                                           offsets, sort_prd)
+        ttl = rocutil.aroc_fig_title(btw_str, task, nunits, offsets,
+                                     sort_prd) if title is None else title
+
         for cmap in cmaps:
             ffig = rocutil.aroc_fig_fname(res_dir, prefix, offsets,
                                           cmap, sort_prd)
-            plot_AROC_heatmap(aroc_sorted, prd_pars, title, cmap, ffig, fig)
+            plot_AROC_heatmap(aroc_sorted, prd_pars, ttl, cmap, ffig, fig)
