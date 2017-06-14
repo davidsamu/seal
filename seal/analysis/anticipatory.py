@@ -96,7 +96,8 @@ def test_anticipation(ulists, nrate):
 
 
 def plot_mean_rates(mRates, aa_res_dir, tasks=None, task_lbls=None,
-                    baseline=None, xlim=None, ylim=None, ci=68, ffig=None):
+                    baseline=None, xlim=None, ylim=None, ci=68, ffig=None,
+                    figsize=(6,4)):
     """Plot mean rates across tasks."""
 
     # Init.
@@ -117,8 +118,8 @@ def plot_mean_rates(mRates, aa_res_dir, tasks=None, task_lbls=None,
         lRates.task.replace(task_lbls, inplace=True)
 
     # Plot as time series.
-    putil.set_style('notebook', 'white')
-    fig = putil.figure(figsize=(4, 3))
+    #putil.set_style('notebook', 'white')
+    fig = putil.figure(figsize=figsize)
     ax = putil.axes()
 
     sns.tsplot(lRates, time='time', value='rate', unit='unit',

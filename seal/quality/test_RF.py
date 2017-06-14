@@ -226,7 +226,8 @@ def plot_RF_results(RF_res, stims, fdir, sup_title):
 
 # %% Exclude units with low RF coverage.
 
-def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33):
+def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33,
+                            exclude_uncovered=True):
     """Exclude units from UnitArray with low RF coverage."""
 
     nstart = len(UA.utids())
@@ -250,6 +251,10 @@ def exclude_uncovered_units(UA, RF_res=None, exc_unmapped=True, cov_th=0.33):
 
         if uRFres['S1_cover'] < cov_th and uRFres['S1_cover'] < cov_th:
             u.set_excluded(True)
+
+        if (not uRFres['S1_RF_cntr_cov'] and
+            not uRFres['S2_RF_cntr_cov']):
+            u.set_excluded(exclude_uncovered)
 
     # Report some stats on unit exclusion.
     nexc = nstart - len(UA.utids())

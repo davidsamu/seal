@@ -153,7 +153,7 @@ def highlight_axes(ax=None, color='red', alpha=0.5, **kwargs):
     ax.add_artist(rect)
 
 
-def plot_periods(prds=None, alpha=0.10, color='grey', ax=None, **kwargs):
+def plot_periods(prds=None, alpha=0.20, color='grey', ax=None, **kwargs):
     """Highlight segments (periods)."""
 
     if prds is None:
@@ -221,35 +221,41 @@ def plot_event_markers(events, ypos=ypos_marker, marker='o', ms=6, mew=1,
         marker.event_marker = True  # add label to find these artists later
 
 
-def add_chance_level(ylevel=0.5, color='grey', ls='--', alpha=0.5, ax=None):
+def add_chance_level(ylevel=0.5, color='grey', ls='--', alpha=1, lw=1,
+                     zorder=0, ax=None):
     """Add horizontal line denoting chance level for decoder accuracy plot."""
 
     ax = axes(ax)
-    ax.axhline(ylevel, color=color, ls=ls, alpha=alpha)
+    ax.axhline(ylevel, color=color, ls=ls, alpha=alpha, zorder=zorder, lw=1)
 
 
-def add_baseline(baseline=0, color='grey', ls='--', lw=1, ax=None, **kwargs):
+def add_baseline(baseline=0, color='grey', ls='--', lw=1,
+                 zorder=0, ax=None, **kwargs):
     """Add baseline rate to plot."""
 
     ax = axes(ax)
     if is_polar(ax):  # polar plot
         theta, radius = np.linspace(0, 2*np.pi, 100), baseline*np.ones(100)
-        ax.plot(theta, radius, color=color, ls=ls, lw=lw, **kwargs)
+        ax.plot(theta, radius, color=color, ls=ls, lw=lw,
+                zorder=zorder, **kwargs)
     else:
-        ax.axhline(baseline, color=color, ls=ls, lw=lw, **kwargs)
+        ax.axhline(baseline, color=color, ls=ls, lw=lw,
+                   zorder=zorder, **kwargs)
 
 
-def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5, ax=None):
+def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5,
+                  zorder=0, ax=None):
     """Add zero line to x and/or y axes."""
 
     ax = axes(ax)
     if axis in ('x', 'both'):
-        ax.axhline(0, color=color, ls=ls, alpha=alpha)
+        ax.axhline(0, color=color, ls=ls, zorder=zorder, alpha=alpha)
     if axis in ('y', 'both'):
-        ax.axvline(0, color=color, ls=ls, alpha=alpha)
+        ax.axvline(0, color=color, ls=ls, zorder=zorder, alpha=alpha)
 
 
-def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
+def add_identity_line(equal_xy=False, color='grey', ls='--',
+                      zorder=0, ax=None):
     """Add identity (x=y) line to axes."""
 
     ax = axes(ax)
@@ -266,7 +272,7 @@ def add_identity_line(equal_xy=False, color='grey', ls='--', ax=None):
         transform = None
 
     xy = [xymin, xymax]
-    ax.plot(xy, xy, color=color, ls=ls, transform=transform)
+    ax.plot(xy, xy, color=color, ls=ls, zorder=zorder, transform=transform)
 
 
 def add_bar_height_label(ax, ndigit=2, vpos='top', bar_patches=None):
@@ -627,6 +633,19 @@ def sparsify_tick_labels(fig, ax=None, axis='x', freq=10, istart=0,
     fset_lbls(ax, lbls=lbls)
 
 
+def synch_ticks(ax=None, synch_to='x'):
+    """Synchronize tick labels between axes."""
+
+    ax = axes(ax)
+
+    locs = ax.get_xticks() if synch_to == 'x' else ax.get_yticks()
+    lbls = ax.get_xticklabels() if synch_to == 'x' else ax.get_yticklabels()
+    lbls = [l.get_text() for l in lbls]
+
+    f = set_ytick_labels if synch_to == 'x' else set_xtick_labels
+    f(ax, locs, lbls)
+
+
 # %% Functions to create and access axes and figures.
 
 def axes(ax=None, **kwargs):
@@ -744,7 +763,7 @@ def sps_add_axes(fig, sps, nrow, ncol, **kwargs):
 def save_fig(ffig, fig=None, title=None, fs_title='xx-large', ytitle=1.01,
              va_title='bottom', rect_height=None, border=0.03, pad=1.0,
              h_pad=None, w_pad=None, dpi=300, bbox_extra_artists=None,
-             close=True, **kwargs):
+             close=True, tight_layout=True, **kwargs):
     """Save composite (GridSpec) figure to file."""
 
     # Init figure and folder to save figure into.
@@ -764,7 +783,9 @@ def save_fig(ffig, fig=None, title=None, fs_title='xx-large', ytitle=1.01,
     if rect_height is None:  # relative height of plotted area
         rect_height = ytitle - border
     rect = [border, border, 1.0-border, rect_height]
-    fig.tight_layout(rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
+
+    if tight_layout:
+        fig.tight_layout(rect=rect, pad=pad, h_pad=h_pad, w_pad=w_pad)
 
     # Suppress warning about axes being incompatible with tight layout.
     with warnings.catch_warnings():

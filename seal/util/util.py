@@ -86,7 +86,7 @@ def write_table(df, writer, **kwargs):
     writer.save()
 
 
-def save_sheets(list_dfs, sheet_names, fname):
+def save_sheets(list_dfs, sheet_names, fname, **kwargs):
     """Save each DataFrame from list into separate sheet of Excel document."""
 
     # Init writer.
@@ -95,15 +95,15 @@ def save_sheets(list_dfs, sheet_names, fname):
 
     # Save sheets.
     for i, df in enumerate(list_dfs):
-        df.to_excel(writer, sheet_names[i])
+        df.to_excel(writer, sheet_names[i], **kwargs)
 
     writer.save()
 
 
-def write_excel(df, sheet_name, fname):
+def write_excel(df, sheet_name, fname, **kwargs):
     """Export DataFrame into Excel document."""
 
-    save_sheets([df], [sheet_name], fname)
+    save_sheets([df], [sheet_name], fname, **kwargs)
 
 
 def get_latest_file(dir_name, ext='.data'):

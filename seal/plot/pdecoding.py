@@ -480,11 +480,12 @@ def plot_scores_across_nunits(recs, stims, res_dir, list_n_most_DS, par_kws):
 def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
                            list_n_most_DS, list_min_nunits,
                            n_boot=1e4, ci=95,
-                           tasks=None, task_labels=None, add_title=True):
+                           tasks=None, task_labels=None, add_title=True,
+                           fig=None):
     """Test and plot results combined across sessions."""
 
     # Init.
-    putil.set_style('notebook', 'ticks')
+    # putil.set_style('notebook', 'ticks')
     vkey = 'all'
 
     # This should be made more explicit!
@@ -497,7 +498,7 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     # Create figures.
     fig_scr, _, axs_scr = putil.get_gs_subplots(nrow=len(dict_rt_res),
                                                 ncol=len(list_min_nunits),
-                                                subw=8, subh=6,
+                                                subw=8, subh=6, fig=fig,
                                                 create_axes=True)
 
     # Query data.
@@ -605,3 +606,5 @@ def plot_combined_rec_mean(recs, stims, res_dir, par_kws,
     par_kws['n_most_DS'] = '_'.join(list_n_most_DS_str)
     ffig = decutil.fig_fname(res_dir, 'combined_score', fformat, **par_kws)
     putil.save_fig(ffig, fig_scr, title, fs_title, w_pad=w_pad, h_pad=h_pad)
+
+    return fig_scr, axs_scr, ffig
