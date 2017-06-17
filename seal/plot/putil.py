@@ -226,7 +226,7 @@ def add_chance_level(ylevel=0.5, color='grey', ls='--', alpha=1, lw=1,
     """Add horizontal line denoting chance level for decoder accuracy plot."""
 
     ax = axes(ax)
-    ax.axhline(ylevel, color=color, ls=ls, alpha=alpha, zorder=zorder, lw=1)
+    ax.axhline(ylevel, color=color, ls=ls, alpha=alpha, zorder=zorder, lw=lw)
 
 
 def add_baseline(baseline=0, color='grey', ls='--', lw=1,
@@ -255,7 +255,7 @@ def add_zero_line(axis='both', color='grey', ls='--', alpha=0.5,
 
 
 def add_identity_line(equal_xy=False, color='grey', ls='--',
-                      zorder=0, ax=None):
+                      zorder=0, ax=None, lw=1):
     """Add identity (x=y) line to axes."""
 
     ax = axes(ax)

@@ -120,7 +120,7 @@ def plot_AROC_heatmap(aroc, prd_pars, title, cmap='jet',
 
     # Plot on heatmap and save figure.
     pauc.plot_auc_heatmap(aroc, cmap=cmap, events=events,
-                          xlbl_freq=500, ylbl_freq=50, xlab=xlab, ylab=ylab,
+                          xlbl_freq=1000, ylbl_freq=50, xlab=xlab, ylab=ylab,
                           title=title, ffig=ffig, fig=fig)
 
 
