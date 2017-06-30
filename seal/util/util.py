@@ -616,6 +616,24 @@ def get_subj_date_pairs(data):
     return sd_pairs
 
 
+def add_levels_from_MI(df, add_cols, reindex=True):
+    """Add levels of MultiIndex as columns."""
+
+    for name, lvl in add_cols:
+        if is_iterable(lvl):
+            col = pd.Index(get_mi_level_combs(df, lvl))
+        else:
+            col = df.index.get_level_values(lvl)
+
+        df[name] = col
+
+    # Replace original MultiIndex with integer indexing.
+    if reindex:
+        df.index = np.arange(len(df.index))
+
+    return df
+
+
 def melt_table(df, colnames, add_cols=[], reindex=True, unstack=True):
     """Melt DataFrame, typically before for plotting it with Seaborn."""
 
@@ -623,18 +641,7 @@ def melt_table(df, colnames, add_cols=[], reindex=True, unstack=True):
     ldf = df.unstack() if unstack else df.stack()
     ldf = pd.DataFrame(ldf, columns=colnames)
 
-    # Add levels of MultiIndex as columns.
-    for name, lvl in add_cols:
-        if is_iterable(lvl):
-            col = pd.Index(get_mi_level_combs(ldf, lvl))
-        else:
-            col = ldf.index.get_level_values(lvl)
-
-        ldf[name] = col
-
-    # Replace original MultiIndex with integer indexing.
-    if reindex:
-        ldf.index = np.arange(len(ldf.index))
+    add_levels_from_MI(ldf, add_cols, reindex)
 
     return ldf
 

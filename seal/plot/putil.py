@@ -847,23 +847,24 @@ def convert_to_rgba(cname):
     return rgba
 
 
-def get_cmat(to_color, fcol='blue', bcol='grey', rgba=False):
+def get_cmat(to_color, fcol='blue', bcol='white', ncol='grey', rgba=False):
     """
-    Return foreground/background RGB/RGBA color matrix
-    for array of points (True: foreground point, False: background point).
+    Return foreground/background/non-testable RGB/RGBA color matrix
+    for array of points.
     """
-
-    to_color = np.array(to_color, dtype=bool)
 
     # Init foreground and background colors.
     if isinstance(fcol, str):
         fcol = convert_to_rgb(fcol)
     if isinstance(bcol, str):
         bcol = convert_to_rgb(bcol)
+    if isinstance(ncol, str):
+        ncol = convert_to_rgb(ncol)
 
     # Create color matrix of points.
-    col_mat = np.array(len(to_color) * [bcol])
-    col_mat[to_color, :] = fcol
+    col_mat = np.array(len(to_color) * [ncol])
+    col_mat[to_color == 1, :] = fcol
+    col_mat[to_color == 0, :] = bcol
 
     return col_mat
 

@@ -69,23 +69,26 @@ def sign_scatter(v1, v2, pvals=None, pth=0.01, scol='g', nscol='k',
     return ax
 
 
-def scatter(x, y, is_sign=None, c='b', bc='w', alpha=0.5, xlim=None,
-            ylim=None, xlab=None, ylab=None, title=None, ytitle=None,
-            polar=False, ffig=None, ax=None, **kwargs):
+def scatter(x, y, is_sign=None, c='b', bc='w', nc='grey', ec='k', alpha=0.5,
+            xlim=None, ylim=None, xlab=None, ylab=None, title=None,
+            ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
     """
     Plot paired data on scatter plot.
     Color settings:
-        - c:  face color of foreground points (is_sign == True)
-        - bc: face color of background points (is_sign == False)
+        - c:  face color of significant points (is_sign == True)
+        - bc: face color of non-significant points (is_sign == False)
+        - nc: face color of untested/untestable points (is_sign == None)
     """
 
     # Init.
     ax = putil.axes(ax, polar=polar)
     cols = c
+    # Get point-specific color array.
     if (is_sign is not None) and isinstance(c, str) and isinstance(bc, str):
-        cols = putil.get_cmat(is_sign, c, bc)  # get point-specific color array
+        cols = putil.get_cmat(is_sign, c, bc, nc)
 
-    ax.scatter(x, y, c=cols, alpha=alpha, **kwargs)  # plot colored points
+    # Plot colored points.
+    ax.scatter(x, y, c=cols, edgecolor=ec, alpha=alpha, **kwargs)
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
@@ -216,8 +219,9 @@ def errorbar(x, y, yerr, ylim=None, xlim=None, xlab=None, ylab=None,
     return ax
 
 
-def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
-             ci=68, ylbl=None, fig=None, ax=None, ffig=None):
+def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ci=68,
+             add_mean=True, mean_ylvl=None, ylbl=None,
+             fig=None, ax=None, ffig=None):
     """Plot mean of two categorical dataset."""
 
     # Init.
@@ -231,9 +235,12 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
     # Plot means as bars.
     sns.barplot(x=x, y=y, data=df, ci=ci, ax=ax)
 
+    # Get plotted vectors.
+    ngrps = [t.get_text() for t in ax.get_xticklabels()]
+    v1, v2 = [df.loc[df[x] == ngrp, y] for ngrp in ngrps]
+
     # Add significance bar.
     if add_stats:
-        v1, v2 = [np.array(grp[y]) for name, grp in df.groupby(x)]
         _, pval = fstats(v1, v2)
         pval_str = util.format_pvalue(pval)
         if bar_ylvl is None:
@@ -241,6 +248,13 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None,
                                   v2.mean()+stats.sem(v2))
         lines([0.1, 0.9], [bar_ylvl, bar_ylvl], color='grey', ax=ax)
         ax.text(0.5, 1.01*bar_ylvl, pval_str, fontsize='medium',
+                fontstyle='italic', va='bottom', ha='center')
+
+    # Add mean values.
+    for vec, xpos in [(v1, 0.2), (v2, 1.2)]:
+        mstr = '{:.2f}'.format(vec.mean())
+        ypos = 1.005 * vec.mean()
+        ax.text(xpos, ypos, mstr, fontstyle='italic', fontsize='smaller',
                 va='bottom', ha='center')
 
     # Format plot.

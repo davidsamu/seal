@@ -189,7 +189,7 @@ def rate(rate_list, names=None, prds=None, evts=None, cols=None, baseline=None,
         return ax
 
     if cols is None:
-        cols = putil.get_colors()
+        cols = putil.get_colors(as_cycle=False)
     if names is None:
         names = len(rate_list) * ['']
 

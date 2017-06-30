@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from seal.util import kernels, util, constants
-from seal.object import unitarray
+from seal.object import unit, unitarray
 
 
 # %% Init methods.
@@ -114,8 +114,13 @@ def select_n_most_DS_units(UA, utids, n):
     return n_utids
 
 
-def get_a_unit(UA, rec, task, levels=None):
+def get_a_unit(UA, rec=None, task=None, levels=None):
     """Query units for recording and task in UA."""
+
+    if rec is None:
+        rec = UA.recordings()[0]
+    if task is None:
+        task = UA.tasks()[0]
 
     # Check if there's any unit in task of recording.
     utids = UA.utids([task], [rec], levels)
@@ -223,6 +228,17 @@ def get_prd_mean_rates(UA, tasks, prd, ref_ev, nrate, tmax=None,
 
 
 # %% Manipulation methods.
+
+def merge_UnitArrays(UA1, UA2, copy=False):
+    """Merge two UnitArrays into a new one."""
+
+    mrgdUA = UA1.copy() if copy else UA1
+
+    mrgdUA.Units = pd.concat([mrgdUA.Units, UA2.Units])
+    mrgdUA.Units = mrgdUA.Units.fillna(unit.Unit())
+
+    return mrgdUA
+
 
 def add_rate(UA, name):
     """Add rate to units in UnitArray."""
