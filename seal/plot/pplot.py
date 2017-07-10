@@ -244,7 +244,7 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ci=68,
         _, pval = fstats(v1, v2)
         pval_str = util.format_pvalue(pval)
         if bar_ylvl is None:
-            bar_ylvl = 1.05 * max(v1.mean()+stats.sem(v1),
+            bar_ylvl = 1.1 * max(v1.mean()+stats.sem(v1),
                                   v2.mean()+stats.sem(v2))
         lines([0.1, 0.9], [bar_ylvl, bar_ylvl], color='grey', ax=ax)
         ax.text(0.5, 1.01*bar_ylvl, pval_str, fontsize='medium',
