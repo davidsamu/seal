@@ -36,9 +36,9 @@ def get_selection_params(u, UnTrSel=None):
     ntrials = len(u.TrialParams.index)
 
     # Find unit in selection table.
-    row = UnTrSel.ix[((UnTrSel.subj == subj) & (UnTrSel.date == date) &
-                      (UnTrSel.elec == elec) & (UnTrSel.ch == ch) &
-                      (UnTrSel.ux == ux) & (UnTrSel.task == task))]
+    row = UnTrSel.iloc[((UnTrSel.subj == subj) & (UnTrSel.date == date) &
+                       (UnTrSel.elec == elec) & (UnTrSel.ch == ch) &
+                       (UnTrSel.ux == ux) & (UnTrSel.task == task))]
     uname = '{}/{}/{}/{}/{}/{}'.format(subj, date, elec, ch, ux, task)
 
     # Unit not in table.

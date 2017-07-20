@@ -58,7 +58,7 @@ def DR_plot(UA, ftempl=None, match_scales=True):
 
 
 def selectivity_summary(UA, ftempl=None, match_scales=True):
-    """Test unit responses within trails."""
+    """Test selectivity of unit responses."""
 
     # Init plotting theme.
     putil.set_style('notebook', 'ticks')

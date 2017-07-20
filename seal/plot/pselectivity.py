@@ -103,10 +103,20 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             xlim = rate_ax.get_xlim()
             pauc.plot_auc_over_time(auc, tvec, prds, evnts,
                                     xlim=xlim, ax=roc_ax)
-            axes_roc.append(roc_ax)
 
+        # Some exception handling: set x axis range to predefined values if
+        # it is not set (probably due to no trial data plotted).
+        t1, t2 = constants.fixed_tr_prds.loc[prd]
+        axs = raster_axs + [rate_ax] + ([roc_ax] if plot_roc else [])
+        for ax in axs:
+            if ax.get_xlim() == (-0.001, 0.001):
+                ax.set_xlim([t1, t2])
+
+        # Collect axes.
         axes_raster.extend(raster_axs)
         axes_rate.append(rate_ax)
+        if plot_roc:
+            axes_roc.append(roc_ax)
 
     # Format rate and roc plots to make them match across trial periods.
 
@@ -330,11 +340,12 @@ def plot_selectivity(u, fig=None, sps=None):
     # Check which stimulus parameters were variable. Don't plot selectivity for
     # variables that were kept constant.
     stims = ('S1', 'S2')
+    trs = u.inc_trials()
     # Location.
-    s1locs, s2locs = [u.TrData[(stim, 'Loc')].unique() for stim in stims]
+    s1locs, s2locs = [u.TrData[(stim, 'Loc')][trs].unique() for stim in stims]
     plot_lr = False if (len(s1locs) == 1) and (len(s2locs) == 1) else True
     # Direction.
-    s1dirs, s2dirs = [u.TrData[(stim, 'Dir')].unique() for stim in stims]
+    s1dirs, s2dirs = [u.TrData[(stim, 'Dir')][trs].unique() for stim in stims]
     plot_dr = False if (len(s1dirs) == 1) and (len(s2dirs) == 1) else True
 
     # Init subplots.

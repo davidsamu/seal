@@ -72,10 +72,10 @@ def first_period(vauc, pvec, min_len, pth=None, vth_hi=0.5, vth_lo=0.5):
 
 def sort_by_time(aroc, pval, tmin, tmax, merge_hi_lo=False, fout=None,
                  **kwargs):
-    """Return restuls table with AROC effect sizes and timings."""
+    """Return results table with AROC effect sizes and timings."""
 
     # Get interval to sort by.
-    aroc_w, pval_w = [df.ix[:, float(tmin):float(tmax)] for df in (aroc, pval)]
+    aroc_w, pval_w = [df.loc[:, float(tmin):float(tmax)] for df in (aroc, pval)]
 
     # Get timing of first significant run of each unit.
     efftime = [first_period(aroc_w.loc[uid], pval_w.loc[uid], **kwargs)
@@ -161,8 +161,8 @@ def plot_ROC_heatmap(aroc, pval, task, nrate, tstep, n_perm, sort_prds,
             aroc_sorted[idx] = 1 - aroc_sorted[idx]
 
         # Truncate results to period requested.
-        aroc_sorted = aroc_sorted.ix[:, t1:t2]
-        pval_sorted = pval_sorted.ix[:, t1:t2]
+        aroc_sorted = aroc_sorted.loc[:, t1:t2]
+        pval_sorted = pval_sorted.loc[:, t1:t2]
 
         # Plot heatmap with sorted units.
         nunits = len(aroc_sorted)

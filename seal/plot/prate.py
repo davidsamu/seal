@@ -42,7 +42,8 @@ def prep_rr_plot_params(u, prd, ref, nrate=None, trs=None, max_len=None):
 
     # Get rates and rate times.
     nrate = u.init_nrate(nrate)
-    rates = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts) for tr in trs]
+    rates = [u._Rates[nrate].get_rates(tr, t1s, t2s, ref_ts, min_non_nan_trs=1)
+             for tr in trs]
 
     # Get trial set names.
     names = trs.index
