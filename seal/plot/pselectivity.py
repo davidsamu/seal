@@ -24,8 +24,10 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
             title=None, **kwargs):
     """Plot stimulus response (raster, rate and ROC) for mutliple stimuli."""
 
-    if not u.to_plot():
-        return
+    has_nan_val = (util.is_iterable(vals) and
+                   len([v for v in vals if np.isnan(float(v))]))
+    if not u.to_plot() or has_nan_val:
+        return [], [], []
 
     # Set up stimulus parameters.
     if prd_pars is None:
@@ -270,8 +272,10 @@ def plot_DR(u, sps, fig):
     if u.DS.empty:
         u.test_DS()
     stim = 'S2'  # testing S2, because S1 location can change btw tasks
-    pref_anti_dirs = [u.pref_dir(stim, 'weighted'),
-                      u.anti_pref_dir(stim, 'weighted')]
+    ds_type = 'weighted'
+    pref_anti_dirs = [u.pref_dir(stim, ds_type),
+                      u.anti_pref_dir(stim, ds_type)]
+
     t1, t2 = u.DS.TW.loc[stim]
     evts = pd.DataFrame([[t1, 'DS start'], [t2, 'DS end']],
                         columns=['time', 'lbl'])
