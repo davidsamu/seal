@@ -40,8 +40,8 @@ QC_THs = pd.DataFrame.from_items([('MT', [200*ms, 10]),
                                  columns=['wndw_len', 'minFR'])
 
 # Constants related to unit exclusion.
-min_SNR = 1.0           # min. SNR
-max_ISIvr = 1.5         # max. ISI violation ratio (%)
+min_SNR = 0.5           # min. SNR
+max_ISIvr = 2.5         # max. ISI violation ratio (%)
 min_n_trs = 50          # min. number of trials (in case subject quit)
 min_inc_trs_ratio = 50  # min. ratio of included trials out of all (%)
 
