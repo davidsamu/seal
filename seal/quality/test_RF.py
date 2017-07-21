@@ -18,7 +18,7 @@ from seal.plot import putil
 
 # Path to RF mapping tables.
 subjects = ['201', '202']
-fbase = '/home/upf/Research/data/RF mapping/'
+fbase = '/home/david/Research/data/RF mapping/'
 fRF = pd.Series([fbase + subj + '_RF_all_sessions.xlsx' for subj in subjects],
                 index=subjects)
 
