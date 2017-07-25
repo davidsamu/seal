@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib as mpl
+import matplotlib.ticker as plticker
 from matplotlib import pyplot as plt
 from matplotlib import gridspec as gs
 from matplotlib import collections as mc
@@ -376,7 +377,7 @@ def set_limits(ax=None, xlim=None, ylim=None):
         ax.set_ylim(ylim)
 
 
-def match_xy_limits(ax=None):
+def match_xy_limits(ax=None, tick_interval=10):
     """Match aspect (limits) of x and y axes."""
 
     ax = axes(ax)
@@ -384,6 +385,8 @@ def match_xy_limits(ax=None):
     lim = [min(xlim[0], ylim[0]), max(xlim[1], ylim[1])]
     ax.set_xlim(lim)
     ax.set_ylim(lim)
+    synch_ticks(ax, tick_interval)
+
 
 
 def set_aspect(ax=None, aspect=1, adjustable='datalim', anchor=None):
@@ -633,17 +636,14 @@ def sparsify_tick_labels(fig, ax=None, axis='x', freq=10, istart=0,
     fset_lbls(ax, lbls=lbls)
 
 
-def synch_ticks(ax=None, synch_to='x'):
+def synch_ticks(ax=None, tick_interval=10):
     """Synchronize tick labels between axes."""
 
     ax = axes(ax)
-
-    locs = ax.get_xticks() if synch_to == 'x' else ax.get_yticks()
-    lbls = ax.get_xticklabels() if synch_to == 'x' else ax.get_yticklabels()
-    lbls = [l.get_text() for l in lbls]
-
-    f = set_ytick_labels if synch_to == 'x' else set_xtick_labels
-    f(ax, locs, lbls)
+    # Puts ticks at regular intervals.
+    loc = plticker.MultipleLocator(base=tick_interval)
+    ax.xaxis.set_major_locator(loc)
+    ax.yaxis.set_major_locator(loc)
 
 
 # %% Functions to create and access axes and figures.
