@@ -82,7 +82,7 @@ def get_DSInfo_table(UA, utids=None, stim='S2', ds_type='weighted',
             PD = u.DS.PD.cPD[(stim, ds_type)]
         else:
             PD = u.DS.PD.PD[(stim, ds_type)]
-        DSI = u.DS.DSI.mDS[stim]
+        DSI = u.DS.DSI.mDS[stim] if ds_type == 'max' else u.DS.DSI.wDS[stim]
 
         DSInfo.append((utid, (PD, DSI)))
 

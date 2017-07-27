@@ -14,7 +14,6 @@ import pandas as pd
 
 from quantities import ms
 
-from seal.analysis import stats
 from seal.util import util, constants
 
 
@@ -45,10 +44,9 @@ def fano_factor_prd(spk_cnt_df):
     return ff_prd
 
 
-def fano_factor_trial_sets(u, trs_ser, win_width, t1s, t2s, ref_ts):
+def fano_factor_trial_sets(u, trs_ser, win_width, t1s, t2s, ref_ts=None):
     """Calculate Fano factor for each set of trials."""
 
-    # TODO: calculate this in pool!
     nrate = 'R' + str(int(win_width))
     dff = {}
     for name, trs in trs_ser.items():

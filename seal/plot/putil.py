@@ -135,7 +135,8 @@ def plot_signif_prds(sign_prds, ypos=None, color='c', linewidth=4, ax=None):
     ax = axes(ax)
 
     if ypos is None:
-        ypos = ax.get_ylim()[1]
+        ymin, ymax = ax.get_ylim()
+        ypos = ymin + 0.01 * (ymax - ymin)
 
     # Assamble line segments and add them to axes.
     line_segments = [[(t1, ypos), (t2, ypos)] for t1, t2 in sign_prds]
