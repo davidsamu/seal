@@ -126,7 +126,7 @@ def run_ROC_over_time(rates1, rates2, n_perm=None, clf=None):
 
 
 def run_unit_ROC_over_time(u, prd, ref_ev, trs_list, nrate, tstep, n_perm,
-                           verbose):
+                           zscore_by, verbose):
     """Run ROC analysis of unit over time. Suitable for parallelization."""
 
     # Report progress.
@@ -137,21 +137,37 @@ def run_unit_ROC_over_time(u, prd, ref_ev, trs_list, nrate, tstep, n_perm,
     t1s, t2s = u.pr_times(prd, concat=False)
     ref_ts = u.ev_times(ref_ev)
 
-    # Calculate AROC on rates.
+    # Prepare rates.
     rates1, rates2 = [u._Rates[nrate].get_rates(trs, t1s, t2s, ref_ts, tstep)
                       for trs in trs_list]
+
+    # Z-score rates by some trial parameter.
+    rates = pd.concat([rates1, rates2])
+    if zscore_by is not None:
+        ztrs = u.trials_by_param(zscore_by)
+        for par, trs in ztrs.items():
+            itrs = rates.index.intersection(trs)
+            if len(itrs):
+                irates = rates.loc[itrs]
+                mean = irates.mean()
+                std = irates.std(ddof=0)
+                rates.loc[itrs, :] = (irates - mean)/std
+    rates1, rates2 = [rates.loc[r.index] for r in (rates1, rates2)]
+
+    # Calculate AROC on rates.
     aroc_res = run_ROC_over_time(rates1, rates2, n_perm)
 
     return aroc_res
 
 
 def run_group_ROC_over_time(ulist, trs_list, prd, ref_ev, n_perm=None,
-                            nrate=None, tstep=None, verbose=True):
+                            nrate=None, tstep=None, zscore_by=None,
+                            verbose=True):
     """Run ROC over list of units over time."""
 
     # Run unit-wise AROC test in pool.
-    params = [(u, prd, ref_ev, trs_list[i], nrate, tstep, n_perm, verbose)
-              for i, u in enumerate(ulist)]
+    params = [(u, prd, ref_ev, trs_list[i], nrate, tstep,
+               n_perm, zscore_by, verbose) for i, u in enumerate(ulist)]
     aroc_res = util.run_in_pool(run_unit_ROC_over_time, params)
 
     # Separate AUC and p-values.
@@ -181,7 +197,7 @@ def calc_AROC(ulist, trs_list, prd_pars, n_perm, nrate, tstep, fres,
         # Calculate AROC DF.
         aroc, pval = run_group_ROC_over_time(ulist, trs_list[stim], prd,
                                              ref_ev, n_perm, nrate, tstep,
-                                             verbose)
+                                             zscore_by, verbose)
         aroc_list.append(aroc)
         pval_list.append(pval)
 
