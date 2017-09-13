@@ -389,7 +389,6 @@ def match_xy_limits(ax=None, tick_interval=10):
     synch_ticks(ax, tick_interval)
 
 
-
 def set_aspect(ax=None, aspect=1, adjustable='datalim', anchor=None):
     """Matches aspect ratio of axes."""
 

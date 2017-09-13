@@ -21,7 +21,7 @@ from seal.analysis import direction
 # %% Unit and trial selection.
 
 def select_units_trials(UA, utids=None, fres=None, ffig=None,
-                          min_n_units=5, min_n_trs_per_unit=5):
+                        min_n_units=5, min_n_trs_per_unit=5):
     """
     Select optimal set of units and trials for population decoding.
 
@@ -317,9 +317,8 @@ def PD_across_units(UA, UInc, utids=None, fres=None, ffig=None):
                      ', PDSI = {:.2f}'.format(PDSI))
             PDrad = direction.deg2rad(util.remove_dim_from_series(rtDSInfo.PD))
             pplot.scatter(PDrad, rtDSInfo.DSI, rtDSInfo.include, ylim=[0, 1],
-                          title=title, ytitle=1.08, c='darkblue',
-                          edgecolor='k', linewidth=1, s=80, alpha=0.8,
-                          zorder=2, ax=ax)
+                          title=title, ytitle=1.08, c='darkblue', ec='k',
+                          linewidth=1, s=80, alpha=0.8, zorder=2, ax=ax)
 
             # Highlight PPD and PAD.
             offsets = np.array([-45, 0, 45]) * deg

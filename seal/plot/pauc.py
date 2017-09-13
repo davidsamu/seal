@@ -64,7 +64,7 @@ def plot_auc_heatmap(aroc_mat, cmap='viridis', events=None, xlbl_freq=500,
                        ylab=ylab, title=title, yticklabels=yticklabels)
 
     # Format labels.
-    xlbls = aroc_mat.columns.map(str)
+    xlbls = pd.Series(aroc_mat.columns.map(str))
     xlbls[aroc_mat.columns % xlbl_freq != 0] = ''
     putil.set_xtick_labels(ax, lbls=xlbls)
     putil.rot_xtick_labels(ax, rot=0, ha='center')

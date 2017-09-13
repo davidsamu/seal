@@ -98,8 +98,7 @@ def selectivity_summary(UA, ftempl=None, match_scales=True):
             putil.save_fig(ffig, fig, title)
 
 
-def plot_response(f_sealcombined, resp_plot_dir,
-                  plot_DR=True, plot_sel=True):
+def plot_response(f_sealcombined, resp_plot_dir, plot_DR=True, plot_sel=True):
     """Plot basic unit activity figures."""
 
     print('\nStarting plotting unit activity...')

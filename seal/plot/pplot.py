@@ -71,7 +71,8 @@ def sign_scatter(v1, v2, pvals=None, pth=0.01, scol='g', nscol='k',
 
 def scatter(x, y, is_sign=None, c='b', bc='w', nc='grey', ec='k', alpha=0.5,
             xlim=None, ylim=None, xlab=None, ylab=None, title=None,
-            ytitle=None, polar=False, ffig=None, ax=None, **kwargs):
+            ytitle=None, polar=False, id_line=True,
+            ffig=None, ax=None, **kwargs):
     """
     Plot paired data on scatter plot.
     Color settings:
@@ -89,6 +90,10 @@ def scatter(x, y, is_sign=None, c='b', bc='w', nc='grey', ec='k', alpha=0.5,
 
     # Plot colored points.
     ax.scatter(x, y, c=cols, edgecolor=ec, alpha=alpha, **kwargs)
+
+    # Add identity line.
+    if id_line:
+        putil.add_identity_line(equal_xy=True, zorder=99, ax=ax)
 
     # Format and save figure.
     putil.format_plot(ax, xlim, ylim, xlab, ylab, title, ytitle)
@@ -233,7 +238,8 @@ def cat_mean(df, x, y, add_stats=True, fstats=None, bar_ylvl=None, ci=68,
         fstats = stats.mann_whithney_u_test
 
     # Plot means as bars.
-    sns.barplot(x=x, y=y, data=df, ci=ci, ax=ax)
+    sns.barplot(x=x, y=y, data=df, ci=ci, ax=ax, palette=palette,
+                errwidth=errwidth, **kwargs)
 
     # Get plotted vectors.
     ngrps = [t.get_text() for t in ax.get_xticklabels()]
