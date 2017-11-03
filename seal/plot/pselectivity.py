@@ -108,11 +108,12 @@ def plot_SR(u, param=None, vals=None, from_trs=None, prd_pars=None, nrate=None,
 
         # Some exception handling: set x axis range to predefined values if
         # it is not set (probably due to no trial data plotted).
-        t1, t2 = constants.fixed_tr_prds.loc[prd]
-        axs = raster_axs + [rate_ax] + ([roc_ax] if plot_roc else [])
-        for ax in axs:
-            if ax.get_xlim() == (-0.001, 0.001):
-                ax.set_xlim([t1, t2])
+        if prd in constants.fixed_tr_prds.index:
+            t1, t2 = constants.fixed_tr_prds.loc[prd]
+            axs = raster_axs + [rate_ax] + ([roc_ax] if plot_roc else [])
+            for ax in axs:
+                if ax.get_xlim() == (-0.001, 0.001):
+                    ax.set_xlim([t1, t2])
 
         # Collect axes.
         axes_raster.extend(raster_axs)
