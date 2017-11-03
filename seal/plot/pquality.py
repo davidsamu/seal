@@ -132,7 +132,8 @@ def plot_qm(u, bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc,
     xlab, ylab = (ses_t_lab, amp_lab) if add_lbls else (None, None)
     pplot.scatter(spk_times, wf_amp_all, spk_inc, c='m', bc='grey', s=ss,
                   xlab=xlab, ylab=ylab, xlim=ses_t_lim, ylim=amp_lim,
-                  edgecolors='', alpha=sa, title=title, ax=ax_wf_amp)
+                  edgecolors='', alpha=sa, id_line=False, title=title,
+                  ax=ax_wf_amp)
 
     # Waveform duration across session time.
     mdur, sdur = wf_dur_inc.mean(), wf_dur_inc.std()
@@ -140,7 +141,8 @@ def plot_qm(u, bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc,
     xlab, ylab = (ses_t_lab, dur_lab) if add_lbls else (None, None)
     pplot.scatter(spk_times, wf_dur_all, spk_inc, c='c', bc='grey', s=ss,
                   xlab=xlab, ylab=ylab, xlim=ses_t_lim, ylim=dur_lim,
-                  edgecolors='', alpha=sa, title=title, ax=ax_wf_dur)
+                  edgecolors='', alpha=sa, id_line=False, title=title,
+                  ax=ax_wf_dur)
 
     # Waveform duration against amplitude.
     title = 'WF duration - amplitude'
@@ -148,7 +150,7 @@ def plot_qm(u, bs_stats, stab_prd_res, prd_inc, tr_inc, spk_inc,
     pplot.scatter(wf_dur_all[spk_order], wf_amp_all[spk_order],
                   c=spk_cols[spk_order], s=ss, xlab=xlab, ylab=ylab,
                   xlim=dur_lim, ylim=amp_lim, edgecolors='', alpha=sa,
-                  title=title, ax=ax_amp_dur)
+                  id_line=False, title=title, ax=ax_amp_dur)
 
     # %% Firing rate.
 
