@@ -244,8 +244,15 @@ def add_rate(UA, name):
     """Add rate to units in UnitArray."""
 
     kernel, step = kernels.kernel_set([(name, kernels.kstep)]).loc[name]
-    [u.add_rate(name, kernel, step) for u in UA.iter_thru()
-     if name not in u._Rates]
+
+    # FIX: Cannot run it in pool as that creates a local copy.
+    for u in UA.iter_thru():
+        print(u.Name)
+
+        if name in u._Rates:
+            continue
+
+        u.add_rate(name, kernel, step)
 
 
 def rem_rate(UA, name):
