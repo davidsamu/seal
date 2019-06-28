@@ -33,7 +33,7 @@
 
 - Start PlexUtil (shortcut is on Desktop).
 - Select sorted file (output of above section) and press 'Split' button in toolbar.
-- Select ‘Split into Multiple PLX Files’, then ‘All Channels’, then ‘By Frames’.
+- Select ‘Split into Multiple PLX Files’, then ‘All Channels’, then ‘By Frames’, then check the box 'Adjust Start Time and update all timestamps'.
 - Set output folder and file name in next window.
   - Folder should be: ..\Sorted (see [folder structure conventions](https://github.com/davidsamu/seal/blob/master/doc/SOPs/Data%20folder%20structure%20conventions.md))
   - Accept suggested file name without any change.
